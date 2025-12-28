@@ -1,0 +1,61 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+
+	"{{.PROJECT_NAME}}/modules/{{.MODULE_NAME}}/internal/db/store"
+)
+
+type Repository interface {
+	WithTx(ctx context.Context, fn func(Repository) error) error
+	Create{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, id, name string) error
+	Get{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, id string) (*store.{{.MODULE_NAME_CAPITALIZED}}, error)
+}
+
+type SQLRepository struct {
+	q  *store.Queries
+	db *sql.DB
+}
+
+func NewSQLRepository(db *sql.DB) *SQLRepository {
+	return &SQLRepository{
+		q:  store.New(db),
+		db: db,
+	}
+}
+
+func (r *SQLRepository) WithTx(ctx context.Context, fn func(Repository) error) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	txRepo := &SQLRepository{
+		q:  r.q.WithTx(tx),
+		db: r.db,
+	}
+
+	if err := fn(txRepo); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (r *SQLRepository) Create{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, id, name string) error {
+	return r.q.Create{{.MODULE_NAME_CAPITALIZED}}(ctx, store.Create{{.MODULE_NAME_CAPITALIZED}}Params{
+		ID:   id,
+		Name: name,
+	})
+}
+
+func (r *SQLRepository) Get{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, id string) (*store.{{.MODULE_NAME_CAPITALIZED}}, error) {
+	row, err := r.q.Get{{.MODULE_NAME_CAPITALIZED}}(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error getting {{.MODULE_NAME}}: %w", err)
+	}
+	return &row, nil
+}

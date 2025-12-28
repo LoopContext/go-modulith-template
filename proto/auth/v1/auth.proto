@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package auth.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1;authv1";
+
+service AuthService {
+  // RequestLogin initiates the login process by sending a magic code to email or phone
+  rpc RequestLogin(RequestLoginRequest) returns (RequestLoginResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/login/request"
+      body: "*"
+    };
+  }
+
+  // CompleteLogin keeps the code and verifies it to return a token
+  rpc CompleteLogin(CompleteLoginRequest) returns (CompleteLoginResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/login/complete"
+      body: "*"
+    };
+  }
+}
+
+message RequestLoginRequest {
+  // One of email or phone must be provided
+  string email = 1;
+  string phone = 2;
+}
+
+message RequestLoginResponse {
+  bool success = 1;
+  string message = 2; // e.g. "Magic code sent"
+}
+
+message CompleteLoginRequest {
+  string email = 1;
+  string phone = 2;
+  string code = 3;
+}
+
+message CompleteLoginResponse {
+  string access_token = 1; // JWS
+  string refresh_token = 2; // JWS
+  int64 expires_in = 3; // Seconds
+}

@@ -1,0 +1,45 @@
+package service
+
+import (
+	"context"
+	"log/slog"
+
+	{{.MODULE_NAME}}v1 "{{.PROJECT_NAME}}/gen/go/proto/{{.MODULE_NAME}}/v1"
+	"{{.PROJECT_NAME}}/modules/{{.MODULE_NAME}}/internal/repository"
+	"go.jetify.com/typeid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+type {{.MODULE_NAME_CAPITALIZED}}Service struct {
+	{{.MODULE_NAME}}v1.Unimplemented{{.MODULE_NAME_CAPITALIZED}}ServiceServer
+	repo repository.Repository
+}
+
+func New{{.MODULE_NAME_CAPITALIZED}}Service(repo repository.Repository) *{{.MODULE_NAME_CAPITALIZED}}Service {
+	return &{{.MODULE_NAME_CAPITALIZED}}Service{
+		repo: repo,
+	}
+}
+
+func (s *{{.MODULE_NAME_CAPITALIZED}}Service) Create{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, req *{{.MODULE_NAME}}v1.Create{{.MODULE_NAME_CAPITALIZED}}Request) (*{{.MODULE_NAME}}v1.Create{{.MODULE_NAME_CAPITALIZED}}Response, error) {
+	// 1. Domain Logic: ID Generation (TypeID)
+	tid, err := typeid.WithPrefix("{{.MODULE_NAME}}")
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to generate typeid", "error", err)
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+	id := tid.String()
+
+	// 2. Persistence
+	err = s.repo.Create{{.MODULE_NAME_CAPITALIZED}}(ctx, id, req.Name)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to create {{.MODULE_NAME}}", "error", err, "id", id)
+		return nil, status.Error(codes.Internal, "failed to create {{.MODULE_NAME}}")
+	}
+
+	return &{{.MODULE_NAME}}v1.Create{{.MODULE_NAME_CAPITALIZED}}Response{
+		Id:   id,
+		Name: req.Name,
+	}, nil
+}

@@ -1,0 +1,7 @@
+# Binaries
+bin/
+/server
+
+# Env
+.env
+!.env.example

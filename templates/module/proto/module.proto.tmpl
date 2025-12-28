@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package {{.MODULE_NAME}}.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "{{.PROJECT_NAME}}/gen/go/proto/{{.MODULE_NAME}}/v1;{{.MODULE_NAME}}v1";
+
+service {{.MODULE_NAME_CAPITALIZED}}Service {
+  rpc Create{{.MODULE_NAME_CAPITALIZED}}(Create{{.MODULE_NAME_CAPITALIZED}}Request) returns (Create{{.MODULE_NAME_CAPITALIZED}}Response) {
+    option (google.api.http) = {
+      post: "/v1/{{.MODULE_NAME_PLURAL}}"
+      body: "*"
+    };
+  }
+
+  rpc Get{{.MODULE_NAME_CAPITALIZED}}(Get{{.MODULE_NAME_CAPITALIZED}}Request) returns (Get{{.MODULE_NAME_CAPITALIZED}}Response) {
+    option (google.api.http) = {
+      get: "/v1/{{.MODULE_NAME_PLURAL}}/{id}"
+    };
+  }
+}
+
+message Create{{.MODULE_NAME_CAPITALIZED}}Request {
+  string name = 1;
+}
+
+message Create{{.MODULE_NAME_CAPITALIZED}}Response {
+  string id = 1;
+  string name = 2;
+}
+
+message Get{{.MODULE_NAME_CAPITALIZED}}Request {
+  string id = 1;
+}
+
+message Get{{.MODULE_NAME_CAPITALIZED}}Response {
+  string id = 1;
+  string name = 2;
+}

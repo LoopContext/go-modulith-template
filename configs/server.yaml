@@ -1,0 +1,7 @@
+env: dev
+http_port: 8080
+grpc_port: 9050
+db_dsn: postgres://postgres:postgres@localhost:5432/modulith_demo?sslmode=disable
+
+auth:
+  jwt_secret: "monolith-secret-key-at-least-32-bytes-long"

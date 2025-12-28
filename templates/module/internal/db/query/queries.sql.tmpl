@@ -1,0 +1,5 @@
+-- name: Create{{.MODULE_NAME_CAPITALIZED}} :exec
+INSERT INTO {{.MODULE_NAME_PLURAL}} (id, name) VALUES ($1, $2);
+
+-- name: Get{{.MODULE_NAME_CAPITALIZED}} :one
+SELECT * FROM {{.MODULE_NAME_PLURAL}} WHERE id = $1 LIMIT 1;
