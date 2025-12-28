@@ -5,3 +5,7 @@ bin/
 # Env
 .env
 !.env.example
+
+# Test coverage
+coverage.out
+*.out

@@ -1,3 +1,4 @@
+// Package main is the entry point for the auth service.
 package main
 
 import (
@@ -8,6 +9,8 @@ import (
 	"os"
 
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
+	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
@@ -39,8 +42,16 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 
+	// Initialize Event Bus
+	ebus := events.NewBus()
+
+	// Initialize Notifier & Subscriber (Asynchronous delivery)
+	ntf := notifier.NewLogNotifier()
+	ns := notifier.NewSubscriber(ntf)
+	ns.SubscribeToEvents(ebus)
+
 	// Initialize ONLY the Auth module
-	if err := auth.Initialize(db, grpcServer, cfg.Auth); err != nil {
+	if err := auth.Initialize(db, grpcServer, ebus, cfg.Auth); err != nil {
 		slog.Error("Failed to initialize auth module", "error", err)
 		os.Exit(1)
 	}
@@ -48,6 +59,7 @@ func main() {
 	reflection.Register(grpcServer)
 
 	slog.Info("Auth Microservice starting", "port", cfg.GRPCPort)
+
 	if err := grpcServer.Serve(lis); err != nil {
 		slog.Error("Failed to serve", "error", err)
 		os.Exit(1)

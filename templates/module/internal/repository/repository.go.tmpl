@@ -1,3 +1,4 @@
+// Package repository provides the data access layer for the {{.MODULE_NAME}} module.
 package repository
 
 import (
@@ -8,17 +9,20 @@ import (
 	"{{.PROJECT_NAME}}/modules/{{.MODULE_NAME}}/internal/db/store"
 )
 
+// Repository is the interface for the {{.MODULE_NAME}} module data access.
 type Repository interface {
 	WithTx(ctx context.Context, fn func(Repository) error) error
 	Create{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, id, name string) error
-	Get{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, id string) (*store.{{.MODULE_NAME_CAPITALIZED}}, error)
+	Get{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, id string) (*store.{{.MODULE_STRUCT_NAME}}, error)
 }
 
+// SQLRepository implements the Repository interface using SQL.
 type SQLRepository struct {
 	q  *store.Queries
 	db *sql.DB
 }
 
+// NewSQLRepository creates a new instance of SQLRepository.
 func NewSQLRepository(db *sql.DB) *SQLRepository {
 	return &SQLRepository{
 		q:  store.New(db),
@@ -26,12 +30,16 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 	}
 }
 
+// WithTx executes the given function within a database transaction.
 func (r *SQLRepository) WithTx(ctx context.Context, fn func(Repository) error) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	txRepo := &SQLRepository{
 		q:  r.q.WithTx(tx),
@@ -42,20 +50,31 @@ func (r *SQLRepository) WithTx(ctx context.Context, fn func(Repository) error) e
 		return err
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
+// Create{{.MODULE_NAME_CAPITALIZED}} creates a new {{.MODULE_NAME}} record.
 func (r *SQLRepository) Create{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, id, name string) error {
-	return r.q.Create{{.MODULE_NAME_CAPITALIZED}}(ctx, store.Create{{.MODULE_NAME_CAPITALIZED}}Params{
+	if err := r.q.Create{{.MODULE_NAME_CAPITALIZED}}(ctx, store.Create{{.MODULE_NAME_CAPITALIZED}}Params{
 		ID:   id,
 		Name: name,
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to create {{.MODULE_NAME}}: %w", err)
+	}
+
+	return nil
 }
 
-func (r *SQLRepository) Get{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, id string) (*store.{{.MODULE_NAME_CAPITALIZED}}, error) {
+// Get{{.MODULE_NAME_CAPITALIZED}} retrieves a {{.MODULE_NAME}} record by its ID.
+func (r *SQLRepository) Get{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, id string) (*store.{{.MODULE_STRUCT_NAME}}, error) {
 	row, err := r.q.Get{{.MODULE_NAME_CAPITALIZED}}(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error getting {{.MODULE_NAME}}: %w", err)
 	}
+
 	return &row, nil
 }

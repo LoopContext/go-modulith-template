@@ -137,9 +137,14 @@ La jerarquía de configuración favorece la flexibilidad tanto en desarrollo com
 
 ### Jerarquía de Carga
 La aplicación carga la configuración en este orden (el último sobreescribe al anterior):
-1.  **Valores por Defecto:** Definidos en el código (`internal/config/config.go`).
+1.  **Fallback Dinámico:** Si una variable no está en el YAML ni en el Env, se usa el default de `config.go`.
 2.  **Archivo YAML:** Ubicado en la carpeta `configs/` y especificado al iniciar la aplicación (ej. `configs/server.yaml`).
 3.  **Variables de Entorno:** Cargadas desde el sistema o via archivos `.env` (usando `godotenv`).
+
+### Agregar nueva configuración
+1.  Añadir el campo al struct en `internal/config/config.go` con los tags `yaml` y `envconfig` (o similar).
+2.  Actualizar los archivos YAML en `configs/` si el valor es específico del entorno.
+3.  Inyectar el struct de configuración en la función `Initialize` del módulo correspondiente.
 
 ### Variables de Entorno Clave
 Aunque residan en el YAML, estas variables son críticas para el entorno de ejecución:
@@ -157,7 +162,7 @@ Utilizamos Docker Compose para levantar dependencias (Base de Datos).
 
 La observabilidad es ciudadana de primera clase. No se debe desplegar código sin visibilidad.
 
-### 11.1. Logs Estructurados
+### 12.1. Logs Estructurados
 Usamos la librería estándar `log/slog` (Go 1.21+).
 *   **Formato:** JSON en producción, Texto en desarrollo.
 *   **Contexto:** Todo log debe incluir `trace_id` y `span_id` si existen en el contexto.
@@ -168,7 +173,7 @@ Usamos la librería estándar `log/slog` (Go 1.21+).
 slog.InfoContext(ctx, "user created", "user_id", id) // Evitar loguear el email aquí
 ```
 
-### 11.2. Métricas (OpenTelemetry)
+### 12.2. Métricas (OpenTelemetry)
 Instrumentamos la aplicación usando el SDK de OpenTelemetry.
 *   **Protocolo:** Prometheus (`/metrics`).
 *   **Métricas Standard:**
@@ -176,9 +181,53 @@ Instrumentamos la aplicación usando el SDK de OpenTelemetry.
     *   `grpc_server_handled_total` (Contador).
 *   **Mapeo:** Middleware/Interceptores automáticos para gRPC y HTTP.
 
-## 13. Guía de Implementación: De Cero a Producción
+### 12.3. Health Checks
+El sistema expone dos endpoints críticos para el orquestador (K8s):
+*   **/healthz (Liveness):** Indica si el proceso está vivo. Retorna `200 OK`.
+*   **/readyz (Readiness):** Indica si el servicio puede recibir tráfico (ej. validando conexión a DB).
 
-Esta sección ilustra el flujo completo para construir un módulo funcional (ejemplo: `users`) siguiendo el ciclo de vida del dato: desde la definición de la API hasta la base de datos.
+### 12.4. Tracing (OpenTelemetry)
+Implementamos trazabilidad distribuida usando el exportador OTLP.
+*   **Propagación:** Los traces viajan automáticamente a través de los interceptores gRPC.
+*   **Contexto:** Permite ver el camino de una petición desde el gateway hasta el repositorio.
+
+## 13. Comunicación Asíncrona (Eventos)
+
+Para evitar acoplamiento fuerte entre módulos, disponemos de un **Bus de Eventos** interno (`internal/events`).
+
+*   **Patrón Pub/Sub:** Los módulos se suscriben a eventos (ej. `user.created`) sin conocer quién los emite.
+*   **No Bloqueante:** La publicación de eventos ocurre en goroutines separadas para no penalizar el tiempo de respuesta gRPC/HTTP.
+*   **Extensibilidad:** Facilita añadir efectos secundarios (auditoría, notificaciones) sin modificar el servicio original.
+
+### Ejemplo de Uso (Service -> Audit)
+```go
+// En modules/users/internal/service/service.go
+bus.Publish(ctx, events.Event{
+    Name: "user.created",
+    Payload: map[string]string{"id": id, "email": email},
+})
+
+// En modules/audit/module.go
+eventBus.Subscribe("user.created", func(ctx context.Context, e events.Event) error {
+    slog.InfoContext(ctx, "audit: logging user creation", "payload", e.Payload)
+    return nil
+})
+```
+
+## 14. Escalabilidad y Alta Disponibilidad
+
+El diseño modular y el empaquetado permiten escalar el sistema de forma eficiente:
+
+### Horizontal Pod Autoscaler (HPA)
+El sistema soporta escalado automático basado en CPU/Memoria definido en el Helm Chart. Se recomienda un umbral del 80% para disparar nuevas réplicas.
+
+### Graceful Shutdown
+La aplicación maneja señales de terminación para cerrar conexiones a base de datos y terminar peticiones gRPC en curso antes de morir.
+
+### Pod Disruption Budget (PDB)
+Garantizamos un mínimo de disponibilidad durante mantenimientos del cluster Kubernetes, asegurando que siempre haya al menos una réplica operativa.
+
+## 15. Guía de Implementación: De Cero a Producción
 
 ### Fase 1: Definición del Contrato (Protocol Buffers)
 
@@ -355,7 +404,8 @@ func (s *UserService) CreateUser(ctx context.Context, req *usersv1.CreateUserReq
 }
 ```
 
-## 14. Workflows de Desarrollo (Development Workflows)
+---
+## 16. Workflows de Desarrollo (Development Workflows)
 
 ### Agregar un nuevo campo a una tabla
 
@@ -368,6 +418,16 @@ func (s *UserService) CreateUser(ctx context.Context, req *usersv1.CreateUserReq
 
 Establecemos una disciplina de testing que garantice la calidad sin burocracia:
 
+### Hot Reload (Desarrollo Rápido)
+
+Para una experiencia de desarrollo fluida, utilizamos **Air** para recompilar automáticamente el código al guardar:
+
+1.  **Monolito:** `make dev`
+2.  **Microservicio Auth:** `make dev-auth`
+
+> [!TIP]
+> Air vigila cambios en archivos `.go`, `.yaml`, `.proto` y `.sql`, reiniciando el binario instantáneamente.
+
 *   **Convención:** Archivos `*_test.go` al lado del código que prueban.
 *   **Unit Tests:**
     *   **Enfoque:** Probar lógica de negocio pura y transformaciones.
@@ -377,7 +437,7 @@ Establecemos una disciplina de testing que garantice la calidad sin burocracia:
     *   **Infra:** Usar `docker-compose` o **Testcontainers** para levantar una base de datos real.
     *   **Flujo:** Probar el endpoint gRPC -> Repository -> DB real y verificar efectos secundarios.
 
-## 15. Generación Automática de Módulos (Scaffolding)
+## 17. Generación Automática de Módulos (Scaffolding)
 
 Para acelerar el inicio de nuevos módulos y asegurar que sigan los estándares definidos, disponemos de una herramienta de scaffolding.
 
@@ -389,7 +449,7 @@ Para acelerar el inicio de nuevos módulos y asegurar que sigan los estándares 
     *   `modules/[name]/resources/db/migration/`: Script inicial de base de datos.
     *   `proto/[name]/v1/`: Contrato inicial del servicio.
 
-## 16. Despliegue Granular y Configuración (Microservices Path)
+## 18. Despliegue Granular y Configuración (Microservices Path)
 
 Un Modulito bien diseñado permite transicionar de un único binario (Monolito) a múltiples binarios (Microservicios) sin cambiar la lógica de los módulos.
 
@@ -423,4 +483,91 @@ Cuando los módulos viven en binarios distintos, las llamadas gRPC que antes era
 *   El cliente gRPC inyectado en un módulo debe apuntar a la dirección del microservicio externo en lugar de `127.0.0.1` (o usar la misma interfaz de cliente).
 
 ---
-**Nota Final:** Esta arquitectura favorece la seguridad en tiempo de compilación y la disciplina operativa. Go 1.23+ se elige por el soporte nativo de `slog`, mejoras en el `toolchain` y optimizaciones de performance que permiten un código más limpio y eficiente.
+## 19. Contenerización y Despliegue en la Nube
+
+El proyecto está preparado para ejecutarse en entornos de contenedores (Docker) y orquestadores (Kubernetes) de forma nativa.
+
+### Dockerfile: Multi-Stage Build
+Utilizamos un `Dockerfile` optimizado con dos etapas:
+1.  **Builder:** Compila el binario en una imagen de Go (Alpine). Permite elegir el target vía `--build-arg TARGET=[server|auth-svc]`.
+2.  **Runner:** Una imagen ligera (`alpine`) que solo contiene el binario y los archivos de configuración necesarios.
+
+```bash
+# Ejemplo: Construir el microservicio de Auth
+make docker-build-auth
+```
+
+### Helm Charts: Kubernetes
+En `deployment/helm/modulith` se encuentra el chart estándar para desplegar en K8s.
+- **Valores por Entorno:** Se recomienda usar diferentes archivos `values.yaml` (ej. `values-prod.yaml`) para manejar secretos y recursos por cluster.
+- **Flexibilidad:** El mismo chart puede desplegar tanto el Monolito como instancias individuales de microservicios ajustando la imagen y los comandos de inicio.
+
+## 20. Infraestructura como Código (IaC)
+
+Manejamos la infraestructura utilizando un enfoque modular con **OpenTofu** (Fork Open Source de Terraform) y **Terragrunt** para garantizar entornos consistentes y reproducibles.
+
+### Estructura de Directorios
+*   `deployment/opentofu/modules/`: Definición de componentes base (VPC, RDS, EKS).
+*   `deployment/terragrunt/envs/`: Configuraciones específicas por entorno (`dev`, `prod`).
+
+### Módulos Principales
+1.  **VPC (Red):** Configura subredes públicas (ELBs) y privadas (Nodos/DB) con NAT Gateway.
+2.  **RDS (Base de Datos):** Instancia de PostgreSQL 16 aislada en subredes privadas.
+3.  **EKS (Compute):** Cluster de Kubernetes gestionado con Node Groups escalables.
+
+### Despliegue con Terragrunt
+Terragrunt nos permite mantener el código DRY (Don't Repeat Yourself) y es 100% compatible con OpenTofu. Para desplegar el entorno de desarrollo:
+
+```bash
+cd deployment/terragrunt/envs/dev
+terragrunt run-all plan  # Previsualizar cambios (usa tofu internamente)
+terragrunt run-all apply # Aplicar infraestructura
+```
+
+---
+## 21. CI/CD y Calidad de Código
+
+El proyecto integra un pipeline de automatización para garantizar la estabilidad:
+
+### GitHub Actions
+Se ejecutan automáticamente en cada Push/PR:
+1.  **Checksum/Verify:** Valida que las dependencias no hayan sido alteradas.
+### Calidad de Código Estricta
+
+El proyecto impone un estándar de calidad de "Clase Mundial" a través de un linter altamente configurado:
+
+1.  **Linter Estricto:** `golangci-lint` está configurado para detectar no solo errores, sino también:
+    - **Complejidad Ciclomática y Cognitiva:** Evita funciones inmanejables.
+    - **Nivel de Anidación:** Máximo 5 niveles (linters `nestif`).
+    - **Documentación:** Todo elemento público **DEBE** tener comentarios de Godoc.
+    - **Seguridad:** Análisis estático con `gosec` en cada commit.
+2.  **Validación de Configuración:** El cargador de configuración valida semánticamente las variables críticas antes de que la aplicación inicie (Fail-Fast).
+3.  **Tests con Race Detection:** No se permite código con condiciones de carrera (`-race`).
+
+## 22. Checklist de Replicabilidad para LLMs
+
+Si estás utilizando un LLM para generar o extender este proyecto, asegúrate de seguir este orden lógico para mantener la integridad:
+
+1.  **Skeleton Primero:** Crea la estructura de carpetas y los archivos `go.mod`, `buf.yaml`, `sqlc.yaml`.
+2.  **Contrato (Proto):** Define los archivos `.proto` y genera el código con `buf generate`.
+3.  **Persistencia (SQL):** Crea las migraciones `.sql` y genera el store con `sqlc generate`.
+4.  **Repositorio:** Implementa la interfaz `Repository` envolviendo el código de `sqlc`.
+5.  **Servicio:** Crea la lógica de negocio, genera los **TypeIDs** y realiza el mapeo de errores gRPC.
+6.  **Cableado (Module):** Exporta la función `Initialize` del módulo y regístrala en `cmd/server/main.go`.
+7.  **Inyección:** Asegúrate de que el `db *sql.DB` y el `bus *events.Bus` se pasen correctamente entre capas.
+
+## 23. Abstracciones de Notificación (Event-Driven Notifiers)
+
+Para evitar el acoplamiento con proveedores externos (Twilio, SendGrid, etc.), el sistema utiliza el **Patrón Adapter** combinado con un enfoque **Event-Driven**.
+
+*   **Interfaces:** Definidas en `internal/notifier/notifier.go` (`EmailProvider`, `SMSProvider`).
+*   **Implementación Reactiva:** Un `notifier.Subscriber` escucha eventos globales (ej. `auth.magic_code_requested`) y despacha la notificación de forma **asíncrona** y **no bloqueante**.
+*   **LogNotifier para Dev:** Imprime las notificaciones en los logs estructurados, permitiendo probar flujos como el "Magic Code" sin configurar APIs externas.
+*   **Inyección y Registro:**
+    - El módulo (ej. `auth`) emite el evento al `Bus`.
+    - El `Subscriber` se registra al `Bus` en el `main.go`, garantizando que la lógica de entrega esté totalmente fuera del dominio del módulo.
+
+---
+## 24. Futuras Mejoras y Nota Final
+
+Esta arquitectura favorece la seguridad en tiempo de compilación y la disciplina operativa. Go 1.23+ se elige por el soporte nativo de `slog`, mejoras en el `toolchain` y optimizaciones de performance que permiten un código más limpio y eficiente.

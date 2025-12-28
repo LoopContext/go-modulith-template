@@ -8,9 +8,21 @@ fi
 
 MODULE_NAME=$1
 PROJECT_NAME="github.com/cmelgarejo/go-modulith-template"
-# Capitalize first letter (compatible with older bash)
+
+# Capitalize first letter
 MODULE_NAME_CAPITALIZED="$(tr '[:lower:]' '[:upper:]' <<< ${MODULE_NAME:0:1})${MODULE_NAME:1}"
-MODULE_NAME_PLURAL="${MODULE_NAME}s" # Simple pluralization
+
+# Handle pluralization for table names and SQLC struct names
+if [[ "${MODULE_NAME}" == *s ]]; then
+    MODULE_NAME_PLURAL="${MODULE_NAME}"
+    # SQLC usually singularizes table names for structs (e.g. products -> Product)
+    # Simple singularization: remove trailing 's' then capitalize
+    SINGULAR_NAME="${MODULE_NAME%s}"
+    MODULE_STRUCT_NAME="$(tr '[:lower:]' '[:upper:]' <<< ${SINGULAR_NAME:0:1})${SINGULAR_NAME:1}"
+else
+    MODULE_NAME_PLURAL="${MODULE_NAME}s"
+    MODULE_STRUCT_NAME="${MODULE_NAME_CAPITALIZED}"
+fi
 
 MODULE_DIR="modules/${MODULE_NAME}"
 PROTO_DIR="proto/${MODULE_NAME}/v1"
@@ -31,6 +43,7 @@ process_template() {
     sed -e "s/{{.PROJECT_NAME}}/${PROJECT_NAME//\//\\/}/g" \
         -e "s/{{.MODULE_NAME}}/${MODULE_NAME}/g" \
         -e "s/{{.MODULE_NAME_CAPITALIZED}}/${MODULE_NAME_CAPITALIZED}/g" \
+        -e "s/{{.MODULE_STRUCT_NAME}}/${MODULE_STRUCT_NAME}/g" \
         -e "s/{{.MODULE_NAME_PLURAL}}/${MODULE_NAME_PLURAL}/g" \
         "$src" > "$dest"
 }
@@ -42,6 +55,23 @@ process_template "templates/module/internal/repository/repository.go.tmpl" "${MO
 process_template "templates/module/internal/db/query/queries.sql.tmpl" "${MODULE_DIR}/internal/db/query/${MODULE_NAME}.sql"
 process_template "templates/module/resources/db/migration/000001_initial.up.sql.tmpl" "${MODULE_DIR}/resources/db/migration/000001_initial_schema.up.sql"
 process_template "templates/module/proto/module.proto.tmpl" "${PROTO_DIR}/${MODULE_NAME}.proto"
+
+# Update sqlc.yaml
+if ! grep -q "modules/${MODULE_NAME}/internal/db/store" sqlc.yaml; then
+    echo "Updating sqlc.yaml..."
+    cat >> sqlc.yaml <<EOF
+  - engine: "postgresql"
+    queries: "modules/${MODULE_NAME}/internal/db/query/"
+    schema: "modules/${MODULE_NAME}/resources/db/migration/000001_initial_schema.up.sql"
+    gen:
+      go:
+        package: "store"
+        out: "modules/${MODULE_NAME}/internal/db/store"
+        sql_package: "database/sql"
+        emit_interface: true
+        emit_json_tags: true
+EOF
+fi
 
 echo "Module ${MODULE_NAME} scaffolded successfully!"
 echo "Next steps:"

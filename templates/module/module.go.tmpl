@@ -1,8 +1,10 @@
+// Package {{.MODULE_NAME}} implements the {{.MODULE_NAME}} module.
 package {{.MODULE_NAME}}
 
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	{{.MODULE_NAME}}v1 "{{.PROJECT_NAME}}/gen/go/proto/{{.MODULE_NAME}}/v1"
 	"{{.PROJECT_NAME}}/modules/{{.MODULE_NAME}}/internal/repository"
@@ -16,14 +18,21 @@ type Config struct {
 	// Add your module-specific settings here
 }
 
-func Initialize(db *sql.DB, grpcServer *grpc.Server, cfg Config) error {
+// Initialize initializes the {{.MODULE_NAME}} module.
+func Initialize(db *sql.DB, grpcServer *grpc.Server, _ Config) error {
 	repo := repository.NewSQLRepository(db)
 	svc := service.New{{.MODULE_NAME_CAPITALIZED}}Service(repo)
 
 	{{.MODULE_NAME}}v1.Register{{.MODULE_NAME_CAPITALIZED}}ServiceServer(grpcServer, svc)
+
 	return nil
 }
 
+// RegisterGateway registers the {{.MODULE_NAME}} module gateway.
 func RegisterGateway(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error {
-	return {{.MODULE_NAME}}v1.Register{{.MODULE_NAME_CAPITALIZED}}ServiceHandlerFromEndpoint(ctx, mux, endpoint, opts)
+	if err := {{.MODULE_NAME}}v1.Register{{.MODULE_NAME_CAPITALIZED}}ServiceHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {
+		return fmt.Errorf("failed to register gateway: %w", err)
+	}
+
+	return nil
 }

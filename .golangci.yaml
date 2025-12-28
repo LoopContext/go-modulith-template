@@ -1,0 +1,76 @@
+version: 2
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - revive
+    - gosec
+    - misspell
+    - unparam
+    - prealloc
+    - bodyclose
+    - sqlclosecheck
+    - gocritic
+    - gocyclo
+    - cyclop
+    - gocognit
+    - nestif
+    - funlen
+    - nakedret
+    - copyloopvar
+    - whitespace
+    - wsl_v5
+    - goconst
+    - loggercheck
+    - wrapcheck
+    - sloglint
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - disableStutteringCheck
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - wrapperFunc
+  funlen:
+    lines: 100
+    statements: 50
+  gocyclo:
+    min-complexity: 15
+  nestif:
+    min-complexity: 5
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  wrapcheck:
+    ignorePackageGlobs:
+      - google.golang.org/grpc/*
+      - github.com/cmelgarejo/go-modulith-template/gen/go/*
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-dirs:
+    - gen/
+    - modules/.*/internal/db/store
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - goconst
+        - funlen
+        - wrapcheck

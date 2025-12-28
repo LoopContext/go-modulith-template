@@ -7,7 +7,8 @@ import (
 
 func TestTokenService(t *testing.T) {
 	secret := "test-secret-key-must-be-long-enough"
-	ts, err := NewTokenService(secret)
+
+	ts, err := NewService(secret)
 	if err != nil {
 		t.Fatalf("Failed to create token service: %v", err)
 	}
@@ -30,6 +31,7 @@ func TestTokenService(t *testing.T) {
 		if claims.UserID != userID {
 			t.Errorf("Expected userID %s, got %s", userID, claims.UserID)
 		}
+
 		if claims.Role != role {
 			t.Errorf("Expected role %s, got %s", role, claims.Role)
 		}
@@ -53,7 +55,7 @@ func TestTokenService(t *testing.T) {
 	})
 
 	t.Run("InvalidSignature", func(t *testing.T) {
-		ts2, _ := NewTokenService("different-secret-key-that-is-long")
+		ts2, _ := NewService("different-secret-key-that-is-long")
 
 		token, err := ts.CreateToken("user", "role", time.Minute)
 		if err != nil {
