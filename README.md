@@ -51,7 +51,7 @@ Para una comprensión profunda de la arquitectura y los flujos de trabajo, consu
 - `make sqlc`: Genera código Type-safe para queries SQL.
 - `make lint`: Ejecuta el linter estricto.
 - `make test-coverage`: Ejecuta pruebas y genera reporte de cobertura.
-- `make new-module [nombre]`: Crea el boilerplate para un nuevo módulo funcional.
+- `make new-module MODULE_NAME=[nombre]`: Crea el boilerplate para un nuevo módulo funcional con configuración automática.
 
 ---
 Creado con ❤️ para desarrolladores que buscan excelencia operativa.

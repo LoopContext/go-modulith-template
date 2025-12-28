@@ -439,9 +439,14 @@ Para una experiencia de desarrollo fluida, utilizamos **Air** para recompilar au
 
 ## 17. Generación Automática de Módulos (Scaffolding)
 
-Para acelerar el inicio de nuevos módulos y asegurar que sigan los estándares definidos, disponemos de una herramienta de scaffolding.
+Para acelerar el inicio de nuevos módulos y asegurar que sigan los estándares definidos, disponemos de una herramienta de scaffolding robusta.
 
-*   **Comando:** `make new-module [nombre]`
+*   **Comando:** `make new-module MODULE_NAME=[nombre]`
+*   **Automatización:**
+    *   Genera la estructura de carpetas estándar.
+    *   Crea los archivos boilerplate (`module.go`, `service.go`, `repository.go`, `proto`).
+    *   **Configura automáticamente `sqlc.yaml`** añadiendo la entrada para el nuevo módulo.
+    *   **Manejo de Plurales:** Detecta nombres en plural (ej. `products`) y ajusta el nombre del struct generado (ej. `Product`) en los templates para evitar errores de compilación.
 *   **Archivos Generados:**
     *   `modules/[name]/module.go`: Inicialización y registro del Gateway.
     *   `modules/[name]/internal/service/service.go`: Boilerplate del servicio con TypeID y mapeo de errores.
@@ -543,6 +548,13 @@ El proyecto impone un estándar de calidad de "Clase Mundial" a través de un li
     - **Seguridad:** Análisis estático con `gosec` en cada commit.
 2.  **Validación de Configuración:** El cargador de configuración valida semánticamente las variables críticas antes de que la aplicación inicie (Fail-Fast).
 3.  **Tests con Race Detection:** No se permite código con condiciones de carrera (`-race`).
+
+### Estándares de Linting (Actualizado)
+Hemos adoptado un set de reglas estricto para garantizar consistencia:
+*   **wsl (Whitespace Linter):** Fuerza el uso de espacios en blanco para separar bloques lógicos (ej. antes de un `return` o `if`).
+*   **wrapcheck:** Obliga a envolver errores externos con `fmt.Errorf("...: %w", err)` para mantener la cadena de trazabilidad.
+*   **revive:** Reemplazo moderno de `golint` para estilo y convención de nombres.
+*   **package-comments:** Todos los paquetes deben tener documentación.
 
 ## 22. Checklist de Replicabilidad para LLMs
 
