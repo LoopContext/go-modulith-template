@@ -18,11 +18,15 @@ import (
 
 // Config holds the Auth module settings
 type Config struct {
-	JWTSecret string
+	JWTSecret string `yaml:"jwt_secret"`
 }
 
 // Initialize registers the Auth module with the gRPC server
 func Initialize(db *sql.DB, grpcServer *grpc.Server, bus *events.Bus, cfg Config) error {
+	if cfg.JWTSecret == "" {
+		return fmt.Errorf("JWT secret is empty, cannot initialize auth module")
+	}
+
 	tokenService, err := token.NewService(cfg.JWTSecret)
 	if err != nil {
 		return fmt.Errorf("failed to init token service: %w", err)

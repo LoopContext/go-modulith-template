@@ -101,17 +101,18 @@ func (q *Queries) GetUserByPhone(ctx context.Context, phone sql.NullString) (Use
 
 const getValidMagicCodeByEmail = `-- name: GetValidMagicCodeByEmail :one
 SELECT code, user_email, user_phone, expires_at, created_at FROM magic_codes
-WHERE user_email = $1 AND code = $2 AND expires_at > CURRENT_TIMESTAMP
+WHERE user_email = $1 AND code = $2 AND expires_at > $3
 ORDER BY created_at DESC LIMIT 1
 `
 
 type GetValidMagicCodeByEmailParams struct {
 	UserEmail sql.NullString `json:"user_email"`
 	Code      string         `json:"code"`
+	ExpiresAt time.Time      `json:"expires_at"`
 }
 
 func (q *Queries) GetValidMagicCodeByEmail(ctx context.Context, arg GetValidMagicCodeByEmailParams) (MagicCode, error) {
-	row := q.db.QueryRowContext(ctx, getValidMagicCodeByEmail, arg.UserEmail, arg.Code)
+	row := q.db.QueryRowContext(ctx, getValidMagicCodeByEmail, arg.UserEmail, arg.Code, arg.ExpiresAt)
 	var i MagicCode
 	err := row.Scan(
 		&i.Code,
@@ -125,17 +126,18 @@ func (q *Queries) GetValidMagicCodeByEmail(ctx context.Context, arg GetValidMagi
 
 const getValidMagicCodeByPhone = `-- name: GetValidMagicCodeByPhone :one
 SELECT code, user_email, user_phone, expires_at, created_at FROM magic_codes
-WHERE user_phone = $1 AND code = $2 AND expires_at > CURRENT_TIMESTAMP
+WHERE user_phone = $1 AND code = $2 AND expires_at > $3
 ORDER BY created_at DESC LIMIT 1
 `
 
 type GetValidMagicCodeByPhoneParams struct {
 	UserPhone sql.NullString `json:"user_phone"`
 	Code      string         `json:"code"`
+	ExpiresAt time.Time      `json:"expires_at"`
 }
 
 func (q *Queries) GetValidMagicCodeByPhone(ctx context.Context, arg GetValidMagicCodeByPhoneParams) (MagicCode, error) {
-	row := q.db.QueryRowContext(ctx, getValidMagicCodeByPhone, arg.UserPhone, arg.Code)
+	row := q.db.QueryRowContext(ctx, getValidMagicCodeByPhone, arg.UserPhone, arg.Code, arg.ExpiresAt)
 	var i MagicCode
 	err := row.Scan(
 		&i.Code,

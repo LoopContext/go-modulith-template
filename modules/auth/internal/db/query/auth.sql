@@ -12,12 +12,12 @@ INSERT INTO magic_codes (code, user_email, user_phone, expires_at) VALUES ($1, $
 
 -- name: GetValidMagicCodeByEmail :one
 SELECT * FROM magic_codes
-WHERE user_email = $1 AND code = $2 AND expires_at > CURRENT_TIMESTAMP
+WHERE user_email = $1 AND code = $2 AND expires_at > $3
 ORDER BY created_at DESC LIMIT 1;
 
 -- name: GetValidMagicCodeByPhone :one
 SELECT * FROM magic_codes
-WHERE user_phone = $1 AND code = $2 AND expires_at > CURRENT_TIMESTAMP
+WHERE user_phone = $1 AND code = $2 AND expires_at > $3
 ORDER BY created_at DESC LIMIT 1;
 
 -- name: DeleteMagicCodesByEmail :exec

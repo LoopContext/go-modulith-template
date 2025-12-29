@@ -136,22 +136,45 @@ Establecemos una frontera clara para evitar validaciones duplicadas:
 La jerarquía de configuración favorece la flexibilidad tanto en desarrollo como en despliegues complejos de microservicios.
 
 ### Jerarquía de Carga
-La aplicación carga la configuración en este orden (el último sobreescribe al anterior):
-1.  **Fallback Dinámico:** Si una variable no está en el YAML ni en el Env, se usa el default de `config.go`.
-2.  **Archivo YAML:** Ubicado en la carpeta `configs/` y especificado al iniciar la aplicación (ej. `configs/server.yaml`).
-3.  **Variables de Entorno:** Cargadas desde el sistema o via archivos `.env` (usando `godotenv`).
+La aplicación carga la configuración siguiendo un orden de precedencia estricto (de menor a mayor prioridad):
+
+1.  **Valores por Defecto:** Valores hardcodeados en `config.go` (ej. `Env: "dev"`, `HTTPPort: "8080"`).
+2.  **Variables de Entorno del Sistema:** Variables definidas en el entorno donde se ejecuta la aplicación (`os.Getenv`).
+3.  **Archivo `.env`:** Variables cargadas desde el archivo `.env` en la raíz del proyecto (usando `godotenv`). Sobrescribe las variables del sistema.
+4.  **Archivo YAML:** Configuración ubicada en `configs/` (ej. `configs/server.yaml`). **Tiene la mayor prioridad** y sobrescribe todo lo anterior.
+
+**Orden de Precedencia Final:** `YAML > .env > system ENV vars > defaults`
+
+### Logging de Fuentes de Configuración
+Al iniciar la aplicación, se registra un log estructurado que muestra el valor final y la fuente de cada variable de configuración:
+
+```
+Configuration sources
+  ENV="dev = yaml"
+  HTTP_PORT="8080 = yaml"
+  DB_DSN="postgres://... = yaml"
+  JWT_SECRET="[42 bytes] = yaml"
+```
+
+Esto facilita la depuración y el entendimiento de qué fuente está proporcionando cada valor.
 
 ### Agregar nueva configuración
-1.  Añadir el campo al struct en `internal/config/config.go` con los tags `yaml` y `envconfig` (o similar).
-2.  Actualizar los archivos YAML en `configs/` si el valor es específico del entorno.
-3.  Inyectar el struct de configuración en la función `Initialize` del módulo correspondiente.
+1.  Añadir el campo al struct en `internal/config/config.go` con los tags `yaml` y `env` correspondientes.
+2.  Implementar la lógica de carga en `OverrideWithEnv` y `OverrideWithEnvFromDotenv` para soportar variables de entorno.
+3.  Actualizar los archivos YAML en `configs/` si el valor es específico del entorno.
+4.  Inyectar el struct de configuración en la función `Initialize` del módulo correspondiente.
 
 ### Variables de Entorno Clave
 Aunque residan en el YAML, estas variables son críticas para el entorno de ejecución:
 *   `ENV`: `dev` o `prod`. Determina el nivel de logs y la activación de herramientas de depuración.
 *   `DB_DSN`: Conexión a PostgreSQL.
-*   `JWT_SECRET`: Clave secreta para tokens (Configurada vía Env en producción por seguridad).
+*   `JWT_SECRET`: Clave secreta para tokens JWT. **Debe tener al menos 32 bytes (256 bits)** para el algoritmo HS256. Se valida automáticamente al cargar la configuración.
 *   `HTTP_PORT` / `GRPC_PORT`: Puertos de escucha.
+
+### Validación de Configuración
+El sistema valida automáticamente la configuración antes de iniciar:
+*   **JWT Secret:** Debe tener al menos 32 bytes para cumplir con los requisitos de seguridad de HS256.
+*   **Producción:** En modo `prod`, se requiere `DB_DSN` y `JWT_SECRET` obligatoriamente.
 
 ## 11. Infraestructura Local (Docker)
 Utilizamos Docker Compose para levantar dependencias (Base de Datos).
@@ -166,7 +189,8 @@ La observabilidad es ciudadana de primera clase. No se debe desplegar código si
 Usamos la librería estándar `log/slog` (Go 1.21+).
 *   **Formato:** JSON en producción, Texto en desarrollo.
 *   **Contexto:** Todo log debe incluir `trace_id` y `span_id` si existen en el contexto.
-*   **Niveles:** INFO (flujo normal), ERROR (excepciones), DEBUG (solo dev).
+*   **Niveles:** INFO (flujo normal), ERROR (excepciones), DEBUG (solo dev). El nivel DEBUG está habilitado por defecto en desarrollo para facilitar la depuración.
+*   **Inicialización Temprana:** El logger se inicializa en dos fases: primero con un logger básico antes de cargar la configuración (para ver logs de inicialización), y luego se re-inicializa con la configuración completa (formato, nivel) después de cargar la configuración.
 *   **Privacidad (PII):** **NUNCA** loguear información sensible (emails, tokens, passwords).
 
 ```go
@@ -184,7 +208,7 @@ Instrumentamos la aplicación usando el SDK de OpenTelemetry.
 ### 12.3. Health Checks
 El sistema expone dos endpoints críticos para el orquestador (K8s):
 *   **/healthz (Liveness):** Indica si el proceso está vivo. Retorna `200 OK`.
-*   **/readyz (Readiness):** Indica si el servicio puede recibir tráfico (ej. validando conexión a DB).
+*   **/readyz (Readiness):** Indica si el servicio puede recibir tráfico. Valida la conexión a la base de datos usando `db.PingContext(r.Context())` para respetar los timeouts del cliente HTTP y permitir que el orquestador cancele la verificación si es necesario.
 
 ### 12.4. Tracing (OpenTelemetry)
 Implementamos trazabilidad distribuida usando el exportador OTLP.
@@ -287,7 +311,15 @@ INSERT INTO users (id, username, email) VALUES ($1, $2, $3);
 
 -- name: GetUserByEmail :one
 SELECT * FROM users WHERE email = $1 LIMIT 1;
+
+-- name: GetValidMagicCodeByEmail :one
+SELECT * FROM magic_codes
+WHERE user_email = $1 AND code = $2 AND expires_at > $3
+ORDER BY created_at DESC LIMIT 1;
 ```
+
+> [!NOTE]
+> Para queries que involucran comparaciones de tiempo (ej. códigos mágicos con expiración), se recomienda pasar el tiempo actual como parámetro (`$3`) desde la aplicación en lugar de usar `CURRENT_TIMESTAMP` en SQL. Esto garantiza consistencia entre el tiempo de la aplicación y el tiempo de la base de datos, evitando problemas de sincronización.
 
 **3. Configuración SQLC:**
 `sqlc.yaml`:
@@ -366,6 +398,8 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"log/slog"
 
 	"go.jetify.com/typeid"
@@ -392,6 +426,12 @@ func (s *UserService) CreateUser(ctx context.Context, req *usersv1.CreateUserReq
     // 2. Llamada a persistencia
     err := s.repo.CreateUser(ctx, idStr, req.Username, req.Email)
     if err != nil {
+        // Manejo de errores específicos: mapeo a códigos gRPC apropiados
+        if errors.Is(err, sql.ErrNoRows) {
+            slog.DebugContext(ctx, "user not found", "email", req.Email)
+            return nil, status.Error(codes.NotFound, "user not found")
+        }
+
         slog.ErrorContext(ctx, "failed to create user", "error", err)
         return nil, status.Error(codes.Internal, "failed to create user")
     }
@@ -426,7 +466,7 @@ Para una experiencia de desarrollo fluida, utilizamos **Air** para recompilar au
 2.  **Microservicio Auth:** `make dev-auth`
 
 > [!TIP]
-> Air vigila cambios en archivos `.go`, `.yaml`, `.proto` y `.sql`, reiniciando el binario instantáneamente.
+> Air vigila cambios en archivos `.go`, `.yaml`, `.yml`, `.proto`, `.sql`, `.env` y archivos de configuración específicos (`configs/server.yaml`, `configs/auth-svc.yaml`), reiniciando el binario instantáneamente. Esto permite que los cambios en configuración se reflejen sin reiniciar manualmente.
 
 *   **Convención:** Archivos `*_test.go` al lado del código que prueban.
 *   **Unit Tests:**
@@ -464,17 +504,25 @@ Cada módulo debe definir su propio struct de configuración para evitar depende
 ```go
 // modules/auth/module.go
 type Config struct {
-    JWTSecret string `yaml:"jwt_secret"`
+    JWTSecret string `yaml:"jwt_secret"` // Tag yaml requerido para mapeo desde YAML
 }
 
-func Initialize(db *sql.DB, grpcServer *grpc.Server, cfg Config) error { ... }
+func Initialize(db *sql.DB, grpcServer *grpc.Server, bus *events.Bus, cfg Config) error {
+    // Validación temprana: verificar que la configuración requerida esté presente
+    if cfg.JWTSecret == "" {
+        return fmt.Errorf("JWT secret is empty, cannot initialize auth module")
+    }
+    // ... resto de la inicialización
+}
 ```
 
 ### Uso de YAML y Variables de Entorno
 El proyecto utiliza un cargador centralizado en `internal/config` (basado en `yaml.v3`) con la siguiente jerarquía:
+
 1.  **Archivos por Aplicación**: Se recomienda una carpeta `configs/` con archivos YAML específicos para cada entrypoint (ej. `configs/server.yaml`, `configs/auth-svc.yaml`).
 2.  **Schema Unificado**: Aunque los archivos sean distintos, todos mapean al struct `AppConfig` central para mantener consistencia. Un microservicio simplemente ignorará las secciones YAML que no le correspondan.
-3.  **Override por Environment Variable**: Las variables de entorno (ej. `DB_DSN`, `JWT_SECRET`) siempre tienen prioridad, siguiendo los principios de **12-Factor App**.
+3.  **Jerarquía de Precedencia**: El orden de carga es: **YAML > .env > system ENV vars > defaults**. Esto significa que los valores en el YAML tienen la máxima prioridad, seguidos por el archivo `.env`, luego las variables del sistema, y finalmente los valores por defecto.
+4.  **Trazabilidad**: Al iniciar, la aplicación registra la fuente de cada variable de configuración, facilitando la depuración y el entendimiento de qué valor se está utilizando.
 
 ### De Monolito a Microservicios
 La separación se logra creando diferentes puntos de entrada (`cmd/`) que apuntan a sus respectivos archivos de configuración:

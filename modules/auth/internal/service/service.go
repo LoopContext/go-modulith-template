@@ -1,4 +1,6 @@
 // Package service implements the business logic for the authentication module.
+//
+//nolint:wrapcheck // gRPC status.Error should not be wrapped
 package service
 
 import (
@@ -102,19 +104,47 @@ func (s *AuthService) verifyLoginRequest(ctx context.Context, req *authv1.Comple
 		return status.Error(codes.InvalidArgument, "email or phone required")
 	}
 
-	var err error
 	if req.Email != "" {
-		_, err = s.repo.GetValidMagicCodeByEmail(ctx, req.Email, req.Code)
-	} else {
-		_, err = s.repo.GetValidMagicCodeByPhone(ctx, req.Phone, req.Code)
+		return s.verifyMagicCodeByEmail(ctx, req.Email, req.Code)
 	}
 
+	return s.verifyMagicCodeByPhone(ctx, req.Phone, req.Code)
+}
+
+func (s *AuthService) verifyMagicCodeByEmail(ctx context.Context, email, code string) error {
+	_, err := s.repo.GetValidMagicCodeByEmail(ctx, email, code)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			slog.DebugContext(ctx, "magic code not found or expired",
+				"email", email,
+				"code", code,
+			)
+
 			return status.Error(codes.Unauthenticated, "invalid or expired code")
 		}
 
-		slog.ErrorContext(ctx, "failed to verify magic code", "error", err)
+		slog.ErrorContext(ctx, "failed to verify magic code", "error", err, "email", email)
+
+		return status.Error(codes.Internal, "internal server error")
+	}
+
+	return nil
+}
+
+func (s *AuthService) verifyMagicCodeByPhone(ctx context.Context, phone, code string) error {
+	_, err := s.repo.GetValidMagicCodeByPhone(ctx, phone, code)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			slog.DebugContext(ctx, "magic code not found or expired",
+				"phone", phone,
+				"code", code,
+			)
+
+			return status.Error(codes.Unauthenticated, "invalid or expired code")
+		}
+
+		slog.ErrorContext(ctx, "failed to verify magic code", "error", err, "phone", phone)
+
 		return status.Error(codes.Internal, "internal server error")
 	}
 

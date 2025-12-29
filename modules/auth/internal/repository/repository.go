@@ -115,6 +115,7 @@ func (r *SQLRepository) GetValidMagicCodeByEmail(ctx context.Context, email, cod
 	mc, err := r.q.GetValidMagicCodeByEmail(ctx, store.GetValidMagicCodeByEmailParams{
 		UserEmail: sql.NullString{String: email, Valid: true},
 		Code:      code,
+		ExpiresAt: time.Now(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get valid magic code by email: %w", err)
@@ -128,6 +129,7 @@ func (r *SQLRepository) GetValidMagicCodeByPhone(ctx context.Context, phone, cod
 	mc, err := r.q.GetValidMagicCodeByPhone(ctx, store.GetValidMagicCodeByPhoneParams{
 		UserPhone: sql.NullString{String: phone, Valid: true},
 		Code:      code,
+		ExpiresAt: time.Now(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get valid magic code by phone: %w", err)

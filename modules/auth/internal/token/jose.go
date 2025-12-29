@@ -16,8 +16,16 @@ type Service struct {
 }
 
 // NewService creates a new instance of Service with the given secret key
+// The secret key must be at least 32 bytes (256 bits) for HS256 algorithm
 func NewService(secretKey string) (*Service, error) {
+	if secretKey == "" {
+		return nil, fmt.Errorf("JWT secret key cannot be empty")
+	}
+
 	key := []byte(secretKey)
+	if len(key) < 32 {
+		return nil, fmt.Errorf("JWT secret key must be at least 32 bytes (256 bits) for HS256, got %d bytes", len(key))
+	}
 
 	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: key}, (&jose.SignerOptions{}).WithType("JWT"))
 	if err != nil {

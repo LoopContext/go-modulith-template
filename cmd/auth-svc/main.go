@@ -39,74 +39,133 @@ import (
 )
 
 func main() {
-	_ = godotenv.Load()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Load Configuration
-	cfg, err := config.Load("configs/auth-svc.yaml")
-	if err != nil {
-		slog.Error("Failed to load config", "error", err)
-		os.Exit(1)
+	cfg := loadConfigAuth()
+	if cfg == nil {
+		return
 	}
 
-	metricsHandler, shutdownObs, err := initObservability(ctx, cfg)
-	if err != nil {
-		slog.Error("Failed to initialize observability", "error", err)
-		os.Exit(1)
+	metricsHandler, shutdownObs := initializeObservabilityAuth(ctx, cfg)
+	if shutdownObs == nil {
+		return
 	}
 
-	var shutdownCalled bool
-	fatalExit := func() {
-		if !shutdownCalled {
-			shutdownCalled = true
-			shutdownObs()
-		}
-		os.Exit(1)
+
+	db := initializeDBAuth(ctx, cfg)
+	if db == nil {
+		shutdownObs()
+		return
 	}
 
-	db, err := sql.Open("pgx", cfg.DBDSN)
-	if err != nil {
-		slog.Error("Failed to open DB", "error", err)
-		fatalExit()
-	}
-
-	defer func() {
-		if err := db.Close(); err != nil {
-			slog.Error("Failed to close DB", "error", err)
-		}
-	}()
-
-	if err := db.PingContext(ctx); err != nil {
-		slog.Error("Failed to ping DB", "error", err)
-		fatalExit()
-	}
+	defer closeDBAuth(db)
 
 	if err := runMigrations(cfg.DBDSN); err != nil {
 		slog.Error("Failed to run migrations", "error", err)
-		fatalExit()
+		shutdownObs()
+
+		return
 	}
 
-	httpSrv := setupHTTPServer(cfg, db, metricsHandler)
+	httpSrv, grpcServer := setupAndStartServersAuth(ctx, cfg, db, metricsHandler, stop)
+	if grpcServer == nil {
+		shutdownObs()
+		return
+	}
+
+	<-ctx.Done()
+	shutdownServersAuth(ctx, httpSrv, grpcServer, shutdownObs)
+}
+
+func loadConfigAuth() *config.AppConfig {
+	initLoggerEarly()
+
+	systemEnvVars := captureSystemEnvVars()
+	_ = godotenv.Load()
+
+	cfg, err := config.Load("configs/auth-svc.yaml", systemEnvVars)
+	if err != nil {
+		slog.Error("Failed to load config", "error", err)
+		return nil
+	}
+
+	initLogger(cfg.Env)
+
+	return cfg
+}
+
+func initializeObservabilityAuth(ctx context.Context, cfg *config.AppConfig) (metricsHandler http.Handler, shutdownObs func()) {
+	metricsHandler, shutdownObs, err := initObservability(ctx, cfg)
+	if err != nil {
+		slog.Error("Failed to initialize observability", "error", err)
+		return nil, nil
+	}
+
+	return
+}
+
+func initializeDBAuth(ctx context.Context, cfg *config.AppConfig) *sql.DB {
+	db, err := sql.Open("pgx", cfg.DBDSN)
+	if err != nil {
+		slog.Error("Failed to open DB", "error", err)
+		return nil
+	}
+
+	if err := db.PingContext(ctx); err != nil {
+		slog.Error("Failed to ping DB", "error", err)
+
+		_ = db.Close()
+
+		return nil
+	}
+
+	return db
+}
+
+func closeDBAuth(db *sql.DB) {
+	if err := db.Close(); err != nil {
+		slog.Error("Failed to close DB", "error", err)
+	}
+}
+
+func setupAndStartServersAuth(_ context.Context, cfg *config.AppConfig, db *sql.DB, metricsHandler http.Handler, stop context.CancelFunc) (httpSrv *http.Server, grpcServer *grpc.Server) {
+	httpSrv = setupHTTPServer(cfg, db, metricsHandler)
+	startHTTPServerAuth(cfg, httpSrv, stop)
+
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", cfg.GRPCPort))
+	if err != nil {
+		slog.Error("Failed to listen", "error", err)
+		return nil, nil
+	}
+
+	grpcServer = setupGRPCServerAuth(cfg, db, lis)
+	if grpcServer == nil {
+		_ = lis.Close()
+		return nil, nil
+	}
+
+	startGRPCServerAuth(cfg, grpcServer, lis, stop)
+
+	return
+}
+
+func startHTTPServerAuth(cfg *config.AppConfig, httpSrv *http.Server, stop context.CancelFunc) {
 	go func() {
 		slog.Info("HTTP server starting", "port", cfg.HTTPPort)
+
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("failed to serve http", "error", err)
 			stop()
 		}
 	}()
+}
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", cfg.GRPCPort))
-	if err != nil {
-		slog.Error("Failed to listen", "error", err)
-		fatalExit()
-	}
-
+func setupGRPCServerAuth(cfg *config.AppConfig, db *sql.DB, _ net.Listener) *grpc.Server {
 	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTSecret)
 	if err != nil {
 		slog.Error("Failed to initialize jwt verifier", "error", err)
-		_ = lis.Close()
-		fatalExit()
+		return nil
 	}
 
 	public := map[string]struct{}{
@@ -122,23 +181,22 @@ func main() {
 		})),
 	)
 
-	// Initialize Event Bus
 	ebus := events.NewBus()
-
-	// Initialize Notifier & Subscriber (Asynchronous delivery)
 	ntf := notifier.NewLogNotifier()
 	ns := notifier.NewSubscriber(ntf)
 	ns.SubscribeToEvents(ebus)
 
-	// Initialize ONLY the Auth module
 	if err := auth.Initialize(db, grpcServer, ebus, cfg.Auth); err != nil {
 		slog.Error("Failed to initialize auth module", "error", err)
-		_ = lis.Close()
-		fatalExit()
+		return nil
 	}
 
 	reflection.Register(grpcServer)
 
+	return grpcServer
+}
+
+func startGRPCServerAuth(cfg *config.AppConfig, grpcServer *grpc.Server, lis net.Listener, stop context.CancelFunc) {
 	slog.Info("Auth Microservice starting", "port", cfg.GRPCPort)
 
 	go func() {
@@ -147,9 +205,9 @@ func main() {
 			stop()
 		}
 	}()
+}
 
-	<-ctx.Done()
-
+func shutdownServersAuth(_ context.Context, httpSrv *http.Server, grpcServer *grpc.Server, shutdownObs func()) {
 	slog.Info("Shutting down auth microservice")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -160,14 +218,11 @@ func main() {
 	}
 
 	grpcServer.GracefulStop()
-
-	if !shutdownCalled {
-		shutdownObs()
-	}
+	shutdownObs()
 }
 
 func initObservability(ctx context.Context, cfg *config.AppConfig) (http.Handler, func(), error) {
-	initLogger(cfg.Env)
+	// Logger already initialized in main() before config loading
 	metricsHandler, metricsShutdown, err := initMetrics()
 	if err != nil {
 		return nil, func() {}, fmt.Errorf("failed to init metrics: %w", err)
@@ -186,16 +241,60 @@ func initObservability(ctx context.Context, cfg *config.AppConfig) (http.Handler
 	}, nil
 }
 
+// initLoggerEarly initializes a basic logger with debug enabled before config is loaded
+func initLoggerEarly() {
+	opts := &slog.HandlerOptions{
+		Level: slog.LevelDebug, // Enable debug logs
+	}
+	handler := slog.NewTextHandler(os.Stdout, opts)
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+}
+
 func initLogger(env string) {
 	var handler slog.Handler
+
+	opts := &slog.HandlerOptions{
+		Level: slog.LevelDebug, // Enable debug logs
+	}
 	if env == "prod" {
-		handler = slog.NewJSONHandler(os.Stdout, nil)
+		handler = slog.NewJSONHandler(os.Stdout, opts)
 	} else {
-		handler = slog.NewTextHandler(os.Stdout, nil)
+		handler = slog.NewTextHandler(os.Stdout, opts)
 	}
 
 	logger := slog.New(traceContextHandler{next: handler})
 	slog.SetDefault(logger)
+}
+
+// captureSystemEnvVars captures system environment variables before .env is loaded
+func captureSystemEnvVars() map[string]string {
+	systemEnvVars := make(map[string]string)
+	if env := os.Getenv("ENV"); env != "" {
+		systemEnvVars["ENV"] = env
+	}
+
+	if port := os.Getenv("HTTP_PORT"); port != "" {
+		systemEnvVars["HTTP_PORT"] = port
+	}
+
+	if port := os.Getenv("GRPC_PORT"); port != "" {
+		systemEnvVars["GRPC_PORT"] = port
+	}
+
+	if dsn := os.Getenv("DB_DSN"); dsn != "" {
+		systemEnvVars["DB_DSN"] = dsn
+	}
+
+	if endpoint := os.Getenv("OTLP_ENDPOINT"); endpoint != "" {
+		systemEnvVars["OTLP_ENDPOINT"] = endpoint
+	}
+
+	if secret := os.Getenv("JWT_SECRET"); secret != "" {
+		systemEnvVars["JWT_SECRET"] = secret
+	}
+
+	return systemEnvVars
 }
 
 type traceContextHandler struct {
@@ -206,8 +305,10 @@ func (h traceContextHandler) Enabled(ctx context.Context, level slog.Level) bool
 	return h.next.Enabled(ctx, level)
 }
 
+//nolint:gocritic // slog.Record is a standard library type, cannot change signature
 func (h traceContextHandler) Handle(ctx context.Context, r slog.Record) error {
 	span := oteltrace.SpanFromContext(ctx)
+
 	sc := span.SpanContext()
 	if sc.IsValid() {
 		r.AddAttrs(
@@ -216,7 +317,11 @@ func (h traceContextHandler) Handle(ctx context.Context, r slog.Record) error {
 		)
 	}
 
-	return h.next.Handle(ctx, r)
+	if err := h.next.Handle(ctx, r); err != nil {
+		return fmt.Errorf("failed to handle log record: %w", err)
+	}
+
+	return nil
 }
 
 func (h traceContextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
@@ -294,6 +399,7 @@ func runMigrations(dbDSN string) error {
 		if sourceErr != nil {
 			slog.Error("Failed to close migration source", "error", sourceErr)
 		}
+
 		if dbErr != nil {
 			slog.Error("Failed to close migration database connection", "error", dbErr)
 		}
@@ -320,6 +426,7 @@ func setupHTTPServer(cfg *config.AppConfig, db *sql.DB, metricsHandler http.Hand
 		if err := db.PingContext(r.Context()); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = w.Write([]byte("Disconnected"))
+
 			return
 		}
 

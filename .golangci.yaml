@@ -1,4 +1,4 @@
-version: 2
+version: "2"
 
 run:
   timeout: 5m
@@ -58,19 +58,16 @@ linters-settings:
     min-occurrences: 3
   wrapcheck:
     ignorePackageGlobs:
+      - google.golang.org/grpc/status
       - google.golang.org/grpc/*
-      - github.com/cmelgarejo/go-modulith-template/gen/go/*
+    ignoreSigs:
+      - google.golang.org/grpc/status.Error
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-dirs:
-    - gen/
-    - modules/.*/internal/db/store
   exclude-rules:
-    - path: _test\.go
+    - path: modules/auth/internal/service/service.go
       linters:
-        - goconst
-        - funlen
         - wrapcheck
+      source: "google.golang.org/grpc/status"

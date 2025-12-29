@@ -1,15 +1,14 @@
-## Estándar de calidad (Go)
+## Quality Standards (Go)
 
-- Escribir Go idiomático, simple, y explícito.
-- Seguir el set de linters de `.golangci.yaml` (repo es estricto).
-- **No introducir PII** en logs (emails, tokens, magic codes, passwords).
+- Write idiomatic, simple, and explicit Go.
+- Follow the linter set in `.golangci.yaml` (repo is strict).
+- **Do not introduce PII** in logs (emails, tokens, magic codes, passwords).
 
-## Errores
+## Errors
 
-- En repositorio/adapters: **envolver errores externos** con `fmt.Errorf("...: %w", err)` para trazabilidad.
-- En service gRPC: **no retornar errores crudos** del repo/DB.
+- In repository/adapters: **wrap external errors** with `fmt.Errorf("...: %w", err)` for traceability.
+- In gRPC service: **do not return raw errors** from repo/DB.
 
 ## Package docs
 
-- Todo package debe tener intención clara (comentario de package cuando aplique).
-
+- Every package must have a clear intent (package comment when applicable).

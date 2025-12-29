@@ -4,4 +4,4 @@ grpc_port: 9051 # Different port to avoid conflict if running alongside monolith
 db_dsn: postgres://postgres:postgres@localhost:5432/modulith_demo?sslmode=disable
 
 auth:
-  jwt_secret: "auth-microservice-specific-secret"
+  jwt_secret: auth-microservice-specific-secreto
