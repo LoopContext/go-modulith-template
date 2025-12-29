@@ -6,21 +6,21 @@ Esta documentación define el estándar arquitectónico y de implementación par
 
 Todas las implementaciones deben adherirse estrictamente a las siguientes tecnologías:
 
-*   **Lenguaje:** Go 1.23+.
-*   **Arquitectura:** Monolito Modular.
-*   **Comunicación/Contrato:** gRPC y Protocol Buffers (Single Source of Truth).
-*   **API Externa:**
-    *   **gRPC:** Protocolo principal de comunicación backend-backend.
-    *   **REST/HTTP:** Expuesto automáticamente vía `grpc-gateway` (Proxy inverso).
-    *   **Documentación:** Swagger UI (OpenAPIv2) disponible en `/swagger-ui/` (Solo Dev).
-*   **Persistencia:** SQLC (Type-safe SQL).
-*   **Base de Datos:** PostgreSQL (con migraciones versionadas).
-*   **Infraestructura Local:** Docker Compose.
-*   **Migraciones:** `golang-migrate` (Gestión de esquema).
-*   **Observabilidad:**
-    *   **Logs:** Structured Logging (`log/slog`) con formato JSON.
-    *   **Métricas:** OpenTelemetry (OTel) exponiendo métricas en formato Prometheus.
-    *   **Tracing:** OpenTelemetry (Context propagation).
+-   **Lenguaje:** Go 1.23+.
+-   **Arquitectura:** Monolito Modular.
+-   **Comunicación/Contrato:** gRPC y Protocol Buffers (Single Source of Truth).
+-   **API Externa:**
+    -   **gRPC:** Protocolo principal de comunicación backend-backend.
+    -   **REST/HTTP:** Expuesto automáticamente vía `grpc-gateway` (Proxy inverso).
+    -   **Documentación:** Swagger UI (OpenAPIv2) disponible en `/swagger-ui/` (Solo Dev).
+-   **Persistencia:** SQLC (Type-safe SQL).
+-   **Base de Datos:** PostgreSQL (con migraciones versionadas).
+-   **Infraestructura Local:** Docker Compose.
+-   **Migraciones:** `golang-migrate` (Gestión de esquema).
+-   **Observabilidad:**
+    -   **Logs:** Structured Logging (`log/slog`) con formato JSON.
+    -   **Métricas:** OpenTelemetry (OTel) exponiendo métricas en formato Prometheus.
+    -   **Tracing:** OpenTelemetry (Context propagation).
 
 ## 2. Estructura del Proyecto (Project Layout)
 
@@ -61,36 +61,36 @@ proyecto/
 
 El éxito de un modulith depende de la disciplina. Un módulo podrido infecta a los demás.
 
-*   **Importaciones:** Un módulo `A` **NUNCA** puede importar nada de la carpeta `internal/` de un módulo `B`.
-*   **Comunicación:** La única forma legítima de comunicación entre módulos es:
-    1.  **gRPC (in-process):** Llamando a través del cliente gRPC generado (usando el gateway interno). Al ser *in-process*, **no hay saltos de red**; es una llamada a función directa a través del stack de gRPC, garantizando performance y contratos fuertes.
+-   **Importaciones:** Un módulo `A` **NUNCA** puede importar nada de la carpeta `internal/` de un módulo `B`.
+-   **Comunicación:** La única forma legítima de comunicación entre módulos es:
+    1.  **gRPC (in-process):** Llamando a través del cliente gRPC generado (usando el gateway interno). Al ser _in-process_, **no hay saltos de red**; es una llamada a función directa a través del stack de gRPC, garantizando performance y contratos fuertes.
     2.  **Eventos:** Publicación/Suscripción (si se implementa en el futuro).
-*   **Datos:** Prohibido compartir repositorios, queries de SQLC o modelos de base de datos entre módulos. Cada módulo es dueño absoluto de su esquema.
-*   **DTOs:** Los mensajes de Protobuf son el lenguaje común. No se deben filtrar tipos de `store/` o `repository/` hacia afuera del propio módulo.
+-   **Datos:** Prohibido compartir repositorios, queries de SQLC o modelos de base de datos entre módulos. Cada módulo es dueño absoluto de su esquema.
+-   **DTOs:** Los mensajes de Protobuf son el lenguaje común. No se deben filtrar tipos de `store/` o `repository/` hacia afuera del propio módulo.
 
 ## 4. Dominio y Modelos
 
 Para evitar debates infinitos, establecemos el siguiente estándar:
 
-*   **Domain Ownership:** La lógica de negocio reside en la capa de `service/`.
-*   **Modelos Simples:** No utilizamos entidades ricas (DDD complejo) a menos que sea estrictamente necesario.
-*   **Flujo:** `store` (DB) -> `repository` (Adapter) -> `service` (Domain/Business) -> `proto` (DTO).
-*   **Repository:** Devuelve structs simples del `store` o modelos de dominio básicos en `internal/models/`. No hay lógica de negocio en el repositorio.
+-   **Domain Ownership:** La lógica de negocio reside en la capa de `service/`.
+-   **Modelos Simples:** No utilizamos entidades ricas (DDD complejo) a menos que sea estrictamente necesario.
+-   **Flujo:** `store` (DB) -> `repository` (Adapter) -> `service` (Domain/Business) -> `proto` (DTO).
+-   **Repository:** Devuelve structs simples del `store` o modelos de dominio básicos en `internal/models/`. No hay lógica de negocio en el repositorio.
 
 ## 5. Identificadores Únicos (TypeID)
 
 Para mejorar la trazabilidad, depuración y ordenabilidad de los datos, adoptamos el estándar de **Identificadores Prefijados y Ordenables por Tiempo** (estilo Stripe).
 
-*   **Estándar:** Utilizaremos **TypeID** (`github.com/jetpack-io/typeid-go`), que combina un prefijo legible con un **UUIDv7**.
-*   **Formato:** `prefix_01h455vb4pex5vsknk084sn02q`.
-    *   **Prefix:** Indica el tipo de entidad (ej. `user`, `role`, `org`). Máximo 8 caracteres.
-    *   **Suffix:** Un UUIDv7 codificado en Base32 (Crockford), lo que lo hace lexicográficamente ordenable.
-*   **Ventajas:**
-    *   **Sortable:** La ordenabilidad por tiempo permite que las bases de datos (PostgreSQL) indexen de forma más eficiente que con UUIDs aleatorios.
-    *   **Contextual:** Al ver un ID en un log (`user_...`), sabemos inmediatamente a qué entidad pertenece.
-    *   **Seguridad:** Son globalmente únicos y difíciles de predecir.
-*   **Ownership:** Los TypeIDs se generan **únicamente** en la capa de `service`. El repositorio y la base de datos son pasivos y nunca generan identificadores.
-*   **Semántica:** Los prefijos son puramente informativos para humanos y trazabilidad; no deben usarse para lógica de autorización o acceso cross-domain.
+-   **Estándar:** Utilizaremos **TypeID** (`github.com/jetpack-io/typeid-go`), que combina un prefijo legible con un **UUIDv7**.
+-   **Formato:** `prefix_01h455vb4pex5vsknk084sn02q`.
+    -   **Prefix:** Indica el tipo de entidad (ej. `user`, `role`, `org`). Máximo 8 caracteres.
+    -   **Suffix:** Un UUIDv7 codificado en Base32 (Crockford), lo que lo hace lexicográficamente ordenable.
+-   **Ventajas:**
+    -   **Sortable:** La ordenabilidad por tiempo permite que las bases de datos (PostgreSQL) indexen de forma más eficiente que con UUIDs aleatorios.
+    -   **Contextual:** Al ver un ID en un log (`user_...`), sabemos inmediatamente a qué entidad pertenece.
+    -   **Seguridad:** Son globalmente únicos y difíciles de predecir.
+-   **Ownership:** Los TypeIDs se generan **únicamente** en la capa de `service`. El repositorio y la base de datos son pasivos y nunca generan identificadores.
+-   **Semántica:** Los prefijos son puramente informativos para humanos y trazabilidad; no deben usarse para lógica de autorización o acceso cross-domain.
 
 > [!NOTE]
 > En este documento, por simplicidad, los TypeIDs se representan y almacenan como `VARCHAR` completos. En implementaciones de alto rendimiento, se podría almacenar solo el sufijo binario como `UUID` y reconstruir el prefijo en la aplicación.
@@ -99,16 +99,17 @@ Para mejorar la trazabilidad, depuración y ordenabilidad de los datos, adoptamo
 
 No se deben retornar errores crudos de la base de datos o del sistema al cliente.
 
-*   **Responsabilidad:** El `service` es el único responsable de mapear errores de Go a códigos de estado gRPC (`google.golang.org/grpc/status`).
-*   **Helper Recomendado:** Usar `status.Error(codes.Code, message)` para respuestas inmediatas.
-*   **Transparencia:** Los errores internos se loaguean con detalle pero se responden al cliente como `codes.Internal` por seguridad.
+-   **Responsabilidad:** El `service` es el único responsable de mapear errores de Go a códigos de estado gRPC (`google.golang.org/grpc/status`).
+-   **Helper Recomendado:** Usar `status.Error(codes.Code, message)` para respuestas inmediatas.
+-   **Transparencia:** Los errores internos se loaguean con detalle pero se responden al cliente como `codes.Internal` por seguridad.
 
 ## 7. Transacciones
 
 Las transacciones deben ser controladas por la capa de negocio (`service`) pero ejecutadas por el repositorio.
 
-*   **Patrón WithTx:** El repositorio debe ofrecer una forma de ejecutar múltiples operaciones en una transacción atómica.
-*   **Ejemplo Conceptual:**
+-   **Patrón WithTx:** El repositorio debe ofrecer una forma de ejecutar múltiples operaciones en una transacción atómica.
+-   **Ejemplo Conceptual:**
+
 ```go
 err := r.WithTx(ctx, func(txRepo Repository) error {
     // Estas operaciones ocurren dentro de la misma transacción
@@ -122,20 +123,21 @@ err := r.WithTx(ctx, func(txRepo Repository) error {
 
 Establecemos una frontera clara para evitar validaciones duplicadas:
 
-*   **Estructural (Proto):** Formato, longitud, obligatorios, rangos. Se valida preferiblemente en el interceptor o al inicio del `service` usando la estructura del proto.
-*   **Negocio (Service):** Existencia en BD, permisos complejos, reglas de estado, lógica temporal.
+-   **Estructural (Proto):** Formato, longitud, obligatorios, rangos. Se valida preferiblemente en el interceptor o al inicio del `service` usando la estructura del proto.
+-   **Negocio (Service):** Existencia en BD, permisos complejos, reglas de estado, lógica temporal.
 
 ## 9. Seguridad: Autenticación y Autorización
 
-*   **Validación de Tokens:** Se realiza centralizadamente en un **gRPC Interceptor** global.
-*   **Contexto:** El interceptor extrae el `user_id` y `role` del token y los inyecta en el `context.Context` para que estén disponibles en toda la cadena de llamada.
-*   **RBAC:** El chequeo de permisos (`users:read`, etc.) ocurre en la capa de `service` basándose en el rol/permisos inyectados en el contexto.
+-   **Validación de Tokens:** Se realiza centralizadamente en un **gRPC Interceptor** global.
+-   **Contexto:** El interceptor extrae el `user_id` y `role` del token y los inyecta en el `context.Context` para que estén disponibles en toda la cadena de llamada.
+-   **RBAC:** El chequeo de permisos (`users:read`, etc.) ocurre en la capa de `service` basándose en el rol/permisos inyectados en el contexto.
 
 ## 10. Configuración y Entorno (Environment)
 
 La jerarquía de configuración favorece la flexibilidad tanto en desarrollo como en despliegues complejos de microservicios.
 
 ### Jerarquía de Carga
+
 La aplicación carga la configuración siguiendo un orden de precedencia estricto (de menor a mayor prioridad):
 
 1.  **Valores por Defecto:** Valores hardcodeados en `config.go` (ej. `Env: "dev"`, `HTTPPort: "8080"`).
@@ -146,6 +148,7 @@ La aplicación carga la configuración siguiendo un orden de precedencia estrict
 **Orden de Precedencia Final:** `YAML > .env > system ENV vars > defaults`
 
 ### Logging de Fuentes de Configuración
+
 Al iniciar la aplicación, se registra un log estructurado que muestra el valor final y la fuente de cada variable de configuración:
 
 ```
@@ -159,71 +162,87 @@ Configuration sources
 Esto facilita la depuración y el entendimiento de qué fuente está proporcionando cada valor.
 
 ### Agregar nueva configuración
+
 1.  Añadir el campo al struct en `internal/config/config.go` con los tags `yaml` y `env` correspondientes.
 2.  Implementar la lógica de carga en `OverrideWithEnv` y `OverrideWithEnvFromDotenv` para soportar variables de entorno.
 3.  Actualizar los archivos YAML en `configs/` si el valor es específico del entorno.
 4.  Inyectar el struct de configuración en la función `Initialize` del módulo correspondiente.
 
 ### Variables de Entorno Clave
+
 Aunque residan en el YAML, estas variables son críticas para el entorno de ejecución:
-*   `ENV`: `dev` o `prod`. Determina el nivel de logs y la activación de herramientas de depuración.
-*   `DB_DSN`: Conexión a PostgreSQL.
-*   `JWT_SECRET`: Clave secreta para tokens JWT. **Debe tener al menos 32 bytes (256 bits)** para el algoritmo HS256. Se valida automáticamente al cargar la configuración.
-*   `HTTP_PORT` / `GRPC_PORT`: Puertos de escucha.
+
+-   `ENV`: `dev` o `prod`. Determina el nivel de logs y la activación de herramientas de depuración.
+-   `DB_DSN`: Conexión a PostgreSQL.
+-   `JWT_SECRET`: Clave secreta para tokens JWT. **Debe tener al menos 32 bytes (256 bits)** para el algoritmo HS256. Se valida automáticamente al cargar la configuración.
+-   `HTTP_PORT` / `GRPC_PORT`: Puertos de escucha.
 
 ### Validación de Configuración
+
 El sistema valida automáticamente la configuración antes de iniciar:
-*   **JWT Secret:** Debe tener al menos 32 bytes para cumplir con los requisitos de seguridad de HS256.
-*   **Producción:** En modo `prod`, se requiere `DB_DSN` y `JWT_SECRET` obligatoriamente.
+
+-   **JWT Secret:** Debe tener al menos 32 bytes para cumplir con los requisitos de seguridad de HS256.
+-   **Producción:** En modo `prod`, se requiere `DB_DSN` y `JWT_SECRET` obligatoriamente.
 
 ## 11. Infraestructura Local (Docker)
+
 Utilizamos Docker Compose para levantar dependencias (Base de Datos).
-*   El puerto de PostgreSQL es configurable vía `DB_PORT` en el `.env` del host.
-*   Comandos útiles en `Makefile`: `make docker-up`, `make docker-down`.
+
+-   El puerto de PostgreSQL es configurable vía `DB_PORT` en el `.env` del host.
+-   Comandos útiles en `Makefile`: `make docker-up`, `make docker-down`.
 
 ## 12. Observabilidad
 
 La observabilidad es ciudadana de primera clase. No se debe desplegar código sin visibilidad.
 
 ### 12.1. Logs Estructurados
+
 Usamos la librería estándar `log/slog` (Go 1.21+).
-*   **Formato:** JSON en producción, Texto en desarrollo.
-*   **Contexto:** Todo log debe incluir `trace_id` y `span_id` si existen en el contexto.
-*   **Niveles:** INFO (flujo normal), ERROR (excepciones), DEBUG (solo dev). El nivel DEBUG está habilitado por defecto en desarrollo para facilitar la depuración.
-*   **Inicialización Temprana:** El logger se inicializa en dos fases: primero con un logger básico antes de cargar la configuración (para ver logs de inicialización), y luego se re-inicializa con la configuración completa (formato, nivel) después de cargar la configuración.
-*   **Privacidad (PII):** **NUNCA** loguear información sensible (emails, tokens, passwords).
+
+-   **Formato:** JSON en producción, Texto en desarrollo.
+-   **Contexto:** Todo log debe incluir `trace_id` y `span_id` si existen en el contexto.
+-   **Niveles:** INFO (flujo normal), ERROR (excepciones), DEBUG (solo dev). El nivel DEBUG está habilitado por defecto en desarrollo para facilitar la depuración.
+-   **Inicialización Temprana:** El logger se inicializa en dos fases: primero con un logger básico antes de cargar la configuración (para ver logs de inicialización), y luego se re-inicializa con la configuración completa (formato, nivel) después de cargar la configuración.
+-   **Privacidad (PII):** **NUNCA** loguear información sensible (emails, tokens, passwords).
 
 ```go
 slog.InfoContext(ctx, "user created", "user_id", id) // Evitar loguear el email aquí
 ```
 
 ### 12.2. Métricas (OpenTelemetry)
+
 Instrumentamos la aplicación usando el SDK de OpenTelemetry.
-*   **Protocolo:** Prometheus (`/metrics`).
-*   **Métricas Standard:**
-    *   `http_request_duration_seconds` (Histograma).
-    *   `grpc_server_handled_total` (Contador).
-*   **Mapeo:** Middleware/Interceptores automáticos para gRPC y HTTP.
+
+-   **Protocolo:** Prometheus (`/metrics`).
+-   **Métricas Standard:**
+    -   `http_request_duration_seconds` (Histograma).
+    -   `grpc_server_handled_total` (Contador).
+-   **Mapeo:** Middleware/Interceptores automáticos para gRPC y HTTP.
 
 ### 12.3. Health Checks
+
 El sistema expone dos endpoints críticos para el orquestador (K8s):
-*   **/healthz (Liveness):** Indica si el proceso está vivo. Retorna `200 OK`.
-*   **/readyz (Readiness):** Indica si el servicio puede recibir tráfico. Valida la conexión a la base de datos usando `db.PingContext(r.Context())` para respetar los timeouts del cliente HTTP y permitir que el orquestador cancele la verificación si es necesario.
+
+-   **/healthz (Liveness):** Indica si el proceso está vivo. Retorna `200 OK`.
+-   **/readyz (Readiness):** Indica si el servicio puede recibir tráfico. Valida la conexión a la base de datos usando `db.PingContext(r.Context())` para respetar los timeouts del cliente HTTP y permitir que el orquestador cancele la verificación si es necesario.
 
 ### 12.4. Tracing (OpenTelemetry)
+
 Implementamos trazabilidad distribuida usando el exportador OTLP.
-*   **Propagación:** Los traces viajan automáticamente a través de los interceptores gRPC.
-*   **Contexto:** Permite ver el camino de una petición desde el gateway hasta el repositorio.
+
+-   **Propagación:** Los traces viajan automáticamente a través de los interceptores gRPC.
+-   **Contexto:** Permite ver el camino de una petición desde el gateway hasta el repositorio.
 
 ## 13. Comunicación Asíncrona (Eventos)
 
 Para evitar acoplamiento fuerte entre módulos, disponemos de un **Bus de Eventos** interno (`internal/events`).
 
-*   **Patrón Pub/Sub:** Los módulos se suscriben a eventos (ej. `user.created`) sin conocer quién los emite.
-*   **No Bloqueante:** La publicación de eventos ocurre en goroutines separadas para no penalizar el tiempo de respuesta gRPC/HTTP.
-*   **Extensibilidad:** Facilita añadir efectos secundarios (auditoría, notificaciones) sin modificar el servicio original.
+-   **Patrón Pub/Sub:** Los módulos se suscriben a eventos (ej. `user.created`) sin conocer quién los emite.
+-   **No Bloqueante:** La publicación de eventos ocurre en goroutines separadas para no penalizar el tiempo de respuesta gRPC/HTTP.
+-   **Extensibilidad:** Facilita añadir efectos secundarios (auditoría, notificaciones) sin modificar el servicio original.
 
 ### Ejemplo de Uso (Service -> Audit)
+
 ```go
 // En modules/users/internal/service/service.go
 bus.Publish(ctx, events.Event{
@@ -243,12 +262,15 @@ eventBus.Subscribe("user.created", func(ctx context.Context, e events.Event) err
 El diseño modular y el empaquetado permiten escalar el sistema de forma eficiente:
 
 ### Horizontal Pod Autoscaler (HPA)
+
 El sistema soporta escalado automático basado en CPU/Memoria definido en el Helm Chart. Se recomienda un umbral del 80% para disparar nuevas réplicas.
 
 ### Graceful Shutdown
+
 La aplicación maneja señales de terminación para cerrar conexiones a base de datos y terminar peticiones gRPC en curso antes de morir.
 
 ### Pod Disruption Budget (PDB)
+
 Garantizamos un mínimo de disponibilidad durante mantenimientos del cluster Kubernetes, asegurando que siempre haya al menos una réplica operativa.
 
 ## 15. Guía de Implementación: De Cero a Producción
@@ -258,6 +280,7 @@ Garantizamos un mínimo de disponibilidad durante mantenimientos del cluster Kub
 El desarrollo comienza definiendo la API. Esto garantiza que frontend y backend acuerden la estructura de datos antes de escribir código.
 
 `proto/users/v1/users.proto`:
+
 ```protobuf
 syntax = "proto3";
 
@@ -293,6 +316,7 @@ Diseñamos la base de datos y las operaciones necesarias. SQLC se encargará de 
 **1. Migración (DDL):**
 Creamos las migraciones utilizando `golang-migrate`.
 `modules/users/resources/db/migration/000001_initial_schema.up.sql`:
+
 ```sql
 CREATE TABLE users (
   id VARCHAR(64) PRIMARY KEY,
@@ -305,6 +329,7 @@ CREATE TABLE users (
 
 **2. Queries (SQL):**
 `modules/users/internal/db/query/users.sql`:
+
 ```sql
 -- name: CreateUser :exec
 INSERT INTO users (id, username, email) VALUES ($1, $2, $3);
@@ -323,19 +348,20 @@ ORDER BY created_at DESC LIMIT 1;
 
 **3. Configuración SQLC:**
 `sqlc.yaml`:
+
 ```yaml
 version: "2"
 sql:
-  - engine: "postgresql"
-    queries: "modules/users/internal/db/query/"
-    schema: "modules/users/resources/db/migration/"
-    gen:
-      go:
-        package: "store"
-        out: "modules/users/internal/db/store"
-        sql_package: "database/sql"
-        emit_interface: true
-        emit_json_tags: true
+    - egine: "postgresql"
+      queries: "modules/users/internal/db/query/"
+      schema: "modules/users/resources/db/migration/"
+      gen:
+          go:
+              package: "store"
+              out: "modules/users/internal/db/store"
+              sql_package: "database/sql"
+              emit_interface: true
+              emit_json_tags: true
 ```
 
 **4. Generación:**
@@ -346,15 +372,16 @@ Ejecutar `sqlc generate`. Esto crea `modules/users/internal/db/store/` con tipos
 Creamos una capa intermedia que abstrae `sqlc` del resto de la aplicación. El repositorio es un **esclavo** del servicio: no genera IDs ni contiene lógica.
 
 `modules/users/internal/repository/repository.go`:
+
 ```go
 package repository
 
 import (
-	"context"
-	"database/sql"
-	"fmt"
+  "context"
+  "database/sql"
+  "fmt"
 
-	"proyecto/modules/users/internal/db/store"
+  "proyecto/modules/users/internal/db/store"
 )
 
 // Repository define las operaciones de negocio sobre los datos
@@ -393,20 +420,21 @@ func (r *SQLRepository) CreateUser(ctx context.Context, id, username, email stri
 Implementamos la interfaz gRPC generada por `protoc`. Aquí reside la lógica de orquestación y el **ownership** del dominio.
 
 `modules/users/internal/service/service.go`:
+
 ```go
 package service
 
 import (
-	"context"
-	"database/sql"
-	"errors"
-	"log/slog"
+  "context"
+  "database/sql"
+  "errors"
+  "log/slog"
 
-	"go.jetify.com/typeid"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	usersv1 "proyecto/gen/go/users/v1" // Código generado por Buf/Protoc
-	"proyecto/modules/users/internal/repository"
+  "go.jetify.com/typeid"
+  "google.golang.org/grpc/codes"
+  "google.golang.org/grpc/status"
+  usersv1 "proyecto/gen/go/users/v1" // Código generado por Buf/Protoc
+  "proyecto/modules/users/internal/repository"
 )
 
 type UserService struct {
@@ -445,6 +473,7 @@ func (s *UserService) CreateUser(ctx context.Context, req *usersv1.CreateUserReq
 ```
 
 ---
+
 ## 16. Workflows de Desarrollo (Development Workflows)
 
 ### Agregar un nuevo campo a una tabla
@@ -468,37 +497,38 @@ Para una experiencia de desarrollo fluida, utilizamos **Air** para recompilar au
 > [!TIP]
 > Air vigila cambios en archivos `.go`, `.yaml`, `.yml`, `.proto`, `.sql`, `.env` y archivos de configuración específicos (`configs/server.yaml`, `configs/auth-svc.yaml`), reiniciando el binario instantáneamente. Esto permite que los cambios en configuración se reflejen sin reiniciar manualmente.
 
-*   **Convención:** Archivos `*_test.go` al lado del código que prueban.
-*   **Unit Tests:**
-    *   **Enfoque:** Probar lógica de negocio pura y transformaciones.
-    *   **Mocks:** **Mockear** la interfaz `repository.Repository` en los tests del Servicio. Prohibido usar DB real en unit tests.
-*   **Integration Tests:**
-    *   **Ubicación:** Pueden vivir dentro de cada módulo o en una carpeta `tests/integration` aparte.
-    *   **Infra:** Usar `docker-compose` o **Testcontainers** para levantar una base de datos real.
-    *   **Flujo:** Probar el endpoint gRPC -> Repository -> DB real y verificar efectos secundarios.
+-   **Convención:** Archivos `*_test.go` al lado del código que prueban.
+-   **Unit Tests:**
+    -   **Enfoque:** Probar lógica de negocio pura y transformaciones.
+    -   **Mocks:** **Mockear** la interfaz `repository.Repository` en los tests del Servicio. Prohibido usar DB real en unit tests.
+-   **Integration Tests:**
+    -   **Ubicación:** Pueden vivir dentro de cada módulo o en una carpeta `tests/integration` aparte.
+    -   **Infra:** Usar `docker-compose` o **Testcontainers** para levantar una base de datos real.
+    -   **Flujo:** Probar el endpoint gRPC -> Repository -> DB real y verificar efectos secundarios.
 
 ## 17. Generación Automática de Módulos (Scaffolding)
 
 Para acelerar el inicio de nuevos módulos y asegurar que sigan los estándares definidos, disponemos de una herramienta de scaffolding robusta.
 
-*   **Comando:** `make new-module MODULE_NAME=[nombre]`
-*   **Automatización:**
-    *   Genera la estructura de carpetas estándar.
-    *   Crea los archivos boilerplate (`module.go`, `service.go`, `repository.go`, `proto`).
-    *   **Configura automáticamente `sqlc.yaml`** añadiendo la entrada para el nuevo módulo.
-    *   **Manejo de Plurales:** Detecta nombres en plural (ej. `products`) y ajusta el nombre del struct generado (ej. `Product`) en los templates para evitar errores de compilación.
-*   **Archivos Generados:**
-    *   `modules/[name]/module.go`: Inicialización y registro del Gateway.
-    *   `modules/[name]/internal/service/service.go`: Boilerplate del servicio con TypeID y mapeo de errores.
-    *   `modules/[name]/internal/repository/repository.go`: Interfaz y adaptador SQL con soporte de transacciones (`WithTx`).
-    *   `modules/[name]/resources/db/migration/`: Script inicial de base de datos.
-    *   `proto/[name]/v1/`: Contrato inicial del servicio.
+-   **Comando:** `make new-module MODULE_NAME=[nombre]`
+-   **Automatización:**
+    - Genera la estructura de carpetas estándar.
+    -   Crea los archivos boilerplate (`module.go`, `service.go`, `repository.go`, `proto`).
+    -   **Configura automáticamente `sqlc.yaml`** añadiendo la entrada para el nuevo módulo.
+    -   **Manejo de Plurales:** Detecta nombres en plural (ej. `products`) y ajusta el nombre del struct generado (ej. `Product`) en los templates para evitar errores de compilación.
+-   **Archivos Generados:**
+    -   `modules/[name]/module.go`: Inicialización y registro del Gateway.
+    -   `modules/[name]/internal/service/service.go`: Boilerplate del servicio con TypeID y mapeo de errores.
+    -   `modules/[name]/internal/repository/repository.go`: Interfaz y adaptador SQL con soporte de transacciones (`WithTx`).
+    -   `modules/[name]/resources/db/migration/`: Script inicial de base de datos.
+    -   `proto/[name]/v1/`: Contrato inicial del servicio.
 
 ## 18. Despliegue Granular y Configuración (Microservices Path)
 
 Un Modulito bien diseñado permite transicionar de un único binario (Monolito) a múltiples binarios (Microservicios) sin cambiar la lógica de los módulos.
 
 ### Configuración por Módulo
+
 Cada módulo debe definir su propio struct de configuración para evitar depender de variables globales.
 
 ```go
@@ -517,6 +547,7 @@ func Initialize(db *sql.DB, grpcServer *grpc.Server, bus *events.Bus, cfg Config
 ```
 
 ### Uso de YAML y Variables de Entorno
+
 El proyecto utiliza un cargador centralizado en `internal/config` (basado en `yaml.v3`) con la siguiente jerarquía:
 
 1.  **Archivos por Aplicación**: Se recomienda una carpeta `configs/` con archivos YAML específicos para cada entrypoint (ej. `configs/server.yaml`, `configs/auth-svc.yaml`).
@@ -525,23 +556,29 @@ El proyecto utiliza un cargador centralizado en `internal/config` (basado en `ya
 4.  **Trazabilidad**: Al iniciar, la aplicación registra la fuente de cada variable de configuración, facilitando la depuración y el entendimiento de qué valor se está utilizando.
 
 ### De Monolito a Microservicios
+
 La separación se logra creando diferentes puntos de entrada (`cmd/`) que apuntan a sus respectivos archivos de configuración:
 
 1.  **Modo Monolito (`cmd/server/main.go`):** Inicia todos los módulos, una única conexión a DB y un único servidor gRPC.
 2.  **Modo Microservicio (`cmd/auth-svc/main.go`):** Solo importa e inicializa el módulo de `auth`.
 
 ### Comunicación Inter-Módulo en Microservicios
+
 Cuando los módulos viven en binarios distintos, las llamadas gRPC que antes eran in-process (directas) ahora deben viajar por la red. Para que esto sea transparente:
-*   Se utiliza un **Service Discovery** o un **Load Balancer** interno.
-*   El cliente gRPC inyectado en un módulo debe apuntar a la dirección del microservicio externo en lugar de `127.0.0.1` (o usar la misma interfaz de cliente).
+
+-   Se utiliza un **Service Discovery** o un **Load Balancer** interno.
+-   El cliente gRPC inyectado en un módulo debe apuntar a la dirección del microservicio externo en lugar de `127.0.0.1` (o usar la misma interfaz de cliente).
 
 ---
+
 ## 19. Contenerización y Despliegue en la Nube
 
 El proyecto está preparado para ejecutarse en entornos de contenedores (Docker) y orquestadores (Kubernetes) de forma nativa.
 
 ### Dockerfile: Multi-Stage Build
+
 Utilizamos un `Dockerfile` optimizado con dos etapas:
+
 1.  **Builder:** Compila el binario en una imagen de Go (Alpine). Permite elegir el target vía `--build-arg TARGET=[server|auth-svc]`.
 2.  **Runner:** Una imagen ligera (`alpine`) que solo contiene el binario y los archivos de configuración necesarios.
 
@@ -551,24 +588,29 @@ make docker-build-auth
 ```
 
 ### Helm Charts: Kubernetes
+
 En `deployment/helm/modulith` se encuentra el chart estándar para desplegar en K8s.
-- **Valores por Entorno:** Se recomienda usar diferentes archivos `values.yaml` (ej. `values-prod.yaml`) para manejar secretos y recursos por cluster.
-- **Flexibilidad:** El mismo chart puede desplegar tanto el Monolito como instancias individuales de microservicios ajustando la imagen y los comandos de inicio.
+
+-   **Valores por Entorno:** Se recomienda usar diferentes archivos `values.yaml` (ej. `values-prod.yaml`) para manejar secretos y recursos por cluster.
+-   **Flexibilidad:** El mismo chart puede desplegar tanto el Monolito como instancias individuales de microservicios ajustando la imagen y los comandos de inicio.
 
 ## 20. Infraestructura como Código (IaC)
 
 Manejamos la infraestructura utilizando un enfoque modular con **OpenTofu** (Fork Open Source de Terraform) y **Terragrunt** para garantizar entornos consistentes y reproducibles.
 
 ### Estructura de Directorios
-*   `deployment/opentofu/modules/`: Definición de componentes base (VPC, RDS, EKS).
-*   `deployment/terragrunt/envs/`: Configuraciones específicas por entorno (`dev`, `prod`).
+
+-   `deployment/opentofu/modules/`: Definición de componentes base (VPC, RDS, EKS).
+-   `deployment/terragrunt/envs/`: Configuraciones específicas por entorno (`dev`, `prod`).
 
 ### Módulos Principales
+
 1.  **VPC (Red):** Configura subredes públicas (ELBs) y privadas (Nodos/DB) con NAT Gateway.
 2.  **RDS (Base de Datos):** Instancia de PostgreSQL 16 aislada en subredes privadas.
 3.  **EKS (Compute):** Cluster de Kubernetes gestionado con Node Groups escalables.
 
 ### Despliegue con Terragrunt
+
 Terragrunt nos permite mantener el código DRY (Don't Repeat Yourself) y es 100% compatible con OpenTofu. Para desplegar el entorno de desarrollo:
 
 ```bash
@@ -578,31 +620,78 @@ terragrunt run-all apply # Aplicar infraestructura
 ```
 
 ---
+
 ## 21. CI/CD y Calidad de Código
 
 El proyecto integra un pipeline de automatización para garantizar la estabilidad:
 
 ### GitHub Actions
+
 Se ejecutan automáticamente en cada Push/PR:
+
 1.  **Checksum/Verify:** Valida que las dependencias no hayan sido alteradas.
+
 ### Calidad de Código Estricta
 
 El proyecto impone un estándar de calidad de "Clase Mundial" a través de un linter altamente configurado:
 
 1.  **Linter Estricto:** `golangci-lint` está configurado para detectar no solo errores, sino también:
-    - **Complejidad Ciclomática y Cognitiva:** Evita funciones inmanejables.
-    - **Nivel de Anidación:** Máximo 5 niveles (linters `nestif`).
-    - **Documentación:** Todo elemento público **DEBE** tener comentarios de Godoc.
-    - **Seguridad:** Análisis estático con `gosec` en cada commit.
+    -   **Complejidad Ciclomática y Cognitiva:** Evita funciones inmanejables.
+    -   **Nivel de Anidación:** Máximo 5 niveles (linters `nestif`).
+    -   **Documentación:** Todo elemento público **DEBE** tener comentarios de Godoc.
+    -   **Seguridad:** Análisis estático con `gosec` en cada commit.
 2.  **Validación de Configuración:** El cargador de configuración valida semánticamente las variables críticas antes de que la aplicación inicie (Fail-Fast).
 3.  **Tests con Race Detection:** No se permite código con condiciones de carrera (`-race`).
 
 ### Estándares de Linting (Actualizado)
+
 Hemos adoptado un set de reglas estricto para garantizar consistencia:
-*   **wsl (Whitespace Linter):** Fuerza el uso de espacios en blanco para separar bloques lógicos (ej. antes de un `return` o `if`).
-*   **wrapcheck:** Obliga a envolver errores externos con `fmt.Errorf("...: %w", err)` para mantener la cadena de trazabilidad.
-*   **revive:** Reemplazo moderno de `golint` para estilo y convención de nombres.
-*   **package-comments:** Todos los paquetes deben tener documentación.
+
+-   **wsl_v5 (Whitespace Linter):** Fuerza el uso de espacios en blanco para separar bloques lógicos (ej. antes de un `return` o `if`).
+-   **wrapcheck:** Obliga a envolver errores externos con `fmt.Errorf("...: %w", err)` para mantener la cadena de trazabilidad.
+-   **revive:** Reemplazo moderno de `golint` para estilo y convención de nombres.
+-   **errcheck:** Verifica que todos los errores retornados sean manejados apropiadamente.
+-   **goconst:** Detecta strings repetidos que deberían ser constantes.
+-   **cyclop:** Limita la complejidad ciclomática de funciones (máximo 10).
+-   **funlen:** Limita la longitud de funciones (máximo 60 líneas).
+-   **package-comments:** Todos los paquetes deben tener documentación.
+
+### Workflow de Linting (CRÍTICO)
+
+**Regla de Oro:** NUNCA modificar `.golangci.yaml` para ignorar o suprimir errores. Siempre implementar fixes apropiados.
+
+**Proceso Obligatorio:**
+
+1.  **Ejecutar:** `make lint` después de CUALQUIER modificación a archivos `.go`.
+2.  **Iterar:** Corregir todos los errores hasta alcanzar **0 issues**.
+3.  **Fixes Apropiados:**
+    -   `errcheck`: Agregar manejo de errores o asignar explícitamente a `_` si el error debe ser ignorado intencionalmente.
+    -   `goconst`: Extraer strings repetidos a constantes con nombres descriptivos.
+    -   `revive`: Renombrar parámetros no utilizados a `_`.
+    -   `wsl_v5`: Agregar espacios en blanco apropiados entre declaraciones y control de flujo.
+    -   `cyclop`: Reducir complejidad extrayendo lógica a funciones auxiliares.
+    -   `funlen`: Dividir funciones largas en funciones más pequeñas y enfocadas.
+4.  **Validación:** El CI/CD rechazará cualquier PR con errores de linting.
+
+**Ejemplo de Refactoring (Complejidad):**
+
+```go
+// ❌ MAL: Función compleja con cyclomatic complexity > 10
+func TestComplexFunction(t *testing.T) {
+    // 50+ líneas de código con muchos if/else anidados
+}
+
+// ✅ BIEN: Extraer a funciones auxiliares
+func TestComplexFunction(t *testing.T) {
+    t.Run("case 1", func(t *testing.T) { testCase1(t) })
+    t.Run("case 2", func(t *testing.T) { testCase2(t) })
+}
+
+func testCase1(t *testing.T) {
+    t.Helper()
+    // Lógica enfocada
+}
+```
 
 ## 22. Checklist de Replicabilidad para LLMs
 
@@ -620,14 +709,15 @@ Si estás utilizando un LLM para generar o extender este proyecto, asegúrate de
 
 Para evitar el acoplamiento con proveedores externos (Twilio, SendGrid, etc.), el sistema utiliza el **Patrón Adapter** combinado con un enfoque **Event-Driven**.
 
-*   **Interfaces:** Definidas en `internal/notifier/notifier.go` (`EmailProvider`, `SMSProvider`).
-*   **Implementación Reactiva:** Un `notifier.Subscriber` escucha eventos globales (ej. `auth.magic_code_requested`) y despacha la notificación de forma **asíncrona** y **no bloqueante**.
-*   **LogNotifier para Dev:** Imprime las notificaciones en los logs estructurados, permitiendo probar flujos como el "Magic Code" sin configurar APIs externas.
-*   **Inyección y Registro:**
-    - El módulo (ej. `auth`) emite el evento al `Bus`.
-    - El `Subscriber` se registra al `Bus` en el `main.go`, garantizando que la lógica de entrega esté totalmente fuera del dominio del módulo.
+-   **Interfaces:** Definidas en `internal/notifier/notifier.go` (`EmailProvider`, `SMSProvider`).
+-   **Implementación Reactiva:** Un `notifier.Subscriber` escucha eventos globales (ej. `auth.magic_code_requested`) y despacha la notificación de forma **asíncrona** y **no bloqueante**.
+-   **LogNotifier para Dev:** Imprime las notificaciones en los logs estructurados, permitiendo probar flujos como el "Magic Code" sin configurar APIs externas.
+-   **Inyección y Registro:**
+    -   El módulo (ej. `auth`) emite el evento al `Bus`.
+    -   El `Subscriber` se registra al `Bus` en el `main.go`, garantizando que la lógica de entrega esté totalmente fuera del dominio del módulo.
 
 ---
+
 ## 24. Futuras Mejoras y Nota Final
 
 Esta arquitectura favorece la seguridad en tiempo de compilación y la disciplina operativa. Go 1.23+ se elige por el soporte nativo de `slog`, mejoras en el `toolchain` y optimizaciones de performance que permiten un código más limpio y eficiente.
