@@ -1,0 +1,37 @@
+# Example values for deploying the main monolith server
+deploymentType: server
+replicaCount: 2
+
+image:
+  repository: modulith
+  pullPolicy: IfNotPresent
+  tag: "v1.0.0"
+
+service:
+  type: ClusterIP
+  httpPort: 8080
+  grpcPort: 9050
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 500m
+    memory: 256Mi
+
+config:
+  env: prod
+  dbDsn: "postgres://user:pass@postgresql:5432/db"
+  jwtSecret: "change-me-in-production"
+

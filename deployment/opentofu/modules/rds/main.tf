@@ -51,5 +51,12 @@ resource "aws_db_instance" "main" {
 }
 
 output "db_endpoint" {
-  value = aws_db_instance.main.endpoint
+  value       = aws_db_instance.main.endpoint
+  description = "RDS instance endpoint"
+}
+
+output "db_connection_string" {
+  value       = "postgres://${var.db_user}:${var.db_password}@${aws_db_instance.main.endpoint}/${var.db_name}"
+  description = "Full PostgreSQL connection string"
+  sensitive   = true
 }

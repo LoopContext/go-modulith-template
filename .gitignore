@@ -5,6 +5,11 @@ bin/
 .env
 !.env.example
 
+# Air configs (keep main ones)
+.air.*.toml
+!.air.toml
+!.air.auth.toml
+
 # Test coverage
 coverage.out
 *.out

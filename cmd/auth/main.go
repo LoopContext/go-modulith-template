@@ -52,7 +52,6 @@ func main() {
 		return
 	}
 
-
 	db := initializeDBAuth(ctx, cfg)
 	if db == nil {
 		shutdownObs()
@@ -84,7 +83,7 @@ func loadConfigAuth() *config.AppConfig {
 	systemEnvVars := captureSystemEnvVars()
 	_ = godotenv.Load()
 
-	cfg, err := config.Load("configs/auth-svc.yaml", systemEnvVars)
+	cfg, err := config.Load("configs/auth.yaml", systemEnvVars)
 	if err != nil {
 		slog.Error("Failed to load config", "error", err)
 		return nil
@@ -230,7 +229,7 @@ func initObservability(ctx context.Context, cfg *config.AppConfig) (http.Handler
 
 	var tracerShutdown func()
 	if cfg.OTLPEndpoint != "" {
-		tracerShutdown = initTracer(ctx, cfg.OTLPEndpoint, "auth-svc")
+		tracerShutdown = initTracer(ctx, cfg.OTLPEndpoint, "auth")
 	} else {
 		tracerShutdown = func() {}
 	}

@@ -81,9 +81,12 @@ dev: ## Run the monolith with live reload (requires Air)
 		echo "Air is not installed. Please install it with: go install github.com/air-verse/air@latest"; \
 	fi
 
-dev-auth: ## Run the auth-svc with live reload (requires Air)
+dev-module: ## Run a specific module with live reload (usage: make dev-module MODULE_NAME)
+	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make dev-module MODULE_NAME"; exit 1; fi
+	@if [ ! -f ".air.$(MODULE_NAME).toml" ]; then echo "Error: Air config '.air.$(MODULE_NAME).toml' not found"; exit 1; fi
 	@if command -v air > /dev/null; then \
-		air -c .air.auth.toml; \
+		echo "Starting module: $(MODULE_NAME) with hot reload..."; \
+		air -c .air.$(MODULE_NAME).toml; \
 	else \
 		echo "Air is not installed. Please install it with: go install github.com/air-verse/air@latest"; \
 	fi
@@ -100,12 +103,27 @@ ifeq (build-module,$(firstword $(MAKECMDGOALS)))
   $(eval $(MODULE_NAME):;@:)
 endif
 
-##### Docker
-docker-build: ## Build docker image (default: TARGET=server)
-	docker build --build-arg TARGET=$(if $(TARGET),$(TARGET),server) -t modulith-$(if $(TARGET),$(TARGET),server):latest .
+# Handle positional arguments for docker-build-module
+ifeq (docker-build-module,$(firstword $(MAKECMDGOALS)))
+  MODULE_NAME := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(eval $(MODULE_NAME):;@:)
+endif
 
-docker-build-auth: ## Build docker image for auth service
-	$(MAKE) docker-build TARGET=auth-svc
+# Handle positional arguments for dev-module
+ifeq (dev-module,$(firstword $(MAKECMDGOALS)))
+  MODULE_NAME := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(eval $(MODULE_NAME):;@:)
+endif
+
+##### Docker
+docker-build: ## Build docker image for server
+	docker build --build-arg TARGET=server -t modulith-server:latest .
+
+docker-build-module: ## Build docker image for a specific module (usage: make docker-build-module MODULE_NAME)
+	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make docker-build-module MODULE_NAME"; exit 1; fi
+	@if [ ! -d "cmd/$(MODULE_NAME)" ]; then echo "Error: Module '$(MODULE_NAME)' not found in cmd/"; exit 1; fi
+	@echo "Building Docker image for module: $(MODULE_NAME)"
+	docker build --build-arg TARGET=$(MODULE_NAME) -t modulith-$(MODULE_NAME):latest .
 
 ##### Modules
 new-module:

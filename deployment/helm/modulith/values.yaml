@@ -1,7 +1,16 @@
 # Default values for modulith.
+# This chart supports deploying the main server or individual modules
+
+# Deployment mode: "server" (monolith) or "module" (individual module)
+deploymentType: server
+
+# Module name (only used when deploymentType=module, e.g., "auth")
+moduleName: ""
+
 replicaCount: 1
 
 image:
+  # Repository will be suffixed with deploymentType: modulith-server or modulith-{moduleName}
   repository: modulith
   pullPolicy: IfNotPresent
   tag: "latest"

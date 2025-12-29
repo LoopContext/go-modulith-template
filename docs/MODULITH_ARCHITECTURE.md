@@ -30,10 +30,10 @@ La organización de carpetas es crítica para mantener la modularidad. Cada mód
 proyecto/
 ├── cmd/
 │   ├── server/             # Entrypoint Monolito (main.go)
-│   └── auth-svc/           # Entrypoint Microservicio (main.go)
+│   └── auth/           # Entrypoint Microservicio (main.go)
 ├── configs/                # Configuraciones YAML por aplicación
 │   ├── server.yaml         # Configuración del monolito
-│   └── auth-svc.yaml       # Configuración del microservicio
+│   └── auth.yaml       # Configuración del microservicio
 ├── internal/
 │   └── config/             # Cargador central de configuración (YAML + Env)
 ├── scripts/                # Scripts de automatización (scaffolding)
@@ -495,7 +495,7 @@ Para una experiencia de desarrollo fluida, utilizamos **Air** para recompilar au
 2.  **Microservicio Auth:** `make dev-auth`
 
 > [!TIP]
-> Air vigila cambios en archivos `.go`, `.yaml`, `.yml`, `.proto`, `.sql`, `.env` y archivos de configuración específicos (`configs/server.yaml`, `configs/auth-svc.yaml`), reiniciando el binario instantáneamente. Esto permite que los cambios en configuración se reflejen sin reiniciar manualmente.
+> Air vigila cambios en archivos `.go`, `.yaml`, `.yml`, `.proto`, `.sql`, `.env` y archivos de configuración específicos (`configs/server.yaml`, `configs/auth.yaml`), reiniciando el binario instantáneamente. Esto permite que los cambios en configuración se reflejen sin reiniciar manualmente.
 
 -   **Convención:** Archivos `*_test.go` al lado del código que prueban.
 -   **Unit Tests:**
@@ -550,7 +550,7 @@ func Initialize(db *sql.DB, grpcServer *grpc.Server, bus *events.Bus, cfg Config
 
 El proyecto utiliza un cargador centralizado en `internal/config` (basado en `yaml.v3`) con la siguiente jerarquía:
 
-1.  **Archivos por Aplicación**: Se recomienda una carpeta `configs/` con archivos YAML específicos para cada entrypoint (ej. `configs/server.yaml`, `configs/auth-svc.yaml`).
+1.  **Archivos por Aplicación**: Se recomienda una carpeta `configs/` con archivos YAML específicos para cada entrypoint (ej. `configs/server.yaml`, `configs/auth.yaml`).
 2.  **Schema Unificado**: Aunque los archivos sean distintos, todos mapean al struct `AppConfig` central para mantener consistencia. Un microservicio simplemente ignorará las secciones YAML que no le correspondan.
 3.  **Jerarquía de Precedencia**: El orden de carga es: **YAML > .env > system ENV vars > defaults**. Esto significa que los valores en el YAML tienen la máxima prioridad, seguidos por el archivo `.env`, luego las variables del sistema, y finalmente los valores por defecto.
 4.  **Trazabilidad**: Al iniciar, la aplicación registra la fuente de cada variable de configuración, facilitando la depuración y el entendimiento de qué valor se está utilizando.
@@ -560,7 +560,7 @@ El proyecto utiliza un cargador centralizado en `internal/config` (basado en `ya
 La separación se logra creando diferentes puntos de entrada (`cmd/`) que apuntan a sus respectivos archivos de configuración:
 
 1.  **Modo Monolito (`cmd/server/main.go`):** Inicia todos los módulos, una única conexión a DB y un único servidor gRPC.
-2.  **Modo Microservicio (`cmd/auth-svc/main.go`):** Solo importa e inicializa el módulo de `auth`.
+2.  **Modo Microservicio (`cmd/auth/main.go`):** Solo importa e inicializa el módulo de `auth`.
 
 ### Comunicación Inter-Módulo en Microservicios
 
@@ -573,30 +573,90 @@ Cuando los módulos viven en binarios distintos, las llamadas gRPC que antes era
 
 ## 19. Contenerización y Despliegue en la Nube
 
-El proyecto está preparado para ejecutarse en entornos de contenedores (Docker) y orquestadores (Kubernetes) de forma nativa.
+El proyecto está preparado para ejecutarse en entornos de contenedores (Docker) y orquestadores (Kubernetes) de forma nativa, con un enfoque modular que permite evolucionar de monolito a microservicios sin fricciones.
 
 ### Dockerfile: Multi-Stage Build
 
-Utilizamos un `Dockerfile` optimizado con dos etapas:
+Utilizamos un `Dockerfile` optimizado con dos etapas que soporta construcción dinámica de cualquier módulo:
 
-1.  **Builder:** Compila el binario en una imagen de Go (Alpine). Permite elegir el target vía `--build-arg TARGET=[server|auth-svc]`.
-2.  **Runner:** Una imagen ligera (`alpine`) que solo contiene el binario y los archivos de configuración necesarios.
+1.  **Builder:** Compila el binario en una imagen de Go (Alpine). Usa `--build-arg TARGET={module}` para seleccionar qué construir.
+2.  **Runner:** Una imagen ligera (`alpine:3.20`) que solo contiene el binario y los archivos de configuración necesarios.
+
+**Todos los binarios se compilan en `/app/bin/` y se consolidan automáticamente.**
 
 ```bash
-# Ejemplo: Construir el microservicio de Auth
-make docker-build-auth
+# Construir el servidor monolito
+make docker-build
+# Genera: modulith-server:latest
+
+# Construir un módulo específico
+make docker-build-module auth
+# Genera: modulith-auth:latest
+
+# Construir cualquier módulo
+make docker-build-module payments
+# Genera: modulith-payments:latest
 ```
 
-### Helm Charts: Kubernetes
+### Helm Charts: Despliegue Flexible en Kubernetes
 
-En `deployment/helm/modulith` se encuentra el chart estándar para desplegar en K8s.
+En `deployment/helm/modulith` se encuentra el chart estándar que soporta múltiples estrategias de despliegue.
 
--   **Valores por Entorno:** Se recomienda usar diferentes archivos `values.yaml` (ej. `values-prod.yaml`) para manejar secretos y recursos por cluster.
--   **Flexibilidad:** El mismo chart puede desplegar tanto el Monolito como instancias individuales de microservicios ajustando la imagen y los comandos de inicio.
+#### Estrategia 1: Monolito (Fase Inicial)
+
+Despliega todo como un solo deployment con autoscaling:
+
+```bash
+helm install modulith-server ./deployment/helm/modulith \
+  --values ./deployment/helm/modulith/values-server.yaml \
+  --namespace production
+```
+
+#### Estrategia 2: Híbrida (Transición)
+
+Combina el monolito con módulos independientes para componentes que necesitan escalar de forma diferente:
+
+```bash
+# Servidor principal con módulos core
+helm install modulith-server ./deployment/helm/modulith \
+  --values values-server.yaml
+
+# Módulo Auth separado (mayor demanda)
+helm install modulith-auth ./deployment/helm/modulith \
+  --values values-auth-module.yaml
+```
+
+#### Estrategia 3: Microservicios (Fase Avanzada)
+
+Cada módulo como deployment independiente:
+
+```bash
+# Cada módulo con su propio ciclo de vida
+helm install modulith-auth ./deployment/helm/modulith \
+  --set deploymentType=module \
+  --set moduleName=auth
+
+helm install modulith-orders ./deployment/helm/modulith \
+  --set deploymentType=module \
+  --set moduleName=orders
+```
+
+#### Características del Helm Chart
+
+-   **✅ Soporte Multi-Módulo:** Un solo chart para server y todos los módulos
+-   **✅ Convención de Nombres:** Genera automáticamente `modulith-{module}:tag`
+-   **✅ HPA y PDB:** Horizontal Pod Autoscaling y Pod Disruption Budgets configurables
+-   **✅ Health Checks:** Liveness (`/healthz`) y Readiness (`/readyz`) probes
+-   **✅ Secrets:** Gestión de configuración sensible (DB_DSN, JWT_SECRET)
+-   **✅ Resource Limits:** Configuración de CPU y memoria por deployment
+
+**Ver documentación completa en:** `deployment/helm/modulith/README.md`
 
 ## 20. Infraestructura como Código (IaC)
 
-Manejamos la infraestructura utilizando un enfoque modular con **OpenTofu** (Fork Open Source de Terraform) y **Terragrunt** para garantizar entornos consistentes y reproducibles.
+Manejamos la infraestructura base utilizando un enfoque modular con **OpenTofu** (Fork Open Source de Terraform) y **Terragrunt** para garantizar entornos consistentes y reproducibles.
+
+**Nota:** La IaC gestiona la infraestructura base (VPC, EKS, RDS), mientras que los deployments de aplicaciones se manejan con Helm Charts (ver sección anterior).
 
 ### Estructura de Directorios
 

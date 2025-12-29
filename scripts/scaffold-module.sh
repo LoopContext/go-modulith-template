@@ -55,6 +55,7 @@ process_template "templates/module/internal/repository/repository.go.tmpl" "${MO
 process_template "templates/module/internal/db/query/queries.sql.tmpl" "${MODULE_DIR}/internal/db/query/${MODULE_NAME}.sql"
 process_template "templates/module/resources/db/migration/000001_initial.up.sql.tmpl" "${MODULE_DIR}/resources/db/migration/000001_initial_schema.up.sql"
 process_template "templates/module/proto/module.proto.tmpl" "${PROTO_DIR}/${MODULE_NAME}.proto"
+process_template "templates/module/air.toml.tmpl" ".air.${MODULE_NAME}.toml"
 
 # Update sqlc.yaml
 if ! grep -q "modules/${MODULE_NAME}/internal/db/store" sqlc.yaml; then
@@ -77,4 +78,6 @@ echo "Module ${MODULE_NAME} scaffolded successfully!"
 echo "Next steps:"
 echo "1. Run 'make proto' to generate gRPC code."
 echo "2. Run 'make sqlc' to generate DB code."
-echo "3. Update cmd/server/main.go to initialize the new module."
+echo "3. Create cmd/${MODULE_NAME}/main.go for the module entry point."
+echo "4. Update cmd/server/main.go to initialize the new module."
+echo "5. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
