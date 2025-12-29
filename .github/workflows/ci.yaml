@@ -35,4 +35,4 @@ jobs:
         run: go test -v -race -coverprofile=coverage.out ./...
 
       - name: Verify Docker build
-        run: docker build --build-arg TARGET=server -t test image .
+        run: docker build --build-arg TARGET=server -t test-image .
