@@ -1,15 +1,15 @@
-## gRPC: reglas obligatorias
+## gRPC: Mandatory Rules
 
-## Mapeo de errores
+## Error Mapping
 
-- **Solo** la capa `modules/<mod>/internal/service` mapea errores a gRPC status.
-- **Nunca** envolver (`fmt.Errorf("%w")`) un `status.Error(...)` o `status.Errorf(...)`.
-  - Eso rompe el código gRPC y termina devolviendo `codes.Unknown`.
-- Patrón:
-  - validar input → `return nil, status.Error(codes.InvalidArgument, "...")`
-  - error interno (repo/DB) → `slog.ErrorContext(ctx, "...", "error", err)` y `return nil, status.Error(codes.Internal, "internal server error")`
+- **Only** the `modules/<mod>/internal/service` layer maps errors to gRPC status.
+- **Never** wrap (`fmt.Errorf("%w")`) a `status.Error(...)` or `status.Errorf(...)`.
+  - That breaks gRPC code and ends up returning `codes.Unknown`.
+- Pattern:
+  - validate input → `return nil, status.Error(codes.InvalidArgument, "...")`
+  - internal error (repo/DB) → `slog.ErrorContext(ctx, "...", "error", err)` and `return nil, status.Error(codes.Internal, "internal server error")`
 
 ## DTOs (Protobuf)
 
-- La respuesta externa siempre usa tipos Protobuf (no filtrar `store.*` ni structs internos).
-- Mantener `proto3` + `google.api.http` para gateway cuando se expone REST.
+- External responses always use Protobuf types (do not leak `store.*` or internal structs).
+- Maintain `proto3` + `google.api.http` for gateway when exposing REST.

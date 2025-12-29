@@ -1,20 +1,20 @@
-## Seguridad: AuthN/AuthZ
+## Security: AuthN/AuthZ
 
-## AuthN (validación de tokens)
+## AuthN (token validation)
 
-- La validación de JWT debe ocurrir centralizadamente en un **gRPC interceptor** global.
-- El interceptor:
-  - lee `authorization: Bearer <token>`
-  - valida firma/expiración
-  - inyecta `user_id` y `role` al `context.Context`
-  - permite una **allowlist** de métodos públicos (ej. login)
+- JWT validation must occur centrally in a global **gRPC interceptor**.
+- The interceptor:
+  - reads `authorization: Bearer <token>`
+  - validates signature/expiration
+  - injects `user_id` and `role` into `context.Context`
+  - allows an **allowlist** of public methods (e.g. login)
 
 ## AuthZ (RBAC)
 
-- Las reglas de permisos (ej. `users:read`) se chequean en la capa `service`, usando lo inyectado en context.
-- Prohibido usar prefijos de TypeID como lógica de autorización.
+- Permission rules (e.g. `users:read`) are checked in the `service` layer, using what's injected in context.
+- Forbidden to use TypeID prefixes as authorization logic.
 
 ## Secrets
 
-- En `prod`, `JWT_SECRET` (y `DB_DSN`) deben venir por env/secret manager (12-factor).
-- Nunca loguear tokens ni secrets.
+- In `prod`, `JWT_SECRET` (and `DB_DSN`) must come from env/secret manager (12-factor).
+- Never log tokens or secrets.

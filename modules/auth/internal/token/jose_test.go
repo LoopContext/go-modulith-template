@@ -5,10 +5,10 @@ import (
 	"time"
 )
 
-func TestTokenService(t *testing.T) {
-	secret := "test-secret-key-must-be-long-enough"
+const testSecret = "test-secret-key-must-be-long-enough"
 
-	ts, err := NewService(secret)
+func TestTokenService(t *testing.T) {
+	ts, err := NewService(testSecret)
 	if err != nil {
 		t.Fatalf("Failed to create token service: %v", err)
 	}
@@ -67,4 +67,105 @@ func TestTokenService(t *testing.T) {
 			t.Error("Expected error for invalid signature, got nil")
 		}
 	})
+}
+
+func TestNewService_EmptySecret(t *testing.T) {
+	_, err := NewService("")
+	if err == nil {
+		t.Error("Expected error when secret is empty")
+	}
+}
+
+func TestNewService_ShortSecret(t *testing.T) {
+	_, err := NewService("short")
+	if err == nil {
+		t.Error("Expected error when secret is too short")
+	}
+}
+
+func TestNewService_ExactlyMinLength(t *testing.T) {
+	secret := "12345678901234567890123456789012" // exactly 32 bytes
+
+	ts, err := NewService(secret)
+	if err != nil {
+		t.Errorf("Expected no error for 32-byte secret, got: %v", err)
+	}
+
+	if ts == nil {
+		t.Error("Expected token service to not be nil")
+	}
+}
+
+func TestCreateToken_EmptyUserID(t *testing.T) {
+	ts, err := NewService(testSecret)
+	if err != nil {
+		t.Fatalf("Failed to create token service: %v", err)
+	}
+
+
+
+	token, err := ts.CreateToken("", "user", time.Minute)
+	if err != nil {
+		t.Fatalf("Failed to create token: %v", err)
+	}
+
+	claims, err := ts.VerifyToken(token)
+	if err != nil {
+		t.Fatalf("Failed to verify token: %v", err)
+	}
+
+	if claims.UserID != "" {
+		t.Errorf("Expected empty userID, got %s", claims.UserID)
+	}
+}
+
+func TestCreateToken_EmptyRole(t *testing.T) {
+	ts, err := NewService(testSecret)
+	if err != nil {
+		t.Fatalf("Failed to create token service: %v", err)
+	}
+
+
+
+	token, err := ts.CreateToken("user-123", "", time.Minute)
+	if err != nil {
+		t.Fatalf("Failed to create token: %v", err)
+	}
+
+	claims, err := ts.VerifyToken(token)
+	if err != nil {
+		t.Fatalf("Failed to verify token: %v", err)
+	}
+
+	if claims.Role != "" {
+		t.Errorf("Expected empty role, got %s", claims.Role)
+	}
+}
+
+func TestVerifyToken_MalformedToken(t *testing.T) {
+	ts, err := NewService(testSecret)
+	if err != nil {
+		t.Fatalf("Failed to create token service: %v", err)
+	}
+
+
+
+	_, err = ts.VerifyToken("not.a.valid.token")
+	if err == nil {
+		t.Error("Expected error for malformed token")
+	}
+}
+
+func TestVerifyToken_EmptyToken(t *testing.T) {
+	ts, err := NewService(testSecret)
+	if err != nil {
+		t.Fatalf("Failed to create token service: %v", err)
+	}
+
+
+
+	_, err = ts.VerifyToken("")
+	if err == nil {
+		t.Error("Expected error for empty token")
+	}
 }

@@ -1,29 +1,29 @@
-## Objetivo (Go Modulith Template)
+## Goal (Go Modulith Template)
 
-Mantener este repo como **template base** para un **Monolito Modular (Modulith)** que puede escalar a microservicios sin romper contratos.
+Maintain this repo as a **base template** for a **Modular Monolith (Modulith)** that can scale to microservices without breaking contracts.
 
-## Reglas de estructura (Project Layout)
+## Structure rules (Project Layout)
 
-- **Entrypoints** viven en `cmd/`:
-  - `cmd/server`: monolito (inicia todos los módulos)
-  - `cmd/<mod>-svc`: microservicio (inicia solo un módulo)
-- **Módulos de negocio** viven en `modules/<mod>/` y son autocontenidos.
-- **Contrato/DTOs** viven en `proto/<mod>/v1/*.proto` y se generan a `gen/go/proto/...` (single source of truth).
+- **Entrypoints** live in `cmd/`:
+  - `cmd/server`: monolith (starts all modules)
+  - `cmd/<mod>-svc`: microservice (starts only one module)
+- **Business modules** live in `modules/<mod>/` and are self-contained.
+- **Contracts/DTOs** live in `proto/<mod>/v1/*.proto` and are generated to `gen/go/proto/...` (single source of truth).
 
-## Reglas de aislamiento (Insulation)
+## Isolation rules (Insulation)
 
-- **Prohibido**: que un módulo `A` importe cualquier cosa de `modules/<otro>/internal/...`.
-- **Permitido**:
-  - comunicación entre módulos vía **gRPC in-process** usando el cliente generado (gateway interno).
-  - comunicación asíncrona vía **event bus** (`internal/events`) si aplica.
-- **Datos**:
-  - Cada módulo es dueño absoluto de su schema/migraciones/queries SQLC.
-  - No compartir `store/` (SQLC), `repository`, ni modelos DB entre módulos.
+- **Forbidden**: module `A` importing anything from `modules/<other>/internal/...`.
+- **Allowed**:
+  - inter-module communication via **in-process gRPC** using the generated client (internal gateway).
+  - asynchronous communication via **event bus** (`internal/events`) if applicable.
+- **Data**:
+  - Each module is the absolute owner of its schema/migrations/SQLC queries.
+  - Do not share `store/` (SQLC), `repository`, or DB models between modules.
 
-## Cuando agregar un módulo nuevo
+## When adding a new module
 
-- Usar `make new-module <nombre>`.
-- Luego:
+- Use `make new-module <name>`.
+- Then:
   - `make proto` (buf generate)
   - `make sqlc` (sqlc generate)
-  - Registrar el módulo en `cmd/server/main.go` (y en su `<mod>-svc` si aplica).
+  - Register the module in `cmd/server/main.go` (and in its `<mod>-svc` if applicable).

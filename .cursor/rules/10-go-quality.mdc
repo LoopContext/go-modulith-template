@@ -1,3 +1,7 @@
+---
+globs: *.go
+alwaysApply: false
+---
 ## Quality Standards (Go)
 
 - Write idiomatic, simple, and explicit Go.
@@ -12,3 +16,22 @@
 ## Package docs
 
 - Every package must have a clear intent (package comment when applicable).
+
+## Linting Workflow
+
+- **ALWAYS run `make lint`** after any modification that includes `.go` files.
+- Iterate on fixes until **all linting issues are resolved** (0 issues).
+- **NEVER modify `.golangci.yaml`** to ignore or suppress lint errors.
+- Always implement **proper fixes** for lint issues:
+  - Add error checking for unchecked errors (`errcheck`)
+  - Extract repeated strings into constants (`goconst`)
+  - Rename unused parameters to `_` (`revive`)
+  - Add proper whitespace between statements (`wsl_v5`)
+  - Reduce cyclomatic complexity by extracting functions (`cyclop`)
+  - Split long functions into smaller, focused helpers (`funlen`)
+
+## Testing Workflow
+
+- **ALWAYS run `make test`** after adding or modifying tests.
+- Ensure all tests pass before considering the work complete.
+- Write clear, focused test cases with descriptive names.
