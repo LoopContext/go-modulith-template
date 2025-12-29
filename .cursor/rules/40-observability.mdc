@@ -1,0 +1,24 @@
+## Observabilidad (Logs + Métricas + Tracing)
+
+## Logs (`log/slog`)
+
+- Logs estructurados.
+- En `prod`: JSON. En `dev`: texto.
+- Si hay tracing, cada log con `ctx` debe incluir **trace_id** y **span_id** cuando existan.
+
+## Métricas (OpenTelemetry → Prometheus)
+
+- Exponer `/metrics` en HTTP.
+- Usar `go.opentelemetry.io/otel/exporters/prometheus` como Reader del MeterProvider.
+
+## Tracing (OpenTelemetry OTLP)
+
+- Si `OTLP_ENDPOINT` está configurado, inicializar tracer provider.
+- Asegurar `Shutdown()` al terminar el proceso (graceful shutdown).
+
+## Health checks
+
+- Exponer:
+  - `/healthz` liveness (200 OK)
+  - `/readyz` readiness (valida DB)
+

@@ -1,0 +1,23 @@
+## Persistencia: SQLC + migraciones
+
+- Cada módulo define:
+  - migraciones en `modules/<mod>/resources/db/migration/`
+  - queries SQL en `modules/<mod>/internal/db/query/*.sql`
+  - store SQLC generado en `modules/<mod>/internal/db/store/`
+
+## Repository pattern
+
+- Flujo: `store (sqlc)` → `repository` → `service` → `proto`.
+- El repositorio:
+  - no genera IDs
+  - no contiene lógica de negocio
+  - envuelve errores externos con contexto (`fmt.Errorf("...: %w", err)`)
+
+## Transacciones
+
+- La transacción se orquesta desde `service` pero se ejecuta desde el repositorio con patrón `WithTx`.
+- `WithTx` debe:
+  - iniciar tx
+  - ejecutar callback con un repo transaccional
+  - commit/rollback correctamente
+

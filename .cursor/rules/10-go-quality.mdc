@@ -1,0 +1,15 @@
+## Estándar de calidad (Go)
+
+- Escribir Go idiomático, simple, y explícito.
+- Seguir el set de linters de `.golangci.yaml` (repo es estricto).
+- **No introducir PII** en logs (emails, tokens, magic codes, passwords).
+
+## Errores
+
+- En repositorio/adapters: **envolver errores externos** con `fmt.Errorf("...: %w", err)` para trazabilidad.
+- En service gRPC: **no retornar errores crudos** del repo/DB.
+
+## Package docs
+
+- Todo package debe tener intención clara (comentario de package cuando aplique).
+

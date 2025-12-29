@@ -1,0 +1,30 @@
+## Objetivo (Go Modulith Template)
+
+Mantener este repo como **template base** para un **Monolito Modular (Modulith)** que puede escalar a microservicios sin romper contratos.
+
+## Reglas de estructura (Project Layout)
+
+- **Entrypoints** viven en `cmd/`:
+  - `cmd/server`: monolito (inicia todos los módulos)
+  - `cmd/<mod>-svc`: microservicio (inicia solo un módulo)
+- **Módulos de negocio** viven en `modules/<mod>/` y son autocontenidos.
+- **Contrato/DTOs** viven en `proto/<mod>/v1/*.proto` y se generan a `gen/go/proto/...` (single source of truth).
+
+## Reglas de aislamiento (Insulation)
+
+- **Prohibido**: que un módulo `A` importe cualquier cosa de `modules/<otro>/internal/...`.
+- **Permitido**:
+  - comunicación entre módulos vía **gRPC in-process** usando el cliente generado (gateway interno).
+  - comunicación asíncrona vía **event bus** (`internal/events`) si aplica.
+- **Datos**:
+  - Cada módulo es dueño absoluto de su schema/migraciones/queries SQLC.
+  - No compartir `store/` (SQLC), `repository`, ni modelos DB entre módulos.
+
+## Cuando agregar un módulo nuevo
+
+- Usar `make new-module <nombre>`.
+- Luego:
+  - `make proto` (buf generate)
+  - `make sqlc` (sqlc generate)
+  - Registrar el módulo en `cmd/server/main.go` (y en su `<mod>-svc` si aplica).
+
