@@ -42,18 +42,14 @@ func NewAuthService(repo repository.Repository, svc *token.Service, bus *events.
 // RequestLogin generates a magic code and emits an event to send it to the user
 func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLoginRequest) (*authv1.RequestLoginResponse, error) {
 	if req.Email == "" && req.Phone == "" {
-		err := status.Error(codes.InvalidArgument, "email or phone must be provided")
-		return nil, fmt.Errorf("invalid request: %w", err)
+		return nil, status.Error(codes.InvalidArgument, "email or phone must be provided")
 	}
 
 	// Generate 6 digit code
 	code, err := generateRandomCode(6)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to generate random code", "error", err)
-
-		st := status.Error(codes.Internal, "internal server error")
-
-		return nil, fmt.Errorf("code generation failed: %w", st)
+		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	expiresAt := time.Now().Add(15 * time.Minute)
@@ -61,10 +57,7 @@ func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLogin
 	err = s.repo.CreateMagicCode(ctx, code, req.Email, req.Phone, expiresAt)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create magic code", "error", err)
-
-		st := status.Error(codes.Internal, "internal server error")
-
-		return nil, fmt.Errorf("repository error: %w", st)
+		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	// Emit event for notification (decoupled/async)
@@ -77,7 +70,7 @@ func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLogin
 		},
 	})
 
-	slog.InfoContext(ctx, "magic code event published", "code", code)
+	slog.InfoContext(ctx, "magic code event published")
 
 	return &authv1.RequestLoginResponse{
 		Success: true,
@@ -97,16 +90,16 @@ func (s *AuthService) CompleteLogin(ctx context.Context, req *authv1.CompleteLog
 	}
 
 	// Clean up codes
-	_ = s.repo.InvalidateMagicCodes(ctx, req.Email, req.Phone)
+	if err := s.repo.InvalidateMagicCodes(ctx, req.Email, req.Phone); err != nil {
+		slog.ErrorContext(ctx, "failed to invalidate magic codes", "error", err)
+	}
 
 	return s.generateLoginResponse(user)
 }
 
 func (s *AuthService) verifyLoginRequest(ctx context.Context, req *authv1.CompleteLoginRequest) error {
 	if req.Email == "" && req.Phone == "" {
-		err := status.Error(codes.InvalidArgument, "email or phone required")
-
-		return fmt.Errorf("invalid request: %w", err)
+		return status.Error(codes.InvalidArgument, "email or phone required")
 	}
 
 	var err error
@@ -118,16 +111,11 @@ func (s *AuthService) verifyLoginRequest(ctx context.Context, req *authv1.Comple
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			st := status.Error(codes.Unauthenticated, "invalid or expired code")
-
-			return fmt.Errorf("authentication failed: %w", st)
+			return status.Error(codes.Unauthenticated, "invalid or expired code")
 		}
 
 		slog.ErrorContext(ctx, "failed to verify magic code", "error", err)
-
-		st := status.Error(codes.Internal, "internal server error")
-
-		return fmt.Errorf("repository error: %w", st)
+		return status.Error(codes.Internal, "internal server error")
 	}
 
 	return nil
@@ -150,10 +138,7 @@ func (s *AuthService) getOrCreateUser(ctx context.Context, email, phone string) 
 
 	if !errors.Is(err, sql.ErrNoRows) {
 		slog.ErrorContext(ctx, "failed to lookup user", "error", err)
-
-		st := status.Error(codes.Internal, "internal server error")
-
-		return nil, fmt.Errorf("user lookup failed: %w", st)
+		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	return s.handleSignup(ctx, email, phone)
@@ -163,19 +148,13 @@ func (s *AuthService) handleSignup(ctx context.Context, email, phone string) (*s
 	tid, err := typeid.WithPrefix("user")
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to generate user typeid", "error", err)
-
-		st := status.Error(codes.Internal, "internal server error")
-
-		return nil, fmt.Errorf("typeid generation failed: %w", st)
+		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	userID := tid.String()
 	if err := s.repo.CreateUser(ctx, userID, email, phone); err != nil {
 		slog.ErrorContext(ctx, "failed to create user", "error", err)
-
-		st := status.Error(codes.Internal, "internal server error")
-
-		return nil, fmt.Errorf("user creation failed: %w", st)
+		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	if email != "" {
@@ -198,16 +177,14 @@ func (s *AuthService) handleSignup(ctx context.Context, email, phone string) (*s
 func (s *AuthService) generateLoginResponse(user *store.User) (*authv1.CompleteLoginResponse, error) {
 	accessToken, err := s.tokenService.CreateToken(user.ID, "user", 1*time.Hour)
 	if err != nil {
-		st := status.Error(codes.Internal, "internal server error")
-
-		return nil, fmt.Errorf("access token creation failed: %w", st)
+		slog.Error("failed to create access token", "error", err)
+		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	refreshToken, err := s.tokenService.CreateToken(user.ID, "user", 24*time.Hour)
 	if err != nil {
-		st := status.Error(codes.Internal, "internal server error")
-
-		return nil, fmt.Errorf("refresh token creation failed: %w", st)
+		slog.Error("failed to create refresh token", "error", err)
+		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	return &authv1.CompleteLoginResponse{

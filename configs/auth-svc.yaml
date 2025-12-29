@@ -1,4 +1,5 @@
 env: dev
+http_port: 8081
 grpc_port: 9051 # Different port to avoid conflict if running alongside monolith
 db_dsn: postgres://postgres:postgres@localhost:5432/modulith_demo?sslmode=disable
 

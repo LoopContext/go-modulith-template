@@ -44,3 +44,12 @@ func RegisterGateway(ctx context.Context, mux *runtime.ServeMux, grpcEndpoint st
 
 	return nil
 }
+
+// RegisterGatewayWithConn registers the gRPC-Gateway handler using an explicit connection
+func RegisterGatewayWithConn(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
+	if err := authv1.RegisterAuthServiceHandler(ctx, mux, conn); err != nil {
+		return fmt.Errorf("failed to register auth gateway: %w", err)
+	}
+
+	return nil
+}

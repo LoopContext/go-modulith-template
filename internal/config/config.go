@@ -35,11 +35,21 @@ func Load(path string) (*AppConfig, error) {
 
 	// 1. Load from YAML if exists
 	if path == "" {
+		cfg.overrideWithEnv()
+		if err := cfg.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid configuration: %w", err)
+		}
+
 		return cfg, nil
 	}
 
 	cleanPath := filepath.Clean(path)
 	if _, err := os.Stat(cleanPath); err != nil {
+		cfg.overrideWithEnv()
+		if err := cfg.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid configuration: %w", err)
+		}
+
 		return cfg, nil
 	}
 
