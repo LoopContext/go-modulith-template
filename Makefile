@@ -47,6 +47,30 @@ migrate-create:
 	@read -p "Migration name: " name; \
 	migrate create -ext sql -dir $(MIGRATIONS_DIR) -seq $$name
 
+build: ## Build the monolith binary
+	@mkdir -p bin
+	go build -o bin/server ./cmd/server/main.go
+
+build-module: ## Build a specific module binary (usage: make build-module MODULE_NAME)
+	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make build-module MODULE_NAME"; exit 1; fi
+	@if [ ! -d "cmd/$(MODULE_NAME)" ]; then echo "Error: Module '$(MODULE_NAME)' not found in cmd/"; exit 1; fi
+	@mkdir -p bin
+	@echo "Building module: $(MODULE_NAME)"
+	go build -o bin/$(MODULE_NAME) ./cmd/$(MODULE_NAME)/main.go
+
+build-all: build ## Build all binaries (server + all modules)
+	@mkdir -p bin
+	@for dir in cmd/*/; do \
+		module=$$(basename $$dir); \
+		if [ "$$module" != "server" ]; then \
+			echo "Building module: $$module"; \
+			go build -o bin/$$module ./cmd/$$module/main.go; \
+		fi \
+	done
+
+clean: ## Clean build artifacts
+	rm -rf bin/
+
 run: ## Run the monolith
 	go run cmd/server/main.go
 
@@ -66,6 +90,12 @@ dev-auth: ## Run the auth-svc with live reload (requires Air)
 
 # Handle positional arguments for new-module
 ifeq (new-module,$(firstword $(MAKECMDGOALS)))
+  MODULE_NAME := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(eval $(MODULE_NAME):;@:)
+endif
+
+# Handle positional arguments for build-module
+ifeq (build-module,$(firstword $(MAKECMDGOALS)))
   MODULE_NAME := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
   $(eval $(MODULE_NAME):;@:)
 endif
