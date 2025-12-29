@@ -13,4 +13,3 @@
 
 - La respuesta externa siempre usa tipos Protobuf (no filtrar `store.*` ni structs internos).
 - Mantener `proto3` + `google.api.http` para gateway cuando se expone REST.
-

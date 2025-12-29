@@ -21,4 +21,3 @@
 - Exponer:
   - `/healthz` liveness (200 OK)
   - `/readyz` readiness (valida DB)
-

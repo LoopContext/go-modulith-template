@@ -18,4 +18,3 @@
 
 - En `prod`, `JWT_SECRET` (y `DB_DSN`) deben venir por env/secret manager (12-factor).
 - Nunca loguear tokens ni secrets.
-

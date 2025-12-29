@@ -27,4 +27,3 @@ Mantener este repo como **template base** para un **Monolito Modular (Modulith)*
   - `make proto` (buf generate)
   - `make sqlc` (sqlc generate)
   - Registrar el módulo en `cmd/server/main.go` (y en su `<mod>-svc` si aplica).
-

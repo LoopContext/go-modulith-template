@@ -20,4 +20,3 @@
   - iniciar tx
   - ejecutar callback con un repo transaccional
   - commit/rollback correctamente
-
