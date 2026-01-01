@@ -175,6 +175,7 @@ func TestCircuitBreaker_StateCallback(t *testing.T) {
 		OnStateChange: func(_ string, from, to resilience.State) {
 			mu.Lock()
 			defer mu.Unlock()
+
 			called = true
 			fromState = from
 			toState = to
@@ -190,11 +191,15 @@ func TestCircuitBreaker_StateCallback(t *testing.T) {
 	// Wait for async callback with retries
 	for i := 0; i < 100; i++ {
 		mu.Lock()
+
 		wasCalled := called
+
 		mu.Unlock()
+
 		if wasCalled {
 			break
 		}
+
 		time.Sleep(1 * time.Millisecond)
 	}
 

@@ -34,6 +34,7 @@ func Short() string {
 		if len(Commit) >= 7 {
 			return fmt.Sprintf("dev-%s", Commit[:7])
 		}
+
 		return fmt.Sprintf("dev-%s", Commit)
 	}
 
