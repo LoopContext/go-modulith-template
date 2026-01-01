@@ -60,7 +60,17 @@ El proyecto soporta múltiples fuentes de configuración con precedencia clara:
 -   **Variables de entorno del sistema**: Valores base
 -   **Defaults**: Valores hardcodeados en `config.go`
 
+```bash
+# Copia el archivo de ejemplo para variables de entorno
+cp .env.example .env
+
+# Edita .env con tus valores (DB, JWT secret, OAuth, etc.)
+# O configura directamente en configs/server.yaml
+```
+
 Al iniciar, verás un log mostrando la fuente de cada variable de configuración.
+
+> 💡 **Tip para OAuth**: Para habilitar proveedores OAuth (Google, GitHub, etc.), configura las credenciales en `configs/server.yaml` o en tu archivo `.env`. Ver [guía completa de OAuth](docs/OAUTH_INTEGRATION.md).
 
 ### 4. Ejecutar en Desarrollo (Hot Reload)
 
@@ -123,6 +133,15 @@ make dev-module auth
 -   `make dev`: Ejecuta el servidor monolito con hot reload.
 -   `make dev-module MODULE_NAME`: Ejecuta un módulo específico con hot reload (ej: `make dev-module auth`).
 -   `make new-module MODULE_NAME`: Crea el boilerplate para un nuevo módulo funcional con configuración automática (genera estructura + `.air.{MODULE_NAME}.toml`).
+
+### Base de Datos
+
+-   `make docker-up`: Levanta la infraestructura (PostgreSQL) con Docker Compose.
+-   `make docker-down`: Detiene los contenedores de Docker.
+-   `make migrate-up`: Aplica todas las migraciones pendientes.
+-   `make migrate-down`: Revierte la última migración.
+-   `make migrate-create`: Crea una nueva migración (solicita nombre).
+-   `make db-reset`: ⚠️ Resetea la base de datos completamente (drop + migrate up).
 
 ### GraphQL (Opcional)
 

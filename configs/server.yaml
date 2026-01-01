@@ -5,3 +5,51 @@ db_dsn: postgres://postgres:postgres@localhost:5432/modulith_demo?sslmode=disabl
 
 auth:
   jwt_secret: monolith-secret-key-at-least-32-bytes-long
+  oauth:
+    enabled: false
+    auto_link_by_email: true
+    base_url: http://localhost:8000
+    token_encryption_key: your-32-byte-encryption-key-here!!
+    providers:
+      google:
+        enabled: false
+        client_id: your-google-client-id
+        client_secret: your-google-client-secret
+        scopes:
+          - email
+          - profile
+      facebook:
+        enabled: false
+        client_id: your-facebook-app-id
+        client_secret: your-facebook-app-secret
+        scopes:
+          - email
+          - public_profile
+      github:
+        enabled: false
+        client_id: your-github-client-id
+        client_secret: your-github-client-secret
+        scopes:
+          - user:email
+          - read:user
+      microsoft:
+        enabled: false
+        client_id: your-microsoft-client-id
+        client_secret: your-microsoft-client-secret
+        scopes:
+          - openid
+          - email
+          - profile
+      twitter:
+        enabled: false
+        client_id: your-twitter-api-key
+        client_secret: your-twitter-api-secret
+      apple:
+        enabled: false
+        client_id: your-services-id
+        team_id: your-team-id
+        key_id: your-key-id
+        private_key_path: /path/to/AuthKey.p8
+        scopes:
+          - email
+          - name

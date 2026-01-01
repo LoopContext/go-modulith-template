@@ -77,6 +77,14 @@ migrate-create:
 	@read -p "Migration name: " name; \
 	migrate create -ext sql -dir $(MIGRATIONS_DIR) -seq $$name
 
+db-reset: ## Reset the database (drop all tables and re-run migrations)
+	@echo "⚠️  Resetting database..."
+	@migrate -path $(MIGRATIONS_DIR) -database "$(DB_DSN)" drop -f || true
+	@echo "✓ Database dropped"
+	@migrate -path $(MIGRATIONS_DIR) -database "$(DB_DSN)" up
+	@echo "✓ Migrations applied"
+	@echo "✅ Database reset complete!"
+
 build: ## Build the monolith binary
 	@mkdir -p bin
 	go build -o bin/server ./cmd/server/main.go
