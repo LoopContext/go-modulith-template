@@ -5,7 +5,7 @@ tmp_dir = "bin"
 [build]
   args_bin = []
   bin = "./bin/auth"
-  cmd = "go build -o ./bin/auth ./cmd/auth"
+  cmd = "./scripts/build-with-version.sh auth auth"
   delay = 1000
   exclude_dir = ["assets", "bin", "vendor", "testdata", "deployment", "docs", ".github", "gen"]
   exclude_file = []

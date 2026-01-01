@@ -3,6 +3,7 @@ package resilience_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -161,8 +162,9 @@ func TestCircuitBreaker_Reset(t *testing.T) {
 
 func TestCircuitBreaker_StateCallback(t *testing.T) {
 	var (
-		called                 bool
-		fromState, toState     resilience.State
+		mu                 sync.Mutex
+		called             bool
+		fromState, toState resilience.State
 	)
 
 	config := resilience.CircuitBreakerConfig{
@@ -171,6 +173,8 @@ func TestCircuitBreaker_StateCallback(t *testing.T) {
 		MaxHalfOpenRequests: 1,
 		SuccessThreshold:    1,
 		OnStateChange: func(_ string, from, to resilience.State) {
+			mu.Lock()
+			defer mu.Unlock()
 			called = true
 			fromState = from
 			toState = to
@@ -183,8 +187,19 @@ func TestCircuitBreaker_StateCallback(t *testing.T) {
 		return errService
 	})
 
-	// Wait for async callback
-	time.Sleep(10 * time.Millisecond)
+	// Wait for async callback with retries
+	for i := 0; i < 100; i++ {
+		mu.Lock()
+		wasCalled := called
+		mu.Unlock()
+		if wasCalled {
+			break
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
 
 	if !called {
 		t.Error("state change callback was not called")
@@ -198,4 +213,3 @@ func TestCircuitBreaker_StateCallback(t *testing.T) {
 		t.Errorf("expected toState to be StateOpen, got %v", toState)
 	}
 }
-

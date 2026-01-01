@@ -665,7 +665,40 @@ func setupSwagger(mux *http.ServeMux) {
 	slog.Info("Serving Swagger UI", "path", "/swagger-ui/")
 
 	mux.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "gen/openapiv2/proto/auth/v1/auth.swagger.json")
+		// Read the generated swagger file
+		data, err := os.ReadFile("gen/openapiv2/proto/auth/v1/auth.swagger.json")
+		if err != nil {
+			slog.Error("failed to read swagger file", "error", err)
+			http.Error(w, "Failed to load Swagger specification", http.StatusInternalServerError)
+			return
+		}
+
+		// Parse JSON
+		var swagger map[string]interface{}
+		if err := json.Unmarshal(data, &swagger); err != nil {
+			slog.Error("failed to parse swagger file", "error", err)
+			http.Error(w, "Failed to parse Swagger specification", http.StatusInternalServerError)
+			return
+		}
+
+		// Update version in info section
+		if info, ok := swagger["info"].(map[string]interface{}); ok {
+			info["version"] = version.Short()
+		}
+
+		// Marshal back to JSON
+		jsonData, err := json.Marshal(swagger)
+		if err != nil {
+			slog.Error("failed to marshal swagger", "error", err)
+			http.Error(w, "Failed to generate Swagger specification", http.StatusInternalServerError)
+			return
+		}
+
+		// Serve the modified JSON
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write(jsonData); err != nil {
+			slog.Error("failed to write swagger response", "error", err)
+		}
 	})
 
 	mux.HandleFunc("/swagger-ui/", func(w http.ResponseWriter, _ *http.Request) {

@@ -27,7 +27,14 @@ func Info() string {
 // Short returns a short version string.
 func Short() string {
 	if Version == "dev" {
-		return fmt.Sprintf("dev-%s", Commit[:7])
+		if Commit == "unknown" || len(Commit) == 0 {
+			return "dev"
+		}
+		// Take first 7 characters of commit hash
+		if len(Commit) >= 7 {
+			return fmt.Sprintf("dev-%s", Commit[:7])
+		}
+		return fmt.Sprintf("dev-%s", Commit)
 	}
 
 	return Version

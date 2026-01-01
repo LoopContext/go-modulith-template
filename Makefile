@@ -159,7 +159,7 @@ clean: ## Clean build artifacts
 	rm -rf bin/
 
 run: ## Run the monolith server (without hot reload)
-	go run cmd/server/main.go
+	go run -ldflags "$(LDFLAGS)" cmd/server/main.go
 
 dev: ## Run the monolith with live reload (requires Air)
 	@if command -v air > /dev/null; then \
