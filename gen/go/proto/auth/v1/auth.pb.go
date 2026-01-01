@@ -7,6 +7,7 @@
 package authv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -25,7 +26,8 @@ const (
 
 type RequestLoginRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// One of email or phone must be provided
+	// One of email or phone must be provided (handled in service layer)
+	// Format validation only applies when field is set (non-empty)
 	Email         string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
 	Phone         string `protobuf:"bytes,2,opt,name=phone,proto3" json:"phone,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -129,10 +131,12 @@ func (x *RequestLoginResponse) GetMessage() string {
 }
 
 type CompleteLoginRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	Phone         string                 `protobuf:"bytes,2,opt,name=phone,proto3" json:"phone,omitempty"`
-	Code          string                 `protobuf:"bytes,3,opt,name=code,proto3" json:"code,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One of email or phone must be provided (handled in service layer)
+	// Format validation only applies when field is set (non-empty)
+	Email         string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	Phone         string `protobuf:"bytes,2,opt,name=phone,proto3" json:"phone,omitempty"`
+	Code          string `protobuf:"bytes,3,opt,name=code,proto3" json:"code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -622,9 +626,10 @@ func (x *GetProfileResponse) GetUser() *User {
 }
 
 type UpdateProfileRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	DisplayName   string                 `protobuf:"bytes,1,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	AvatarUrl     string                 `protobuf:"bytes,2,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional fields - validation only applies when field is set
+	DisplayName   string `protobuf:"bytes,1,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	AvatarUrl     string `protobuf:"bytes,2,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1392,8 +1397,8 @@ func (x *GetOAuthProvidersResponse) GetProviders() []*OAuthProvider {
 
 type InitiateOAuthRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`                          // e.g., "google", "facebook"
-	RedirectUrl   string                 `protobuf:"bytes,2,opt,name=redirect_url,json=redirectUrl,proto3" json:"redirect_url,omitempty"` // Where to redirect after OAuth flow
+	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	RedirectUrl   string                 `protobuf:"bytes,2,opt,name=redirect_url,json=redirectUrl,proto3" json:"redirect_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1497,8 +1502,8 @@ func (x *InitiateOAuthResponse) GetState() string {
 type CompleteOAuthRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
-	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`   // Authorization code from OAuth provider
-	State         string                 `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"` // State token for verification
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	State         string                 `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2006,24 +2011,25 @@ var File_proto_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_proto_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x18proto/auth/v1/auth.proto\x12\aauth.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"A\n" +
-	"\x13RequestLoginRequest\x12\x14\n" +
-	"\x05email\x18\x01 \x01(\tR\x05email\x12\x14\n" +
-	"\x05phone\x18\x02 \x01(\tR\x05phone\"J\n" +
+	"\x18proto/auth/v1/auth.proto\x12\aauth.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"e\n" +
+	"\x13RequestLoginRequest\x12\x1d\n" +
+	"\x05email\x18\x01 \x01(\tB\a\xbaH\x04r\x02`\x01R\x05email\x12/\n" +
+	"\x05phone\x18\x02 \x01(\tB\x19\xbaH\x16r\x142\x12^\\+?[1-9]\\d{1,14}$R\x05phone\"J\n" +
 	"\x14RequestLoginResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"V\n" +
-	"\x14CompleteLoginRequest\x12\x14\n" +
-	"\x05email\x18\x01 \x01(\tR\x05email\x12\x14\n" +
-	"\x05phone\x18\x02 \x01(\tR\x05phone\x12\x12\n" +
-	"\x04code\x18\x03 \x01(\tR\x04code\"~\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x90\x01\n" +
+	"\x14CompleteLoginRequest\x12\x1d\n" +
+	"\x05email\x18\x01 \x01(\tB\a\xbaH\x04r\x02`\x01R\x05email\x12/\n" +
+	"\x05phone\x18\x02 \x01(\tB\x19\xbaH\x16r\x142\x12^\\+?[1-9]\\d{1,14}$R\x05phone\x12(\n" +
+	"\x04code\x18\x03 \x01(\tB\x14\xbaH\x11r\x0f2\n" +
+	"^[0-9]{6}$\x98\x01\x06R\x04code\"~\n" +
 	"\x15CompleteLoginResponse\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x1d\n" +
 	"\n" +
-	"expires_in\x18\x03 \x01(\x03R\texpiresIn\":\n" +
-	"\x13RefreshTokenRequest\x12#\n" +
-	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"}\n" +
+	"expires_in\x18\x03 \x01(\x03R\texpiresIn\"C\n" +
+	"\x13RefreshTokenRequest\x12,\n" +
+	"\rrefresh_token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\frefreshToken\"}\n" +
 	"\x14RefreshTokenResponse\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x1d\n" +
@@ -2048,20 +2054,20 @@ const file_proto_auth_v1_auth_proto_rawDesc = "" +
 	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x13\n" +
 	"\x11GetProfileRequest\"7\n" +
 	"\x12GetProfileResponse\x12!\n" +
-	"\x04user\x18\x01 \x01(\v2\r.auth.v1.UserR\x04user\"X\n" +
-	"\x14UpdateProfileRequest\x12!\n" +
-	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x1d\n" +
+	"\x04user\x18\x01 \x01(\v2\r.auth.v1.UserR\x04user\"k\n" +
+	"\x14UpdateProfileRequest\x12*\n" +
+	"\fdisplay_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18dR\vdisplayName\x12'\n" +
 	"\n" +
-	"avatar_url\x18\x02 \x01(\tR\tavatarUrl\":\n" +
+	"avatar_url\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01R\tavatarUrl\":\n" +
 	"\x15UpdateProfileResponse\x12!\n" +
-	"\x04user\x18\x01 \x01(\v2\r.auth.v1.UserR\x04user\"1\n" +
-	"\x12ChangeEmailRequest\x12\x1b\n" +
-	"\tnew_email\x18\x01 \x01(\tR\bnewEmail\"I\n" +
+	"\x04user\x18\x01 \x01(\v2\r.auth.v1.UserR\x04user\"<\n" +
+	"\x12ChangeEmailRequest\x12&\n" +
+	"\tnew_email\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01`\x01R\bnewEmail\"I\n" +
 	"\x13ChangeEmailResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"1\n" +
-	"\x12ChangePhoneRequest\x12\x1b\n" +
-	"\tnew_phone\x18\x01 \x01(\tR\bnewPhone\"I\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"N\n" +
+	"\x12ChangePhoneRequest\x128\n" +
+	"\tnew_phone\x18\x01 \x01(\tB\x1b\xbaH\x18r\x16\x10\x012\x12^\\+?[1-9]\\d{1,14}$R\bnewPhone\"I\n" +
 	"\x13ChangePhoneResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\xf3\x01\n" +
@@ -2078,10 +2084,10 @@ const file_proto_auth_v1_auth_proto_rawDesc = "" +
 	"is_current\x18\x06 \x01(\bR\tisCurrent\"\x15\n" +
 	"\x13ListSessionsRequest\"D\n" +
 	"\x14ListSessionsResponse\x12,\n" +
-	"\bsessions\x18\x01 \x03(\v2\x10.auth.v1.SessionR\bsessions\"5\n" +
-	"\x14RevokeSessionRequest\x12\x1d\n" +
+	"\bsessions\x18\x01 \x03(\v2\x10.auth.v1.SessionR\bsessions\">\n" +
+	"\x14RevokeSessionRequest\x12&\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\"1\n" +
+	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"1\n" +
 	"\x15RevokeSessionResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\"C\n" +
 	"\x18RevokeAllSessionsRequest\x12'\n" +
@@ -2094,32 +2100,34 @@ const file_proto_auth_v1_auth_proto_rawDesc = "" +
 	"\aenabled\x18\x03 \x01(\bR\aenabled\"\x1a\n" +
 	"\x18GetOAuthProvidersRequest\"Q\n" +
 	"\x19GetOAuthProvidersResponse\x124\n" +
-	"\tproviders\x18\x01 \x03(\v2\x16.auth.v1.OAuthProviderR\tproviders\"U\n" +
-	"\x14InitiateOAuthRequest\x12\x1a\n" +
-	"\bprovider\x18\x01 \x01(\tR\bprovider\x12!\n" +
-	"\fredirect_url\x18\x02 \x01(\tR\vredirectUrl\"H\n" +
+	"\tproviders\x18\x01 \x03(\v2\x16.auth.v1.OAuthProviderR\tproviders\"\x96\x01\n" +
+	"\x14InitiateOAuthRequest\x12O\n" +
+	"\bprovider\x18\x01 \x01(\tB3\xbaH0r.\x10\x01R\x06googleR\bfacebookR\x06githubR\x05appleR\tmicrosoftR\bprovider\x12-\n" +
+	"\fredirect_url\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x88\x01\x01R\vredirectUrl\"H\n" +
 	"\x15InitiateOAuthResponse\x12\x19\n" +
 	"\bauth_url\x18\x01 \x01(\tR\aauthUrl\x12\x14\n" +
-	"\x05state\x18\x02 \x01(\tR\x05state\"\\\n" +
-	"\x14CompleteOAuthRequest\x12\x1a\n" +
-	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x12\n" +
-	"\x04code\x18\x02 \x01(\tR\x04code\x12\x14\n" +
-	"\x05state\x18\x03 \x01(\tR\x05state\"\xc1\x01\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\"\xa3\x01\n" +
+	"\x14CompleteOAuthRequest\x12O\n" +
+	"\bprovider\x18\x01 \x01(\tB3\xbaH0r.\x10\x01R\x06googleR\bfacebookR\x06githubR\x05appleR\tmicrosoftR\bprovider\x12\x1b\n" +
+	"\x04code\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04code\x12\x1d\n" +
+	"\x05state\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05state\"\xc1\x01\n" +
 	"\x15CompleteOAuthResponse\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x1d\n" +
 	"\n" +
 	"expires_in\x18\x03 \x01(\x03R\texpiresIn\x12\x1e\n" +
 	"\vis_new_user\x18\x04 \x01(\bR\tisNewUser\x12!\n" +
-	"\x04user\x18\x05 \x01(\v2\r.auth.v1.UserR\x04user\"[\n" +
-	"\x1aLinkExternalAccountRequest\x12\x1a\n" +
-	"\bprovider\x18\x01 \x01(\tR\bprovider\x12!\n" +
-	"\fredirect_url\x18\x02 \x01(\tR\vredirectUrl\"N\n" +
+	"\x04user\x18\x05 \x01(\v2\r.auth.v1.UserR\x04user\"\x9c\x01\n" +
+	"\x1aLinkExternalAccountRequest\x12O\n" +
+	"\bprovider\x18\x01 \x01(\tB3\xbaH0r.\x10\x01R\x06googleR\bfacebookR\x06githubR\x05appleR\tmicrosoftR\bprovider\x12-\n" +
+	"\fredirect_url\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x88\x01\x01R\vredirectUrl\"N\n" +
 	"\x1bLinkExternalAccountResponse\x12\x19\n" +
 	"\bauth_url\x18\x01 \x01(\tR\aauthUrl\x12\x14\n" +
-	"\x05state\x18\x02 \x01(\tR\x05state\":\n" +
-	"\x1cUnlinkExternalAccountRequest\x12\x1a\n" +
-	"\bprovider\x18\x01 \x01(\tR\bprovider\"S\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\"o\n" +
+	"\x1cUnlinkExternalAccountRequest\x12O\n" +
+	"\bprovider\x18\x01 \x01(\tB3\xbaH0r.\x10\x01R\x06googleR\bfacebookR\x06githubR\x05appleR\tmicrosoftR\bprovider\"S\n" +
 	"\x1dUnlinkExternalAccountResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\xe9\x01\n" +

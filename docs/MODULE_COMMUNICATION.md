@@ -1,23 +1,23 @@
 # Module Communication: Modulith vs Microservices
 
-Este documento explica cómo funciona la comunicación entre módulos/servicios en ambos escenarios: **Modulith** (monolito modular) y **Microservicios** (servicios independientes).
+This document explains how communication between modules/services works in both scenarios: **Modulith** (modular monolith) and **Microservices** (independent services).
 
-## Resumen Ejecutivo
+## Executive Summary
 
-El template soporta dos modos de deployment:
+The template supports two deployment modes:
 
-1. **Modulith (Monolito Modular):** Todos los módulos en un solo proceso, comunicación in-process
-2. **Microservicios:** Cada módulo como servicio independiente, comunicación vía red
+1. **Modulith (Modular Monolith):** All modules in a single process, in-process communication
+2. **Microservices:** Each module as an independent service, network communication
 
-**Punto clave:** El mismo código funciona en ambos escenarios. La diferencia está en cómo se despliega, no en cómo se escribe el código.
+**Key point:** The same code works in both scenarios. The difference is in how it's deployed, not in how the code is written.
 
 ---
 
-## Escenario 1: Modulith (Monolito Modular)
+## Scenario 1: Modulith (Modular Monolith)
 
-### Arquitectura
+### Architecture
 
-En el escenario modulith, todos los módulos se ejecutan en un **único proceso** (`cmd/server/main.go`).
+In the modulith scenario, all modules run in a **single process** (`cmd/server/main.go`).
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -48,16 +48,16 @@ En el escenario modulith, todos los módulos se ejecutan en un **único proceso*
 
 ### Comunicación gRPC (In-Process)
 
-**Características:**
+**Features:**
 
--   ✅ **Sin red:** Todas las llamadas son in-process (llamadas a función directas)
--   ✅ **Alta performance:** Sin overhead de serialización/deserialización de red
--   ✅ **Type-safe:** Mismos contratos Protobuf que en microservicios
--   ✅ **Mismo código:** Los módulos usan los mismos clientes gRPC generados
+-   ✅ **No network:** All calls are in-process (direct function calls)
+-   ✅ **High performance:** No network serialization/deserialization overhead
+-   ✅ **Type-safe:** Same Protobuf contracts as in microservices
+-   ✅ **Same code:** Modules use the same generated gRPC clients
 
-**Cómo funciona:**
+**How it works:**
 
-1. **Registro de módulos:**
+1. **Module registration:**
 
     ```go
     // cmd/server/main.go
@@ -70,67 +70,67 @@ En el escenario modulith, todos los módulos se ejecutan en un **único proceso*
 
 2. **Registro con gRPC Server:**
 
-    ```go
-    // Todos los módulos se registran en el mismo servidor gRPC
-    grpcServer := grpc.NewServer(...)
-    reg.RegisterGRPCAll(grpcServer)  // Registra todos los módulos
-    ```
+     ```go
+     // All modules register with the same gRPC server
+     grpcServer := grpc.NewServer(...)
+     reg.RegisterGRPCAll(grpcServer)  // Registers all modules
+     ```
 
-3. **Llamada entre módulos:**
+3. **Inter-module call:**
 
-    ```go
-    // En el módulo Order, llamando al módulo Auth
-    // modules/order/internal/service/order_service.go
+     ```go
+     // In the Order module, calling the Auth module
+     // modules/order/internal/service/order_service.go
 
-    import (
-        authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
-        "google.golang.org/grpc"
-    )
+     import (
+         authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
+         "google.golang.org/grpc"
+     )
 
-    func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
-        // Crear cliente gRPC para Auth
-        // En modulith, esto se conecta al servidor in-process
-        conn, err := grpc.NewClient(
-            "127.0.0.1:9050",  // gRPC server local
-            grpc.WithTransportCredentials(insecure.NewCredentials()),
-        )
-        if err != nil {
-            return nil, err
-        }
-        defer conn.Close()
+     func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
+         // Create gRPC client for Auth
+         // In modulith, this connects to the in-process server
+         conn, err := grpc.NewClient(
+             "127.0.0.1:9050",  // Local gRPC server
+             grpc.WithTransportCredentials(insecure.NewCredentials()),
+         )
+         if err != nil {
+             return nil, err
+         }
+         defer conn.Close()
 
-        authClient := authv1.NewAuthServiceClient(conn)
+         authClient := authv1.NewAuthServiceClient(conn)
 
-        // Llamar al módulo Auth (in-process, sin red)
-        user, err := authClient.GetUser(ctx, &authv1.GetUserRequest{
-            UserId: req.UserId,
-        })
-        if err != nil {
-            return nil, err
-        }
+         // Call Auth module (in-process, no network)
+         user, err := authClient.GetUser(ctx, &authv1.GetUserRequest{
+             UserId: req.UserId,
+         })
+         if err != nil {
+             return nil, err
+         }
 
-        // Continuar con lógica de negocio...
-    }
-    ```
+         // Continue with business logic...
+     }
+     ```
 
-**Nota importante:** Aunque técnicamente se crea una conexión gRPC a `127.0.0.1`, el servidor gRPC está en el mismo proceso, por lo que la comunicación es **in-process** y muy eficiente.
+**Important note:** Although technically a gRPC connection is created to `127.0.0.1`, the gRPC server is in the same process, so communication is **in-process** and very efficient.
 
 ### Event Bus (In-Memory)
 
-**Características:**
+**Features:**
 
--   ✅ **In-memory:** Eventos se distribuyen directamente en memoria
--   ✅ **Síncrono/Asíncrono:** Soporta ambos modos
--   ✅ **Thread-safe:** Usa `sync.RWMutex` para concurrencia
+-   ✅ **In-memory:** Events are distributed directly in memory
+-   ✅ **Synchronous/Asynchronous:** Supports both modes
+-   ✅ **Thread-safe:** Uses `sync.RWMutex` for concurrency
 
-**Ejemplo:**
+**Example:**
 
 ```go
-// Módulo Auth publica evento
+// Auth module publishes event
 func (s *AuthService) CreateUser(ctx context.Context, req *authv1.CreateUserRequest) (*authv1.CreateUserResponse, error) {
-    // ... crear usuario ...
+    // ... create user ...
 
-    // Publicar evento (in-memory, instantáneo)
+    // Publish event (in-memory, instant)
     s.bus.Publish(ctx, events.Event{
         Name: "user.created",
         Payload: map[string]any{
@@ -142,13 +142,13 @@ func (s *AuthService) CreateUser(ctx context.Context, req *authv1.CreateUserRequ
     return response, nil
 }
 
-// Módulo Order se suscribe al evento
+// Order module subscribes to event
 func (s *OrderService) Initialize(r *registry.Registry) error {
-    // Suscribirse a eventos de usuario
+    // Subscribe to user events
     r.EventBus().Subscribe("user.created", func(ctx context.Context, event events.Event) error {
-        // Procesar evento (ejecutado inmediatamente, in-process)
+        // Process event (executed immediately, in-process)
         userID := event.Payload.(map[string]any)["user_id"].(string)
-        // Crear carrito para nuevo usuario, etc.
+        // Create cart for new user, etc.
         return nil
     })
 
@@ -156,27 +156,27 @@ func (s *OrderService) Initialize(r *registry.Registry) error {
 }
 ```
 
-### Ventajas del Modulith
+### Modulith Advantages
 
-1. **Performance:** Sin latencia de red entre módulos
-2. **Simplicidad:** Un solo proceso para desplegar y monitorear
-3. **Transacciones:** Puede usar transacciones de DB compartidas
-4. **Debugging:** Más fácil de depurar (todo en un proceso)
-5. **Testing:** Tests de integración más simples
+1. **Performance:** No network latency between modules
+2. **Simplicity:** Single process to deploy and monitor
+3. **Transactions:** Can use shared DB transactions
+4. **Debugging:** Easier to debug (everything in one process)
+5. **Testing:** Simpler integration tests
 
-### Desventajas del Modulith
+### Modulith Disadvantages
 
-1. **Escalado:** No puede escalar módulos independientemente
-2. **Acoplamiento:** Todos los módulos deben desplegarse juntos
-3. **Tecnología:** Todos los módulos deben usar el mismo stack (Go)
+1. **Scaling:** Cannot scale modules independently
+2. **Coupling:** All modules must be deployed together
+3. **Technology:** All modules must use the same stack (Go)
 
 ---
 
-## Escenario 2: Microservicios
+## Scenario 2: Microservices
 
-### Arquitectura
+### Architecture
 
-En el escenario de microservicios, cada módulo se ejecuta como un **proceso independiente** (`cmd/{module}/main.go`).
+In the microservices scenario, each module runs as an **independent process** (`cmd/{module}/main.go`).
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
@@ -207,18 +207,18 @@ En el escenario de microservicios, cada módulo se ejecuta como un **proceso ind
   └────────────┘      └───────────┘      └────────────┘
 ```
 
-### Comunicación gRPC (Network)
+### gRPC Communication (Network)
 
-**Características:**
+**Features:**
 
--   ✅ **Vía red:** Llamadas gRPC sobre TCP/IP
--   ✅ **Service Discovery:** Requiere descubrimiento de servicios (Kubernetes DNS, Consul, etc.)
--   ✅ **Resiliencia:** Necesita circuit breakers, retries, timeouts
--   ✅ **Observabilidad:** Trazabilidad distribuida esencial
+-   ✅ **Via network:** gRPC calls over TCP/IP
+-   ✅ **Service Discovery:** Requires service discovery (Kubernetes DNS, Consul, etc.)
+-   ✅ **Resilience:** Needs circuit breakers, retries, timeouts
+-   ✅ **Observability:** Distributed tracing essential
 
-**Cómo funciona:**
+**How it works:**
 
-1. **Deployment independiente:**
+1. **Independent deployment:**
 
     ```bash
     # Cada módulo se despliega como servicio separado
@@ -245,99 +245,99 @@ En el escenario de microservicios, cada módulo se ejecuta como un **proceso ind
 
 3. **Llamada entre servicios:**
 
-    ```go
-    // En el módulo Order, llamando al servicio Auth
-    // modules/order/internal/service/order_service.go
+     ```go
+     // In the Order module, calling the Auth service
+     // modules/order/internal/service/order_service.go
 
-    func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
-        // Crear cliente gRPC para Auth (vía red)
-        // En microservicios, esto se conecta a otro servicio
-        conn, err := grpc.NewClient(
-            "auth-service:9050",  // Service discovery (Kubernetes DNS)
-            grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})),  // TLS en prod
-        )
-        if err != nil {
-            return nil, err
-        }
-        defer conn.Close()
+     func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
+         // Create gRPC client for Auth (via network)
+         // In microservices, this connects to another service
+         conn, err := grpc.NewClient(
+             "auth-service:9050",  // Service discovery (Kubernetes DNS)
+             grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})),  // TLS in prod
+         )
+         if err != nil {
+             return nil, err
+         }
+         defer conn.Close()
 
-        authClient := authv1.NewAuthServiceClient(conn)
+         authClient := authv1.NewAuthServiceClient(conn)
 
-        // Llamar al servicio Auth (vía red, con latencia)
-        user, err := authClient.GetUser(ctx, &authv1.GetUserRequest{
-            UserId: req.UserId,
-        })
-        if err != nil {
-            // Manejar errores de red, timeouts, etc.
-            return nil, err
-        }
+         // Call Auth service (via network, with latency)
+         user, err := authClient.GetUser(ctx, &authv1.GetUserRequest{
+             UserId: req.UserId,
+         })
+         if err != nil {
+             // Handle network errors, timeouts, etc.
+             return nil, err
+         }
 
-        // Continuar con lógica de negocio...
-    }
-    ```
+         // Continue with business logic...
+     }
+     ```
 
-**Consideraciones importantes:**
+**Important considerations:**
 
-1. **Resiliencia:**
+1. **Resilience:**
 
-    ```go
-    // Usar circuit breaker y retries
-    import "github.com/cmelgarejo/go-modulith-template/internal/resilience"
+     ```go
+     // Use circuit breaker and retries
+     import "github.com/cmelgarejo/go-modulith-template/internal/resilience"
 
-    cb := resilience.NewCircuitBreaker("auth-service", ...)
-    retry := resilience.NewRetry(3, time.Second)
+     cb := resilience.NewCircuitBreaker("auth-service", ...)
+     retry := resilience.NewRetry(3, time.Second)
 
-    user, err := retry.Do(ctx, func() (interface{}, error) {
-        return cb.Execute(func() (interface{}, error) {
-            return authClient.GetUser(ctx, req)
-        })
-    })
-    ```
+     user, err := retry.Do(ctx, func() (interface{}, error) {
+         return cb.Execute(func() (interface{}, error) {
+             return authClient.GetUser(ctx, req)
+         })
+     })
+     ```
 
 2. **Timeouts:**
 
-    ```go
-    // Context con timeout para llamadas de red
-    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-    defer cancel()
+     ```go
+     // Context with timeout for network calls
+     ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+     defer cancel()
 
-    user, err := authClient.GetUser(ctx, req)
-    ```
+     user, err := authClient.GetUser(ctx, req)
+     ```
 
 3. **TLS/Security:**
-    ```go
-    // En producción, usar TLS
-    creds := credentials.NewTLS(&tls.Config{
-        ServerName: "auth-service",
-    })
-    conn, err := grpc.NewClient("auth-service:9050", grpc.WithTransportCredentials(creds))
-    ```
+     ```go
+     // In production, use TLS
+     creds := credentials.NewTLS(&tls.Config{
+         ServerName: "auth-service",
+     })
+     conn, err := grpc.NewClient("auth-service:9050", grpc.WithTransportCredentials(creds))
+     ```
 
 ### Event Bus (Distributed)
 
-**Características:**
+**Features:**
 
--   ✅ **Distribuido:** Eventos viajan por red (Kafka, RabbitMQ, Redis Pub/Sub)
--   ✅ **Asíncrono:** Eventos se procesan de forma asíncrona
--   ✅ **Durabilidad:** Eventos persisten en el broker
--   ✅ **Escalable:** Múltiples consumidores pueden procesar eventos
+-   ✅ **Distributed:** Events travel over network (Kafka, RabbitMQ, Redis Pub/Sub)
+-   ✅ **Asynchronous:** Events are processed asynchronously
+-   ✅ **Durability:** Events persist in the broker
+-   ✅ **Scalable:** Multiple consumers can process events
 
-**Implementación:**
+**Implementation:**
 
-El template incluye una interfaz para event bus distribuido:
+The template includes an interface for distributed event bus:
 
 ```go
 // internal/events/distributed.go
-// Implementación futura con Kafka, RabbitMQ, etc.
+// Future implementation with Kafka, RabbitMQ, etc.
 
-// Ejemplo con Kafka (futuro)
+// Example with Kafka (future)
 type KafkaEventBus struct {
     producer *kafka.Writer
     consumer *kafka.Reader
 }
 
 func (k *KafkaEventBus) Publish(ctx context.Context, event Event) error {
-    // Publicar a Kafka topic
+    // Publish to Kafka topic
     return k.producer.WriteMessages(ctx, kafka.Message{
         Key:   []byte(event.Name),
         Value: marshalEvent(event),
@@ -345,14 +345,14 @@ func (k *KafkaEventBus) Publish(ctx context.Context, event Event) error {
 }
 ```
 
-**Ejemplo de uso:**
+**Usage example:**
 
 ```go
-// Módulo Auth (servicio independiente) publica evento
+// Auth module (independent service) publishes event
 func (s *AuthService) CreateUser(ctx context.Context, req *authv1.CreateUserRequest) (*authv1.CreateUserResponse, error) {
-    // ... crear usuario ...
+    // ... create user ...
 
-    // Publicar evento (distribuido, vía Kafka/RabbitMQ)
+    // Publish event (distributed, via Kafka/RabbitMQ)
     s.bus.Publish(ctx, events.Event{
         Name: "user.created",
         Payload: map[string]any{
@@ -364,13 +364,13 @@ func (s *AuthService) CreateUser(ctx context.Context, req *authv1.CreateUserRequ
     return response, nil
 }
 
-// Módulo Order (servicio independiente) consume evento
+// Order module (independent service) consumes event
 func (s *OrderService) StartEventConsumer(ctx context.Context) error {
-    // Suscribirse a eventos (vía Kafka consumer, etc.)
+    // Subscribe to events (via Kafka consumer, etc.)
     s.bus.Subscribe("user.created", func(ctx context.Context, event events.Event) error {
-        // Procesar evento (asíncrono, puede tardar)
+        // Process event (asynchronous, may take time)
         userID := event.Payload.(map[string]any)["user_id"].(string)
-        // Crear carrito para nuevo usuario
+        // Create cart for new user
         return nil
     })
 
@@ -378,52 +378,52 @@ func (s *OrderService) StartEventConsumer(ctx context.Context) error {
 }
 ```
 
-### Ventajas de Microservicios
+### Microservices Advantages
 
-1. **Escalado independiente:** Cada servicio escala según necesidad
-2. **Despliegue independiente:** Cambios en un servicio no afectan otros
-3. **Tecnología:** Cada servicio puede usar diferentes stacks (si es necesario)
-4. **Aislamiento:** Fallos en un servicio no afectan otros
-5. **Equipos:** Equipos pueden trabajar independientemente
+1. **Independent scaling:** Each service scales according to need
+2. **Independent deployment:** Changes in one service don't affect others
+3. **Technology:** Each service can use different stacks (if necessary)
+4. **Isolation:** Failures in one service don't affect others
+5. **Teams:** Teams can work independently
 
-### Desventajas de Microservicios
+### Microservices Disadvantages
 
-1. **Complejidad:** Más servicios para gestionar y monitorear
-2. **Latencia:** Llamadas de red añaden latencia
-3. **Resiliencia:** Necesita circuit breakers, retries, timeouts
-4. **Testing:** Tests de integración más complejos
-5. **Transacciones:** No puede usar transacciones de DB compartidas fácilmente
-
----
-
-## Comparación: Modulith vs Microservicios
-
-| Aspecto               | Modulith                | Microservicios             |
-| --------------------- | ----------------------- | -------------------------- |
-| **Comunicación gRPC** | In-process (sin red)    | Network (vía red)          |
-| **Performance**       | Muy alta (sin latencia) | Menor (latencia de red)    |
-| **Escalado**          | Todo junto              | Independiente por servicio |
-| **Despliegue**        | Un solo artefacto       | Múltiples artefactos       |
-| **Event Bus**         | In-memory               | Distribuido (Kafka, etc.)  |
-| **Transacciones**     | DB compartida (fácil)   | Saga pattern (complejo)    |
-| **Testing**           | Más simple              | Más complejo               |
-| **Debugging**         | Un proceso              | Múltiples procesos         |
-| **Service Discovery** | No necesario            | Requerido                  |
-| **Resiliencia**       | Menos crítico           | Crítico (circuit breakers) |
+1. **Complexity:** More services to manage and monitor
+2. **Latency:** Network calls add latency
+3. **Resilience:** Needs circuit breakers, retries, timeouts
+4. **Testing:** More complex integration tests
+5. **Transactions:** Cannot easily use shared DB transactions
 
 ---
 
-## Patrón de Comunicación Recomendado
+## Comparison: Modulith vs Microservices
 
-### Para Modulith
+| Aspect               | Modulith                | Microservices             |
+| -------------------- | ----------------------- | ------------------------- |
+| **gRPC Communication** | In-process (no network) | Network (via network)     |
+| **Performance**      | Very high (no latency)   | Lower (network latency)   |
+| **Scaling**          | All together            | Independent per service   |
+| **Deployment**       | Single artifact          | Multiple artifacts         |
+| **Event Bus**        | In-memory                | Distributed (Kafka, etc.) |
+| **Transactions**     | Shared DB (easy)         | Saga pattern (complex)    |
+| **Testing**          | Simpler                  | More complex              |
+| **Debugging**        | Single process           | Multiple processes        |
+| **Service Discovery** | Not required            | Required                  |
+| **Resilience**       | Less critical            | Critical (circuit breakers) |
+
+---
+
+## Recommended Communication Pattern
+
+### For Modulith
 
 **gRPC In-Process:**
 
 ```go
-// Helper para crear cliente gRPC (reutilizable)
+// Helper to create gRPC client (reusable)
 func newAuthClient(grpcAddr string) (authv1.AuthServiceClient, error) {
     conn, err := grpc.NewClient(
-        grpcAddr,  // "127.0.0.1:9050" en modulith
+        grpcAddr,  // "127.0.0.1:9050" in modulith
         grpc.WithTransportCredentials(insecure.NewCredentials()),
     )
     if err != nil {
@@ -436,13 +436,13 @@ func newAuthClient(grpcAddr string) (authv1.AuthServiceClient, error) {
 **Event Bus In-Memory:**
 
 ```go
-// Los eventos se procesan inmediatamente, in-process
+// Events are processed immediately, in-process
 bus.Publish(ctx, events.Event{...})
 ```
 
-### Para Microservicios
+### For Microservices
 
-**gRPC Network con Resiliencia:**
+**gRPC Network with Resilience:**
 
 ```go
 // Helper con circuit breaker y retries
@@ -461,18 +461,18 @@ func newAuthClientWithResilience(serviceAddr string) (authv1.AuthServiceClient, 
 }
 ```
 
-**Event Bus Distribuido:**
+**Distributed Event Bus:**
 
 ```go
-// Los eventos viajan por red, se procesan asíncronamente
-// Requiere implementación con Kafka, RabbitMQ, etc.
+// Events travel over network, processed asynchronously
+// Requires implementation with Kafka, RabbitMQ, etc.
 ```
 
 ---
 
-## Ejemplo Completo: Order Module llamando a Auth Module
+## Complete Example: Order Module calling Auth Module
 
-### Escenario Modulith
+### Modulith Scenario
 
 ```go
 // modules/order/internal/service/order_service.go
@@ -540,11 +540,11 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrder
 }
 ```
 
-### Escenario Microservicios
+### Microservices Scenario
 
 ```go
 // modules/order/internal/service/order_service.go
-// (Mismo código, diferente configuración)
+// (Same code, different configuration)
 
 package service
 
@@ -561,11 +561,11 @@ type OrderService struct {
     repo       repository.Repository
     bus        *events.Bus
     authClient authv1.AuthServiceClient
-    cb         *resilience.CircuitBreaker  // Circuit breaker para resiliencia
+    cb         *resilience.CircuitBreaker  // Circuit breaker for resilience
 }
 
 func NewOrderService(repo repository.Repository, bus *events.Bus, authServiceAddr string) (*OrderService, error) {
-    // Crear cliente gRPC (vía red en microservicios)
+    // Create gRPC client (via network in microservices)
     creds := credentials.NewTLS(&tls.Config{
         ServerName: "auth-service",
     })
@@ -587,7 +587,7 @@ func NewOrderService(repo repository.Repository, bus *events.Bus, authServiceAdd
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
-    // Llamar a Auth (vía red, con circuit breaker)
+    // Call Auth (via network, with circuit breaker)
     var user *authv1.User
     err := s.cb.Execute(func() error {
         ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -603,15 +603,15 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrder
         return nil, err
     }
 
-    // Validar que el usuario existe y está activo
+    // Validate that user exists and is active
     if user.Status != "active" {
         return nil, status.Error(codes.PermissionDenied, "user is not active")
     }
 
-    // Crear orden...
+    // Create order...
     order, err := s.repo.CreateOrder(ctx, ...)
 
-    // Publicar evento (distribuido, vía Kafka/RabbitMQ)
+    // Publish event (distributed, via Kafka/RabbitMQ)
     s.bus.Publish(ctx, events.Event{
         Name: "order.created",
         Payload: map[string]any{
@@ -624,15 +624,15 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrder
 }
 ```
 
-**Nota:** El código es muy similar. La diferencia principal está en:
+**Note:** The code is very similar. The main difference is in:
 
--   La dirección del servicio (localhost vs service discovery)
--   Las credenciales (insecure vs TLS)
--   La adición de circuit breakers y timeouts
+-   Service address (localhost vs service discovery)
+-   Credentials (insecure vs TLS)
+-   Addition of circuit breakers and timeouts
 
 ---
 
-## Configuración por Escenario
+## Configuration by Scenario
 
 ### Modulith Configuration
 
@@ -642,19 +642,19 @@ env: prod
 http_port: 8080
 grpc_port: 9050
 
-# Todos los módulos usan la misma DB
+# All modules use the same DB
 db_dsn: postgres://user:pass@db:5432/modulith
 ```
 
 **Deployment:**
 
 ```bash
-# Un solo proceso
+# Single process
 make build
 ./bin/server
 ```
 
-### Microservicios Configuration
+### Microservices Configuration
 
 ```yaml
 # configs/auth.yaml (Auth Service)
@@ -676,7 +676,7 @@ auth_service_addr: auth-service:9050
 **Deployment:**
 
 ```bash
-# Múltiples procesos
+# Multiple processes
 make build-module auth
 make build-module order
 ./bin/auth &
@@ -685,59 +685,59 @@ make build-module order
 
 ---
 
-## Migración de Modulith a Microservicios
+## Migration from Modulith to Microservices
 
-### Paso 1: Identificar Módulos a Extraer
+### Step 1: Identify Modules to Extract
 
-Decide qué módulos extraer basándote en:
+Decide which modules to extract based on:
 
--   Escalado independiente necesario
--   Equipos diferentes
--   Diferentes SLAs
--   Diferentes tecnologías (futuro)
+-   Independent scaling needed
+-   Different teams
+-   Different SLAs
+-   Different technologies (future)
 
-### Paso 2: Crear Entrypoint de Microservicio
+### Step 2: Create Microservice Entrypoint
 
 ```bash
-# Ya existe para auth
-make new-module order  # Crea cmd/order/main.go
+# Already exists for auth
+make new-module order  # Creates cmd/order/main.go
 ```
 
-### Paso 3: Actualizar Configuración
+### Step 3: Update Configuration
 
 ```yaml
 # configs/order.yaml
-# Agregar service discovery
-auth_service_addr: auth-service:9050 # En lugar de 127.0.0.1:9050
+# Add service discovery
+auth_service_addr: auth-service:9050 # Instead of 127.0.0.1:9050
 ```
 
-### Paso 4: Agregar Resiliencia
+### Step 4: Add Resilience
 
 ```go
-// Agregar circuit breakers, retries, timeouts
-// Usar internal/resilience
+// Add circuit breakers, retries, timeouts
+// Use internal/resilience
 ```
 
-### Paso 5: Migrar Event Bus
+### Step 5: Migrate Event Bus
 
 ```go
-// Cambiar de in-memory a distribuido (Kafka, RabbitMQ)
-// Implementar internal/events/distributed.go
+// Change from in-memory to distributed (Kafka, RabbitMQ)
+// Implement internal/events/distributed.go
 ```
 
-### Paso 6: Deploy
+### Step 6: Deploy
 
 ```bash
-# Deploy como servicios independientes
+# Deploy as independent services
 helm install auth-service ./deployment/helm/modulith --values values-auth-module.yaml
 helm install order-service ./deployment/helm/modulith --values values-order-module.yaml
 ```
 
 ---
 
-## Mejores Prácticas
+## Best Practices
 
-### 1. Abstraer la Creación de Clientes
+### 1. Abstract Client Creation
 
 ```go
 // internal/clients/auth_client.go
@@ -770,24 +770,24 @@ func NewAuthClient(addr string, tls bool) (AuthClient, error) {
 }
 ```
 
-### 2. Usar Context Propagation
+### 2. Use Context Propagation
 
 ```go
-// Siempre pasar el contexto para trazabilidad
+// Always pass context for traceability
 func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) {
-    // El contexto se propaga automáticamente con trace_id/span_id
+    // Context automatically propagates with trace_id/span_id
     user, err := s.authClient.GetUser(ctx, &authv1.GetUserRequest{...})
 }
 ```
 
-### 3. Manejar Errores Consistentemente
+### 3. Handle Errors Consistently
 
 ```go
-// Usar el sistema de errores del template
+// Use the template's error system
 import "github.com/cmelgarejo/go-modulith-template/internal/errors"
 
 if err != nil {
-    // Mapear errores de red a errores de dominio
+    // Map network errors to domain errors
     if status.Code(err) == codes.Unavailable {
         return nil, errors.Unavailable("auth service unavailable", err)
     }
@@ -795,26 +795,26 @@ if err != nil {
 }
 ```
 
-### 4. Eventos para Desacoplamiento
+### 4. Events for Decoupling
 
 ```go
-// Preferir eventos para comunicación asíncrona
-// En lugar de llamadas síncronas cuando sea posible
+// Prefer events for asynchronous communication
+// Instead of synchronous calls when possible
 
-// ❌ Evitar: Llamada síncrona para notificación
+// ❌ Avoid: Synchronous call for notification
 authClient.SendNotification(ctx, ...)
 
-// ✅ Preferir: Evento asíncrono
+// ✅ Prefer: Asynchronous event
 bus.Publish(ctx, events.Event{
     Name: "order.created",
     Payload: ...,
 })
-// El módulo de notificaciones se suscribe y envía
+// The notification module subscribes and sends
 ```
 
 ---
 
-## Diagramas de Flujo
+## Flow Diagrams
 
 ### Modulith: Request Flow
 
@@ -860,7 +860,7 @@ Load Balancer
     └─→ Order Service (Pod 2)  # Load balanced
 ```
 
-### Event Flow: Modulith vs Microservicios
+### Event Flow: Modulith vs Microservices
 
 **Modulith:**
 
@@ -871,11 +871,11 @@ Auth Module
     ▼
 Event Bus (in-memory)
     │
-    ├─→ Order Module (handler ejecutado inmediatamente)
-    └─→ Notification Module (handler ejecutado inmediatamente)
+    ├─→ Order Module (handler executed immediately)
+    └─→ Notification Module (handler executed immediately)
 ```
 
-**Microservicios:**
+**Microservices:**
 
 ```
 Auth Service
@@ -884,31 +884,31 @@ Auth Service
     ▼
 Kafka Topic: "user.created"
     │
-    ├─→ Order Service Consumer (procesa asíncronamente)
-    └─→ Notification Service Consumer (procesa asíncronamente)
+    ├─→ Order Service Consumer (processes asynchronously)
+    └─→ Notification Service Consumer (processes asynchronously)
 ```
 
 ---
 
-## Checklist de Implementación
+## Implementation Checklist
 
-### Para Modulith
+### For Modulith
 
--   [ ] Todos los módulos registrados en `cmd/server/main.go`
--   [ ] Clientes gRPC apuntan a `127.0.0.1:9050`
--   [ ] Event bus in-memory configurado
--   [ ] Un solo proceso para desplegar
+-   [ ] All modules registered in `cmd/server/main.go`
+-   [ ] gRPC clients point to `127.0.0.1:9050`
+-   [ ] In-memory event bus configured
+-   [ ] Single process to deploy
 
-### Para Microservicios
+### For Microservices
 
--   [ ] Cada módulo tiene su propio `cmd/{module}/main.go`
--   [ ] Service discovery configurado (Kubernetes DNS, etc.)
--   [ ] Clientes gRPC apuntan a service names (`auth-service:9050`)
--   [ ] TLS habilitado para comunicación entre servicios
--   [ ] Circuit breakers implementados
--   [ ] Retries y timeouts configurados
--   [ ] Event bus distribuido (Kafka, RabbitMQ, etc.)
--   [ ] Trazabilidad distribuida (OpenTelemetry)
+-   [ ] Each module has its own `cmd/{module}/main.go`
+-   [ ] Service discovery configured (Kubernetes DNS, etc.)
+-   [ ] gRPC clients point to service names (`auth-service:9050`)
+-   [ ] TLS enabled for inter-service communication
+-   [ ] Circuit breakers implemented
+-   [ ] Retries and timeouts configured
+-   [ ] Distributed event bus (Kafka, RabbitMQ, etc.)
+-   [ ] Distributed tracing (OpenTelemetry)
 
 ---
 

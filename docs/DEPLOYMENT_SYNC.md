@@ -1,63 +1,63 @@
 # 🔄 Deployment Infrastructure Sync Report
 
-Este documento resume la sincronización completa entre el código, build system, y la infraestructura de deployment.
+This document summarizes the complete synchronization between code, build system, and deployment infrastructure.
 
-## ✅ Estado de Sincronización
+## ✅ Synchronization Status
 
-**Fecha:** Enero 2026
-**Estado:** ✅ Totalmente Sincronizado
+**Date:** January 2026
+**Status:** ✅ Fully Synchronized
 
 ---
 
-## 🧪 Testing y Calidad
+## 🧪 Testing and Quality
 
-### Mocking con gomock
+### Mocking with gomock
 
-El proyecto utiliza **gomock** para generación automática de mocks:
+The project uses **gomock** for automatic mock generation:
 
 ```bash
-# Generar mocks de todas las interfaces
+# Generate mocks for all interfaces
 make generate-mocks
 
-# Ejecutar tests unitarios (con mocks, sin DB)
+# Run unit tests (with mocks, no DB)
 make test-unit
 
-# Tests completos (incluyendo integración)
+# Complete tests (including integration)
 make test
 ```
 
-**Características:**
-- ✅ Type-safe: Los mocks fallan en compilación si la interfaz cambia
-- ✅ Automático: Regeneración mediante `go generate`
-- ✅ Alineado: Misma filosofía que sqlc y buf
+**Features:**
+- ✅ Type-safe: Mocks fail at compilation if interface changes
+- ✅ Automatic: Regeneration via `go generate`
+- ✅ Aligned: Same philosophy as sqlc and buf
 
-**Ver documentación:** `docs/MODULITH_ARCHITECTURE.md` (Sección: Mocking)
+**See documentation:** `docs/MODULITH_ARCHITECTURE.md` (Section: Mocking)
 
 ### Coverage Reporting
 
 ```bash
-# Reporte visual en terminal con estadísticas
+# Visual report in terminal with statistics
 make coverage-report
 
-# Reporte HTML interactivo
+# Interactive HTML report
 make coverage-html
 ```
 
-**El reporte muestra:**
-- 📦 Cobertura por paquete con indicadores visuales
-- 📈 Estadísticas generales (excelente/buena/media)
-- 🎯 Top 10 archivos con mejor cobertura
-- ⚠️ Áreas que necesitan más tests
+**The report shows:**
+- 📦 Coverage per package with visual indicators
+- 📈 General statistics (excellent/good/medium)
+- 🎯 Top 10 files with best coverage
+- ⚠️ Areas that need more tests
 
 ---
 
 ## 📦 Build System
 
-### Convención de Nombres de Binarios
+### Binary Naming Convention
 
-Todos los binarios se compilan en `/bin/`:
+All binaries are compiled in `/bin/`:
 
-| Comando | Output | Imagen Docker |
+| Command | Output | Docker Image |
 |---------|--------|---------------|
 | `make build` | `bin/server` | `modulith-server:latest` |
 | `make build-module auth` | `bin/auth` | `modulith-auth:latest` |
@@ -66,53 +66,53 @@ Todos los binarios se compilan en `/bin/`:
 
 ### Docker Build
 
-| Comando | Dockerfile ARG | Imagen Resultante |
+| Command | Dockerfile ARG | Resulting Image |
 |---------|----------------|-------------------|
 | `make docker-build` | `TARGET=server` | `modulith-server:latest` |
 | `make docker-build-module auth` | `TARGET=auth` | `modulith-auth:latest` |
 | `make docker-build-module {module}` | `TARGET={module}` | `modulith-{module}:latest` |
 
-**Dockerfile Path:** `/app/bin/service` (interno)
+**Dockerfile Path:** `/app/bin/service` (internal)
 
 ---
 
 ## ⚙️ Helm Charts
 
-### Configuración Dinámica
+### Dynamic Configuration
 
-El Helm chart soporta dos modos de deployment:
+The Helm chart supports two deployment modes:
 
-#### Modo 1: Server (Monolito)
+#### Mode 1: Server (Monolith)
 
 ```yaml
 # values-server.yaml
 deploymentType: server
-# Genera imagen: modulith-server:latest
+# Generates image: modulith-server:latest
 ```
 
-#### Modo 2: Module (Microservicio)
+#### Mode 2: Module (Microservice)
 
 ```yaml
 # values-auth-module.yaml
 deploymentType: module
 moduleName: auth
-# Genera imagen: modulith-auth:latest
+# Generates image: modulith-auth:latest
 ```
 
-### Archivos de Valores
+### Value Files
 
-| Archivo | Propósito | Deployment Type |
+| File | Purpose | Deployment Type |
 |---------|-----------|-----------------|
-| `values.yaml` | Valores por defecto | `server` |
-| `values-server.yaml` | Ejemplo monolito | `server` |
-| `values-auth-module.yaml` | Ejemplo módulo auth | `module` |
+| `values.yaml` | Default values | `server` |
+| `values-server.yaml` | Monolith example | `server` |
+| `values-auth-module.yaml` | Auth module example | `module` |
 
-### Puertos Configurados
+### Configured Ports
 
-| Servicio | HTTP | gRPC |
+| Service | HTTP | gRPC |
 |----------|------|------|
 | Server | 8080 | 9050 |
-| Módulos | 8000 | 9000 |
+| Modules | 8000 | 9000 |
 
 **Health Checks:**
 - Liveness: `/healthz`
@@ -120,9 +120,9 @@ moduleName: auth
 
 ---
 
-## 🏗️ Infraestructura (OpenTofu)
+## 🏗️ Infrastructure (OpenTofu)
 
-### Módulos Disponibles
+### Available Modules
 
 ```
 deployment/opentofu/modules/
@@ -131,23 +131,23 @@ deployment/opentofu/modules/
 └── rds/     → PostgreSQL Database
 ```
 
-### Outputs Importantes
+### Important Outputs
 
-| Módulo | Output | Uso |
+| Module | Output | Usage |
 |--------|--------|-----|
-| VPC | `vpc_id`, `subnet_ids` | Referencia para EKS/RDS |
+| VPC | `vpc_id`, `subnet_ids` | Reference for EKS/RDS |
 | EKS | `cluster_endpoint`, `cluster_name` | kubectl config |
 | RDS | `db_endpoint`, `db_connection_string` | App config |
 
-### Gestión con Terragrunt
+### Management with Terragrunt
 
 ```
 deployment/terragrunt/envs/
-├── dev/      → Ambiente de desarrollo
+├── dev/      → Development environment
 │   ├── vpc/
 │   ├── eks/
 │   └── rds/
-└── prod/     → Ambiente de producción
+└── prod/     → Production environment
     ├── vpc/
     ├── eks/
     └── rds/
@@ -157,123 +157,123 @@ deployment/terragrunt/envs/
 
 ## 🔄 Build, Release, Run (12-Factor App: Factor V)
 
-El template sigue el principio de **separación de build, release y run** de la metodología 12-factor app.
+The template follows the **separation of build, release and run** principle from the 12-factor app methodology.
 
-### Las Tres Etapas
+### The Three Stages
 
 **1. Build Stage:**
-- Compila el código fuente en un ejecutable
-- Genera código desde protobuf (buf)
-- Genera código desde SQL (sqlc)
-- Crea la imagen Docker
-- **Resultado:** Artefacto ejecutable (binario o imagen)
+- Compiles source code into an executable
+- Generates code from protobuf (buf)
+- Generates code from SQL (sqlc)
+- Creates Docker image
+- **Result:** Executable artifact (binary or image)
 
 **2. Release Stage:**
-- Combina el build con la configuración del entorno
-- Aplica migraciones de base de datos (opcional)
-- Valida configuración
-- **Resultado:** Release listo para ejecutar
+- Combines build with environment configuration
+- Applies database migrations (optional)
+- Validates configuration
+- **Result:** Release ready to execute
 
 **3. Run Stage:**
-- Ejecuta la aplicación en el entorno objetivo
-- Inicia los procesos (web, worker)
-- **Resultado:** Aplicación en ejecución
+- Executes the application in the target environment
+- Starts processes (web, worker)
+- **Result:** Running application
 
-### Implementación en el Template
+### Implementation in the Template
 
 #### Build Stage
 
 ```bash
-# Build binario local
+# Local binary build
 make build                    # → bin/server
 make build-module auth        # → bin/auth
 
-# Build imagen Docker
+# Docker image build
 make docker-build             # → modulith-server:latest
 make docker-build-module auth # → modulith-auth:latest
 ```
 
-**Durante el build:**
-- ✅ Generación de código (proto, sqlc)
-- ✅ Compilación de binarios
-- ✅ Creación de imagen Docker multi-stage
-- ✅ Inclusión de version info (VERSION, COMMIT, BUILD_TIME)
+**During build:**
+- ✅ Code generation (proto, sqlc)
+- ✅ Binary compilation
+- ✅ Multi-stage Docker image creation
+- ✅ Version info inclusion (VERSION, COMMIT, BUILD_TIME)
 
 #### Release Stage
 
-**Opción 1: Migraciones en Startup (Recomendado para Modulith)**
+**Option 1: Migrations on Startup (Recommended for Modulith)**
 ```bash
-# El servidor ejecuta migraciones automáticamente al iniciar
-./bin/server  # Ejecuta migraciones, luego inicia servidor
+# Server automatically runs migrations on startup
+./bin/server  # Runs migrations, then starts server
 ```
 
-**Ventajas:**
-- ✅ Simple y directo
-- ✅ Asegura que las migraciones se ejecuten
-- ✅ Funciona bien para modulith (un solo proceso)
+**Advantages:**
+- ✅ Simple and direct
+- ✅ Ensures migrations run
+- ✅ Works well for modulith (single process)
 
-**Opción 2: Migraciones como Job Separado (Producción)**
+**Option 2: Migrations as Separate Job (Production)**
 ```bash
-# Ejecutar migraciones como job de Kubernetes
+# Run migrations as Kubernetes job
 kubectl apply -f deployment/helm/modulith/templates/migration-job.yaml
 
-# Luego iniciar la aplicación
+# Then start application
 helm install modulith-server ./deployment/helm/modulith
 ```
 
-**Ventajas:**
-- ✅ Separación clara de build/release/run
-- ✅ Migraciones ejecutadas antes del deploy
-- ✅ Rollback más seguro
+**Advantages:**
+- ✅ Clear separation of build/release/run
+- ✅ Migrations executed before deploy
+- ✅ Safer rollback
 
-**Recomendación:**
-- **Desarrollo/Staging:** Migraciones en startup (Opción 1)
-- **Producción:** Migraciones como job separado (Opción 2)
+**Recommendation:**
+- **Development/Staging:** Migrations on startup (Option 1)
+- **Production:** Migrations as separate job (Option 2)
 
 #### Run Stage
 
 ```bash
-# Ejecutar aplicación
+# Run application
 ./bin/server
 
-# O con Docker
+# Or with Docker
 docker run modulith-server:latest
 
-# O en Kubernetes
+# Or in Kubernetes
 helm install modulith-server ./deployment/helm/modulith
 ```
 
-**Durante el run:**
-- ✅ Carga configuración (YAML > .env > ENV vars)
-- ✅ Conecta a servicios externos (DB, Redis)
-- ✅ Ejecuta migraciones (si no se ejecutaron en release)
-- ✅ Inicia servidores HTTP/gRPC
-- ✅ Listo para recibir requests
+**During run:**
+- ✅ Loads configuration (YAML > .env > ENV vars)
+- ✅ Connects to external services (DB, Redis)
+- ✅ Executes migrations (if not executed in release)
+- ✅ Starts HTTP/gRPC servers
+- ✅ Ready to receive requests
 
-### Separación de Responsabilidades
+### Responsibility Separation
 
 **Build:**
-- ✅ Compilación de código
-- ✅ Generación de artefactos
-- ✅ Creación de imágenes
-- ❌ NO ejecuta migraciones
-- ❌ NO accede a base de datos
-- ❌ NO requiere configuración de entorno
+- ✅ Code compilation
+- ✅ Artifact generation
+- ✅ Image creation
+- ❌ Does NOT run migrations
+- ❌ Does NOT access database
+- ❌ Does NOT require environment configuration
 
 **Release:**
-- ✅ Aplicación de configuración
-- ✅ Ejecución de migraciones (opcional)
-- ✅ Validación de configuración
-- ❌ NO ejecuta la aplicación
+- ✅ Configuration application
+- ✅ Migration execution (optional)
+- ✅ Configuration validation
+- ❌ Does NOT run application
 
 **Run:**
-- ✅ Ejecución de procesos
-- ✅ Manejo de requests
-- ✅ Gestión de ciclo de vida
-- ❌ NO compila código
-- ❌ NO aplica migraciones (si se hicieron en release)
+- ✅ Process execution
+- ✅ Request handling
+- ✅ Lifecycle management
+- ❌ Does NOT compile code
+- ❌ Does NOT apply migrations (if done in release)
 
-### Ejemplo Completo: CI/CD Pipeline
+### Complete Example: CI/CD Pipeline
 
 ```yaml
 # .github/workflows/deploy.yml
@@ -304,7 +304,7 @@ jobs:
     steps:
       - name: Run migrations
         run: |
-          # Ejecutar migraciones como job separado
+          # Run migrations as separate job
           kubectl create job migration-${{ github.sha }} \
             --from=cronjob/migration-job \
             --image=modulith-server:${{ github.sha }}
@@ -320,21 +320,21 @@ jobs:
             ./deployment/helm/modulith
 ```
 
-### Migraciones: Estrategia Híbrida
+### Migrations: Hybrid Strategy
 
-El template soporta ambas estrategias:
+The template supports both strategies:
 
-**1. Migraciones en Startup (Default):**
+**1. Migrations on Startup (Default):**
 ```go
 // cmd/server/main.go
 func main() {
     // ...
-    runMigrations(cfg.DBDSN, reg)  // Ejecuta migraciones
-    runServer(ctx, cfg, reg, stop)  // Inicia servidor
+    runMigrations(cfg.DBDSN, reg)  // Runs migrations
+    runServer(ctx, cfg, reg, stop)  // Starts server
 }
 ```
 
-**2. Migraciones como Job (Kubernetes):**
+**2. Migrations as Job (Kubernetes):**
 ```yaml
 # deployment/helm/modulith/templates/migration-job.yaml
 apiVersion: batch/v1
@@ -347,65 +347,65 @@ spec:
       containers:
       - name: migration
         image: "{{ .Values.image.repository }}-server:{{ .Values.image.tag }}"
-        command: ["./service", "-migrate"]  # Solo migraciones
+        command: ["./service", "-migrate"]  # Migrations only
       restartPolicy: Never
 ```
 
-**Uso:**
+**Usage:**
 ```bash
-# Ejecutar migraciones antes del deploy
+# Run migrations before deploy
 kubectl apply -f migration-job.yaml
 
-# Esperar completación
+# Wait for completion
 kubectl wait --for=condition=complete job/migration-job
 
-# Luego desplegar aplicación
+# Then deploy application
 helm install modulith-server ./deployment/helm/modulith
 ```
 
-### Checklist de Build/Release/Run
+### Build/Release/Run Checklist
 
 **Build:**
-- [ ] Código compilado sin errores
-- [ ] Artefactos generados (proto, sqlc)
-- [ ] Imagen Docker creada
-- [ ] Version info incluida
+- [ ] Code compiled without errors
+- [ ] Artifacts generated (proto, sqlc)
+- [ ] Docker image created
+- [ ] Version info included
 
 **Release:**
-- [ ] Configuración validada
-- [ ] Migraciones ejecutadas (si aplica)
-- [ ] Secrets configurados
-- [ ] Health checks configurados
+- [ ] Configuration validated
+- [ ] Migrations executed (if applicable)
+- [ ] Secrets configured
+- [ ] Health checks configured
 
 **Run:**
-- [ ] Proceso inicia correctamente
-- [ ] Conecta a servicios externos
-- [ ] Health checks responden
-- [ ] Logs estructurados funcionando
+- [ ] Process starts correctly
+- [ ] Connects to external services
+- [ ] Health checks respond
+- [ ] Structured logs working
 
-## 🔄 Flujo de Deployment Completo
+## 🔄 Complete Deployment Flow
 
-### 1. Build Local
+### 1. Local Build
 
 ```bash
-# Opción A: Binario local
+# Option A: Local binary
 make build-module auth
 ./bin/auth
 
-# Opción B: Docker local
+# Option B: Local Docker
 make docker-build-module auth
 docker run modulith-auth:latest
 ```
 
-### 2. Provisionar Infraestructura
+### 2. Provision Infrastructure
 
 ```bash
 cd deployment/terragrunt/envs/dev
 terragrunt run-all apply
-# Crea: VPC → EKS → RDS
+# Creates: VPC → EKS → RDS
 ```
 
-### 3. Push a Registry
+### 3. Push to Registry
 
 ```bash
 # Tag
@@ -416,13 +416,13 @@ docker tag modulith-auth:latest \
 docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/modulith-auth:v1.0.0
 ```
 
-### 4. Deploy con Helm
+### 4. Deploy with Helm
 
 ```bash
-# Configurar kubectl
+# Configure kubectl
 aws eks update-kubeconfig --name modulith-cluster-dev
 
-# Deploy módulo
+# Deploy module
 helm install modulith-auth ./deployment/helm/modulith \
   --values ./deployment/helm/modulith/values-auth-module.yaml \
   --set image.repository=123456789.dkr.ecr.us-east-1.amazonaws.com/modulith \
@@ -432,9 +432,9 @@ helm install modulith-auth ./deployment/helm/modulith \
 
 ---
 
-## 📊 Estrategias de Deployment
+## 📊 Deployment Strategies
 
-### Fase 1: Monolito
+### Phase 1: Monolith
 
 ```
 ┌─────────────────────┐
@@ -455,7 +455,7 @@ helm install modulith-auth ./deployment/helm/modulith \
 └─────────────────────┘
 ```
 
-### Fase 2: Híbrida
+### Phase 2: Hybrid
 
 ```
 ┌──────────────────┐  ┌──────────────────────────┐
@@ -480,7 +480,7 @@ helm install modulith-auth ./deployment/helm/modulith \
 └────────────────────────────────────┘
 ```
 
-### Fase 3: Microservicios
+### Phase 3: Microservices
 
 ```
 ┌─────────────────────────────────────┐
@@ -488,11 +488,11 @@ helm install modulith-auth ./deployment/helm/modulith \
 └──────────────┬──────────────────────┘
                ↓
 ┌──────────────────────────────────────┐
-│  modulith-{module}:tag (cada uno)    │
+│  modulith-{module}:tag (each one)    │
 └──────────────┬───────────────────────┘
                ↓
 ┌──────────────────────────────────────┐
-│  Helm install por módulo             │
+│  Helm install per module             │
 └──────────────┬───────────────────────┘
                ↓
 ┌──────────────────────────────────────┐
@@ -505,9 +505,9 @@ helm install modulith-auth ./deployment/helm/modulith \
 
 ---
 
-## 🔐 Configuración de Secretos
+## 🔐 Secrets Configuration
 
-### Desarrollo
+### Development
 
 ```yaml
 # values.yaml
@@ -516,24 +516,24 @@ config:
   jwtSecret: "dev-secret"
 ```
 
-### Producción
+### Production
 
 ```bash
-# Desde Terragrunt outputs
+# From Terragrunt outputs
 DB_DSN=$(cd deployment/terragrunt/envs/prod/rds && \
   terragrunt output -raw db_connection_string)
 
-# Deploy con secret
+# Deploy with secret
 helm install modulith-server ./deployment/helm/modulith \
   --set config.dbDsn="${DB_DSN}" \
   --set config.jwtSecret="${JWT_SECRET}"
 ```
 
-**Recomendado:** Usar External Secrets Operator o Sealed Secrets en producción.
+**Recommended:** Use External Secrets Operator or Sealed Secrets in production.
 
 ---
 
-## 📁 Estructura de Archivos Sincronizada
+## 📁 Synchronized File Structure
 
 ```
 go-modulith-template/
@@ -543,28 +543,28 @@ go-modulith-template/
 │   └── {module}                  # make build-module {module}
 │
 ├── cmd/                          # Entry points
-│   ├── server/main.go            # Monolito
-│   └── {module}/main.go          # Módulos independientes
+│   ├── server/main.go            # Monolith
+│   └── {module}/main.go          # Independent modules
 │
 ├── Dockerfile                    # Multi-stage, ARG TARGET
 │
 ├── deployment/
-│   ├── README.md                 # ✅ Guía completa
+│   ├── README.md                 # ✅ Complete guide
 │   │
 │   ├── helm/modulith/
-│   │   ├── README.md             # ✅ Documentación Helm
+│   │   ├── README.md             # ✅ Helm documentation
 │   │   ├── values.yaml           # ✅ Defaults
-│   │   ├── values-server.yaml    # ✅ Ejemplo monolito
-│   │   ├── values-auth-module.yaml # ✅ Ejemplo módulo
+│   │   ├── values-server.yaml    # ✅ Monolith example
+│   │   ├── values-auth-module.yaml # ✅ Module example
 │   │   └── templates/
-│   │       ├── deployment.yaml   # ✅ Soporta server/module
+│   │       ├── deployment.yaml   # ✅ Supports server/module
 │   │       ├── service.yaml
 │   │       ├── hpa.yaml
 │   │       ├── pdb.yaml
 │   │       └── secrets.yaml
 │   │
 │   ├── opentofu/
-│   │   ├── README.md             # ✅ Documentación IaC
+│   │   ├── README.md             # ✅ IaC documentation
 │   │   └── modules/
 │   │       ├── vpc/
 │   │       ├── eks/
@@ -576,74 +576,74 @@ go-modulith-template/
 │           └── prod/
 │
 ├── docs/
-│   ├── MODULITH_ARCHITECTURE.md  # ✅ Actualizado sección K8s/IaC
-│   └── DEPLOYMENT_SYNC.md        # ✅ Este documento
+│   ├── MODULITH_ARCHITECTURE.md  # ✅ Updated K8s/IaC section
+│   └── DEPLOYMENT_SYNC.md        # ✅ This document
 │
-├── Makefile                      # ✅ Comandos genéricos
-└── README.md                     # ✅ Referencias actualizadas
+├── Makefile                      # ✅ Generic commands
+└── README.md                     # ✅ Updated references
 ```
 
 ---
 
-## ✅ Checklist de Sincronización
+## ✅ Synchronization Checklist
 
 ### Build System
-- [x] Todos los binarios en `/bin/`
-- [x] `.gitignore` actualizado
-- [x] Comandos genéricos: `build-module`, `docker-build-module`
-- [x] Convención de nombres: `modulith-{module}:tag`
+- [x] All binaries in `/bin/`
+- [x] `.gitignore` updated
+- [x] Generic commands: `build-module`, `docker-build-module`
+- [x] Naming convention: `modulith-{module}:tag`
 
 ### Helm Charts
-- [x] Soporte para `deploymentType: server|module`
-- [x] Nombres de imagen dinámicos
-- [x] Valores de ejemplo para ambos modos
-- [x] Health checks configurados
-- [x] HPA y PDB incluidos
-- [x] README completo con ejemplos
+- [x] Support for `deploymentType: server|module`
+- [x] Dynamic image names
+- [x] Example values for both modes
+- [x] Health checks configured
+- [x] HPA and PDB included
+- [x] Complete README with examples
 
 ### OpenTofu/Terragrunt
-- [x] Módulos VPC, EKS, RDS funcionales
-- [x] Outputs necesarios definidos
-- [x] README con guía de uso
-- [x] Estructura por ambientes (dev/prod)
+- [x] VPC, EKS, RDS modules functional
+- [x] Necessary outputs defined
+- [x] README with usage guide
+- [x] Structure by environments (dev/prod)
 
-### Documentación
-- [x] README principal actualizado
-- [x] MODULITH_ARCHITECTURE.md con sección K8s/IaC
-- [x] deployment/README.md con flujo completo
-- [x] helm/modulith/README.md detallado
-- [x] opentofu/README.md con ejemplos
-- [x] Este documento de sincronización
-
----
-
-## 🎯 Próximos Pasos Recomendados
-
-### Para Desarrollo
-1. ✅ Todo listo - usa `make dev-module {module}`
-
-### Para Staging/Producción
-1. Configurar AWS credentials
-2. Provisionar infraestructura con Terragrunt
-3. Configurar CI/CD para build y push de imágenes
-4. Implementar External Secrets Operator
-5. Configurar Prometheus + Grafana para observabilidad
-6. Implementar GitOps con ArgoCD o Flux
+### Documentation
+- [x] Main README updated
+- [x] MODULITH_ARCHITECTURE.md with K8s/IaC section
+- [x] deployment/README.md with complete flow
+- [x] helm/modulith/README.md detailed
+- [x] opentofu/README.md with examples
+- [x] This synchronization document
 
 ---
 
-## 📚 Referencias Rápidas
+## 🎯 Recommended Next Steps
 
-| Necesito... | Ver... |
-|-------------|--------|
-| Comandos de build | [README.md](../README.md) |
-| Arquitectura completa | [MODULITH_ARCHITECTURE.md](./MODULITH_ARCHITECTURE.md) |
-| Deployment en K8s | [deployment/README.md](../deployment/README.md) |
+### For Development
+1. ✅ Everything ready - use `make dev-module {module}`
+
+### For Staging/Production
+1. Configure AWS credentials
+2. Provision infrastructure with Terragrunt
+3. Configure CI/CD for image build and push
+4. Implement External Secrets Operator
+5. Configure Prometheus + Grafana for observability
+6. Implement GitOps with ArgoCD or Flux
+
+---
+
+## 📚 Quick References
+
+| I need... | See... |
+|-----------|--------|
+| Build commands | [README.md](../README.md) |
+| Complete architecture | [MODULITH_ARCHITECTURE.md](./MODULITH_ARCHITECTURE.md) |
+| K8s deployment | [deployment/README.md](../deployment/README.md) |
 | Helm charts | [deployment/helm/modulith/README.md](../deployment/helm/modulith/README.md) |
-| Infraestructura IaC | [deployment/opentofu/README.md](../deployment/opentofu/README.md) |
+| IaC infrastructure | [deployment/opentofu/README.md](../deployment/opentofu/README.md) |
 
 ---
 
-**Última actualización:** Diciembre 2025
-**Mantenido por:** Go Modulith Template Team
+**Last updated:** December 2025
+**Maintained by:** Go Modulith Template Team
 

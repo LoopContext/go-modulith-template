@@ -287,7 +287,6 @@
         "parameters": [
           {
             "name": "provider",
-            "description": "e.g., \"google\", \"facebook\"",
             "in": "path",
             "required": true,
             "type": "string"
@@ -550,8 +549,7 @@
       "type": "object",
       "properties": {
         "redirectUrl": {
-          "type": "string",
-          "title": "Where to redirect after OAuth flow"
+          "type": "string"
         }
       }
     },
@@ -635,7 +633,8 @@
       "type": "object",
       "properties": {
         "email": {
-          "type": "string"
+          "type": "string",
+          "title": "One of email or phone must be provided (handled in service layer)\nFormat validation only applies when field is set (non-empty)"
         },
         "phone": {
           "type": "string"
@@ -670,12 +669,10 @@
           "type": "string"
         },
         "code": {
-          "type": "string",
-          "title": "Authorization code from OAuth provider"
+          "type": "string"
         },
         "state": {
-          "type": "string",
-          "title": "State token for verification"
+          "type": "string"
         }
       }
     },
@@ -860,7 +857,7 @@
       "properties": {
         "email": {
           "type": "string",
-          "title": "One of email or phone must be provided"
+          "title": "One of email or phone must be provided (handled in service layer)\nFormat validation only applies when field is set (non-empty)"
         },
         "phone": {
           "type": "string"
@@ -945,7 +942,8 @@
       "type": "object",
       "properties": {
         "displayName": {
-          "type": "string"
+          "type": "string",
+          "title": "Optional fields - validation only applies when field is set"
         },
         "avatarUrl": {
           "type": "string"

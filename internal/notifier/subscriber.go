@@ -42,13 +42,13 @@ func (s *Subscriber) handleMagicCodeRequested(ctx context.Context, e events.Even
 	if email != "" {
 		err = s.notifier.SendEmail(ctx, Message{
 			To:      email,
-			Subject: "Tu Código de Acceso",
-			Body:    "Tu código mágico es: " + code,
+			Subject: "Your Access Code",
+			Body:    "Your magic code is: " + code,
 		})
 	} else if phone != "" {
 		err = s.notifier.SendSMS(ctx, Message{
 			To:   phone,
-			Body: "Tu código mágico es: " + code,
+			Body: "Your magic code is: " + code,
 		})
 	}
 

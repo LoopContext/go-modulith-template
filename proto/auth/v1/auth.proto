@@ -4,6 +4,7 @@ package auth.v1;
 
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
 
 option go_package = "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1;authv1";
 
@@ -144,9 +145,10 @@ service AuthService {
 // --- Login Messages ---
 
 message RequestLoginRequest {
-  // One of email or phone must be provided
-  string email = 1;
-  string phone = 2;
+  // One of email or phone must be provided (handled in service layer)
+  // Format validation only applies when field is set (non-empty)
+  string email = 1 [(buf.validate.field).string.email = true];
+  string phone = 2 [(buf.validate.field).string.pattern = "^\\+?[1-9]\\d{1,14}$"];
 }
 
 message RequestLoginResponse {
@@ -155,9 +157,14 @@ message RequestLoginResponse {
 }
 
 message CompleteLoginRequest {
-  string email = 1;
-  string phone = 2;
-  string code = 3;
+  // One of email or phone must be provided (handled in service layer)
+  // Format validation only applies when field is set (non-empty)
+  string email = 1 [(buf.validate.field).string.email = true];
+  string phone = 2 [(buf.validate.field).string.pattern = "^\\+?[1-9]\\d{1,14}$"];
+  string code = 3 [(buf.validate.field).string = {
+    len: 6,
+    pattern: "^[0-9]{6}$"
+  }];
 }
 
 message CompleteLoginResponse {
@@ -169,7 +176,9 @@ message CompleteLoginResponse {
 // --- Token Messages ---
 
 message RefreshTokenRequest {
-  string refresh_token = 1;
+  string refresh_token = 1 [(buf.validate.field).string = {
+    min_len: 1
+  }];
 }
 
 message RefreshTokenResponse {
@@ -207,8 +216,9 @@ message GetProfileResponse {
 }
 
 message UpdateProfileRequest {
-  string display_name = 1;
-  string avatar_url = 2;
+  // Optional fields - validation only applies when field is set
+  string display_name = 1 [(buf.validate.field).string.max_len = 100];
+  string avatar_url = 2 [(buf.validate.field).string.uri = true];
 }
 
 message UpdateProfileResponse {
@@ -216,7 +226,10 @@ message UpdateProfileResponse {
 }
 
 message ChangeEmailRequest {
-  string new_email = 1;
+  string new_email = 1 [(buf.validate.field).string = {
+    email: true,
+    min_len: 1
+  }];
 }
 
 message ChangeEmailResponse {
@@ -225,7 +238,10 @@ message ChangeEmailResponse {
 }
 
 message ChangePhoneRequest {
-  string new_phone = 1;
+  string new_phone = 1 [(buf.validate.field).string = {
+    pattern: "^\\+?[1-9]\\d{1,14}$",
+    min_len: 1
+  }];
 }
 
 message ChangePhoneResponse {
@@ -251,7 +267,7 @@ message ListSessionsResponse {
 }
 
 message RevokeSessionRequest {
-  string session_id = 1;
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
 message RevokeSessionResponse {
@@ -282,8 +298,14 @@ message GetOAuthProvidersResponse {
 }
 
 message InitiateOAuthRequest {
-  string provider = 1;      // e.g., "google", "facebook"
-  string redirect_url = 2;  // Where to redirect after OAuth flow
+  string provider = 1 [(buf.validate.field).string = {
+    min_len: 1,
+    in: ["google", "facebook", "github", "apple", "microsoft"]
+  }];
+  string redirect_url = 2 [(buf.validate.field).string = {
+    uri: true,
+    min_len: 1
+  }];
 }
 
 message InitiateOAuthResponse {
@@ -292,9 +314,12 @@ message InitiateOAuthResponse {
 }
 
 message CompleteOAuthRequest {
-  string provider = 1;
-  string code = 2;          // Authorization code from OAuth provider
-  string state = 3;         // State token for verification
+  string provider = 1 [(buf.validate.field).string = {
+    min_len: 1,
+    in: ["google", "facebook", "github", "apple", "microsoft"]
+  }];
+  string code = 2 [(buf.validate.field).string.min_len = 1];
+  string state = 3 [(buf.validate.field).string.min_len = 1];
 }
 
 message CompleteOAuthResponse {
@@ -306,8 +331,14 @@ message CompleteOAuthResponse {
 }
 
 message LinkExternalAccountRequest {
-  string provider = 1;
-  string redirect_url = 2;
+  string provider = 1 [(buf.validate.field).string = {
+    min_len: 1,
+    in: ["google", "facebook", "github", "apple", "microsoft"]
+  }];
+  string redirect_url = 2 [(buf.validate.field).string = {
+    uri: true,
+    min_len: 1
+  }];
 }
 
 message LinkExternalAccountResponse {
@@ -316,7 +347,10 @@ message LinkExternalAccountResponse {
 }
 
 message UnlinkExternalAccountRequest {
-  string provider = 1;
+  string provider = 1 [(buf.validate.field).string = {
+    min_len: 1,
+    in: ["google", "facebook", "github", "apple", "microsoft"]
+  }];
 }
 
 message UnlinkExternalAccountResponse {

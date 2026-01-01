@@ -3,6 +3,7 @@ syntax = "proto3";
 package {{.MODULE_NAME}}.v1;
 
 import "google/api/annotations.proto";
+import "buf/validate/validate.proto";
 
 option go_package = "{{.PROJECT_NAME}}/gen/go/proto/{{.MODULE_NAME}}/v1;{{.MODULE_NAME}}v1";
 
@@ -22,7 +23,10 @@ service {{.MODULE_NAME_CAPITALIZED}}Service {
 }
 
 message Create{{.MODULE_NAME_CAPITALIZED}}Request {
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {
+    min_len: 1,
+    max_len: 100
+  }];
 }
 
 message Create{{.MODULE_NAME_CAPITALIZED}}Response {
@@ -31,7 +35,7 @@ message Create{{.MODULE_NAME_CAPITALIZED}}Response {
 }
 
 message Get{{.MODULE_NAME_CAPITALIZED}}Request {
-  string id = 1;
+  string id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
 message Get{{.MODULE_NAME_CAPITALIZED}}Response {

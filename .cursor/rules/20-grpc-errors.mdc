@@ -6,8 +6,9 @@
 - **Never** wrap (`fmt.Errorf("%w")`) a `status.Error(...)` or `status.Errorf(...)`.
   - That breaks gRPC code and ends up returning `codes.Unknown`.
 - Pattern:
-  - validate input → `return nil, status.Error(codes.InvalidArgument, "...")`
-  - internal error (repo/DB) → `slog.ErrorContext(ctx, "...", "error", err)` and `return nil, status.Error(codes.Internal, "internal server error")`
+  - **Input validation**: Automatic via protovalidate interceptor (see `25-protobuf-validation.mdc`)
+  - **Business logic validation** → `return nil, status.Error(codes.InvalidArgument, "...")`
+  - **Internal error** (repo/DB) → `slog.ErrorContext(ctx, "...", "error", err)` and `return nil, status.Error(codes.Internal, "internal server error")`
 
 ## DTOs (Protobuf)
 

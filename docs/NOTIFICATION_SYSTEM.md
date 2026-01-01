@@ -1,21 +1,21 @@
-# Sistema de Notificaciones
+# Notification System
 
-Este documento describe el sistema de notificaciones extensible del modulith template.
+This document describes the extensible notification system of the modulith template.
 
-## Arquitectura
+## Architecture
 
 ```
 internal/notifier/
-├── notifier.go          # Interfaces base (EmailProvider, SMSProvider, Notifier)
-├── template.go          # TemplateManager para renderizado de templates
-├── composite.go         # CompositeNotifier que combina múltiples providers
-├── log_notifier.go      # LogNotifier para desarrollo (solo logs)
-├── subscriber.go        # Subscriber para escuchar eventos del bus
+├── notifier.go          # Base interfaces (EmailProvider, SMSProvider, Notifier)
+├── template.go          # TemplateManager for template rendering
+├── composite.go         # CompositeNotifier that combines multiple providers
+├── log_notifier.go      # LogNotifier for development (logs only)
+├── subscriber.go        # Subscriber to listen to bus events
 └── providers/
-    ├── sendgrid.go      # Provider de email SendGrid
-    ├── ses.go           # Provider de email AWS SES
-    ├── twilio.go        # Provider de SMS Twilio
-    └── sns.go           # Provider de SMS AWS SNS
+    ├── sendgrid.go      # SendGrid email provider
+    ├── ses.go           # AWS SES email provider
+    ├── twilio.go        # Twilio SMS provider
+    └── sns.go           # AWS SNS SMS provider
 ```
 
 ## Interfaces
@@ -45,27 +45,27 @@ type Notifier interface {
 }
 ```
 
-## Providers Disponibles
+## Available Providers
 
 ### Email
 
-| Provider | Descripción | Configuración |
-|----------|-------------|---------------|
-| SendGrid | API de SendGrid v3 | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` |
+| Provider | Description | Configuration |
+|----------|------------|---------------|
+| SendGrid | SendGrid v3 API | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` |
 | AWS SES | Simple Email Service | `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` |
-| LogNotifier | Solo logging (dev) | Ninguna |
+| LogNotifier | Logging only (dev) | None |
 
 ### SMS
 
-| Provider | Descripción | Configuración |
-|----------|-------------|---------------|
-| Twilio | API de Twilio | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` |
+| Provider | Description | Configuration |
+|----------|------------|---------------|
+| Twilio | Twilio API | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` |
 | AWS SNS | Simple Notification Service | `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` |
-| LogNotifier | Solo logging (dev) | Ninguna |
+| LogNotifier | Logging only (dev) | None |
 
-## Uso Básico
+## Basic Usage
 
-### Desarrollo (LogNotifier)
+### Development (LogNotifier)
 
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/notifier"
@@ -78,7 +78,7 @@ ntf.SendEmail(ctx, notifier.Message{
 })
 ```
 
-### Producción (CompositeNotifier)
+### Production (CompositeNotifier)
 
 ```go
 import (
@@ -86,7 +86,7 @@ import (
     "github.com/cmelgarejo/go-modulith-template/internal/notifier/providers"
 )
 
-// Crear providers
+// Create providers
 sendgrid := providers.NewSendGridProvider(providers.SendGridConfig{
     APIKey:    os.Getenv("SENDGRID_API_KEY"),
     FromEmail: "noreply@example.com",
@@ -99,67 +99,67 @@ twilio := providers.NewTwilioProvider(providers.TwilioConfig{
     FromNumber: os.Getenv("TWILIO_FROM_NUMBER"),
 })
 
-// Crear composite con fallbacks
+// Create composite with fallbacks
 ntf := notifier.NewCompositeNotifier(notifier.CompositeConfig{
     EmailProviders: []notifier.EmailProvider{sendgrid},
     SMSProviders:   []notifier.SMSProvider{twilio},
 })
 ```
 
-## Sistema de Templates
+## Template System
 
-### Templates Incluidos
+### Included Templates
 
-| Template | Tipo | Uso |
-|----------|------|-----|
-| `magic_code_email` | HTML/Text | Login con código mágico |
-| `magic_code_sms` | Text | SMS con código de login |
-| `welcome_email` | HTML/Text | Email de bienvenida |
-| `email_change_verification` | HTML/Text | Verificación de cambio de email |
-| `phone_change_sms` | Text | SMS de verificación de teléfono |
+| Template | Type | Usage |
+|----------|------|-------|
+| `magic_code_email` | HTML/Text | Login with magic code |
+| `magic_code_sms` | Text | SMS with login code |
+| `welcome_email` | HTML/Text | Welcome email |
+| `email_change_verification` | HTML/Text | Email change verification |
+| `phone_change_sms` | Text | Phone verification SMS |
 
-### Usar Templates
+### Using Templates
 
 ```go
 tm := notifier.NewTemplateManager()
 
 data := notifier.TemplateData{
-    AppName:     "Mi App",
-    CompanyName: "Mi Empresa",
+    AppName:     "My App",
+    CompanyName: "My Company",
     Year:        time.Now().Year(),
     Code:        "123456",
-    ExpiresIn:   "15 minutos",
-    UserName:    "Juan",
+    ExpiresIn:   "15 minutes",
+    UserName:    "John",
 }
 
-// Renderizar HTML
+// Render HTML
 htmlBody, err := tm.RenderHTML("magic_code_email", data)
 
-// Renderizar texto plano
+// Render plain text
 textBody, err := tm.RenderText("magic_code_sms", data)
 ```
 
-### Templates Personalizados
+### Custom Templates
 
 ```go
 tm := notifier.NewTemplateManager()
 
-// Añadir template HTML
+// Add HTML template
 err := tm.AddHTMLTemplate("custom_alert", `
 <!DOCTYPE html>
 <html>
 <body>
-    <h1>Alerta: {{.Subject}}</h1>
+    <h1>Alert: {{.Subject}}</h1>
     <p>{{.Body}}</p>
 </body>
 </html>
 `)
 
-// Añadir template de texto
+// Add text template
 err := tm.AddTextTemplate("custom_sms", `{{.AppName}}: {{.Body}}`)
 ```
 
-### Cargar desde Filesystem
+### Load from Filesystem
 
 ```go
 //go:embed templates/*
@@ -167,14 +167,14 @@ var templatesFS embed.FS
 
 tm, err := notifier.NewTemplateManagerWithFS(
     templatesFS,
-    "templates/*.html",  // Patrón HTML
-    "templates/*.txt",   // Patrón texto
+    "templates/*.html",  // HTML pattern
+    "templates/*.txt",   // Text pattern
 )
 ```
 
-## Integración con Event Bus
+## Event Bus Integration
 
-El notifier puede suscribirse a eventos del bus:
+The notifier can subscribe to bus events:
 
 ```go
 ebus := events.NewBus()
@@ -183,7 +183,7 @@ ntf := notifier.NewCompositeNotifier(cfg)
 subscriber := notifier.NewSubscriber(ntf)
 subscriber.SubscribeToEvents(ebus)
 
-// En otro lugar del código
+// Elsewhere in code
 ebus.Publish(ctx, events.Event{
     Name: "magic_code_requested",
     Payload: map[string]string{
@@ -193,20 +193,20 @@ ebus.Publish(ctx, events.Event{
 })
 ```
 
-## Mejores Prácticas
+## Best Practices
 
-### 1. Usar CompositeNotifier con Fallbacks
+### 1. Use CompositeNotifier with Fallbacks
 
 ```go
 ntf := notifier.NewCompositeNotifier(notifier.CompositeConfig{
     EmailProviders: []notifier.EmailProvider{
-        primarySendGrid,   // Provider principal
-        fallbackSES,       // Fallback si SendGrid falla
+        primarySendGrid,   // Primary provider
+        fallbackSES,       // Fallback if SendGrid fails
     },
 })
 ```
 
-### 2. Separar Configuración por Entorno
+### 2. Separate Configuration by Environment
 
 ```go
 func createNotifier(env string) notifier.Notifier {
@@ -217,28 +217,28 @@ func createNotifier(env string) notifier.Notifier {
 }
 ```
 
-### 3. Usar Templates para Consistencia
+### 3. Use Templates for Consistency
 
 ```go
-// Preferir
+// Prefer
 ntf.SendTemplatedEmail(ctx, email, "magic_code_email", data)
 
-// En lugar de
-ntf.SendEmail(ctx, Message{Body: "Tu código es: " + code})
+// Instead of
+ntf.SendEmail(ctx, Message{Body: "Your code is: " + code})
 ```
 
-### 4. Manejar Errores Apropiadamente
+### 4. Handle Errors Appropriately
 
 ```go
 if err := ntf.SendEmail(ctx, msg); err != nil {
-    // Log pero no fallar - la notificación no es crítica para la operación
+    // Log but don't fail - notification is not critical for operation
     slog.WarnContext(ctx, "failed to send notification", "error", err)
 }
 ```
 
-## Agregar un Nuevo Provider
+## Adding a New Provider
 
-1. Implementar la interface `EmailProvider` o `SMSProvider`:
+1. Implement the `EmailProvider` or `SMSProvider` interface:
 
 ```go
 // providers/mailgun.go

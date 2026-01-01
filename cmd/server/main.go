@@ -27,6 +27,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/migration"
 	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/cmelgarejo/go-modulith-template/internal/validation"
 	"github.com/cmelgarejo/go-modulith-template/internal/version"
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
@@ -503,10 +504,13 @@ func setupGRPC(cfg *config.AppConfig, reg *registry.Registry) (*grpc.Server, net
 
 	grpcServer := grpc.NewServer(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-		grpc.ChainUnaryInterceptor(authn.UnaryServerInterceptor(authn.InterceptorConfig{
-			Verifier:      verifier,
-			PublicMethods: public,
-		})),
+		grpc.ChainUnaryInterceptor(
+			validation.UnaryServerInterceptor(), // Validate requests first
+			authn.UnaryServerInterceptor(authn.InterceptorConfig{
+				Verifier:      verifier,
+				PublicMethods: public,
+			}),
+		),
 	)
 
 	// Register all modules with gRPC server

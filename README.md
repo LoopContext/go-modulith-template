@@ -5,147 +5,147 @@
 ![Go](https://img.shields.io/badge/go-1.24+-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-Este es un template profesional para construir aplicaciones en Go siguiendo el patrón **Modulith**. Está diseñado para ser escalable, sostenible y fácil de mantener, permitiendo evolucionar de un monolito a microservicios sin fricción.
+This is a professional template for building Go applications following the **Modulith** pattern. It's designed to be scalable, maintainable, and easy to maintain, allowing evolution from a monolith to microservices without friction.
 
-## ✨ Características Principales
+## ✨ Key Features
 
--   🏗️ **Arquitectura Modular**: Código organizado por dominios con desacoplamiento mediante eventos internos.
--   📦 **Registry Pattern**: Inyección de dependencias manual, explícita y sin magia para máximo control.
--   🔐 **gRPC & Protobuf**: Comunicación tipada y eficiente con generación automática vía `buf`.
--   🗄️ **SQLC & Migraciones**: Acceso a datos Type-safe y gestión de esquemas con `golang-migrate`.
--   ⚙️ **Configuración Flexible**: Sistema de configuración con jerarquía de precedencia (YAML > .env > system ENV vars > defaults) y logging de fuentes.
--   🔄 **Hot Reload**: Desarrollo fluido con **Air** que monitorea cambios en código, configuración (`.env`, YAML) y recursos.
--   🔌 **WebSocket Real-Time**: Comunicación bidireccional integrada con el event bus para notificaciones en tiempo real.
--   👷 **Worker Process**: Proceso de background para tareas asíncronas, event consumers y jobs programados.
--   🔐 **Secrets Management**: Abstracción para gestión de secretos (env vars, Vault, AWS Secrets Manager).
--   📊 **Observabilidad Completa**: Stack local con Jaeger, Prometheus y Grafana para desarrollo y debugging.
--   📊 **GraphQL Opcional**: Soporte opcional con gqlgen para APIs flexibles y frontend-friendly (subscriptions incluidas).
--   📧 **Sistema de Notificaciones**: Templates + providers extensibles (SendGrid, Twilio, AWS SES/SNS).
--   🔑 **Auth Completo**: Login passwordless, sesiones, refresh tokens, revocación y gestión de perfil.
--   🔗 **OAuth/Social Login**: Autenticación con Google, Facebook, GitHub, Apple, Microsoft y Twitter/X.
--   🧪 **Mocking con gomock**: Generación automática de mocks type-safe para testing unitario eficiente.
--   🛡️ **Observabilidad**: Integración nativa con OpenTelemetry (Tracing & Metrics), Prometheus y Health Checks con manejo de contextos.
--   ⚡ **Error Handling**: Sistema de errores de dominio con mapeo automático a códigos gRPC.
--   📡 **Telemetry Helpers**: Helpers integrados para tracing consistente en todos los módulos.
--   🎯 **Eventos Tipados**: Constantes tipadas para eventos con autocomplete y prevención de typos.
--   🔄 **Migraciones Multi-Módulo**: Descubrimiento y ejecución automática de migraciones por módulo.
--   🔐 **RBAC Built-in**: Helpers de autorización para permisos, roles y ownership.
--   ⛴️ **Cloud Ready**: Dockerfile multi-stage y Helm Charts flexibles para Kubernetes (soporta monolito y módulos independientes).
--   🌍 **IaC con OpenTofu**: Infraestructura base reproducible (VPC, EKS, RDS) gestionada con OpenTofu y Terragrunt.
--   🤖 **CI/CD**: Pipelines de GitHub Actions para validación automática.
+-   🏗️ **Modular Architecture**: Code organized by domains with decoupling through internal events.
+-   📦 **Registry Pattern**: Manual, explicit dependency injection without magic for maximum control.
+-   🔐 **gRPC & Protobuf**: Typed and efficient communication with automatic code generation via `buf`.
+-   🗄️ **SQLC & Migrations**: Type-safe data access and schema management with `golang-migrate`.
+-   ⚙️ **Flexible Configuration**: Configuration system with precedence hierarchy (YAML > .env > system ENV vars > defaults) and source logging.
+-   🔄 **Hot Reload**: Smooth development with **Air** monitoring changes in code, configuration (`.env`, YAML) and resources.
+-   🔌 **WebSocket Real-Time**: Bidirectional communication integrated with the event bus for real-time notifications.
+-   👷 **Worker Process**: Background process for asynchronous tasks, event consumers, and scheduled jobs.
+-   🔐 **Secrets Management**: Abstraction for secret management (env vars, Vault, AWS Secrets Manager).
+-   📊 **Complete Observability**: Local stack with Jaeger, Prometheus, and Grafana for development and debugging.
+-   📊 **Optional GraphQL**: Optional support with gqlgen for flexible and frontend-friendly APIs (subscriptions included).
+-   📧 **Notification System**: Templates + extensible providers (SendGrid, Twilio, AWS SES/SNS).
+-   🔑 **Complete Auth**: Passwordless login, sessions, refresh tokens, revocation, and profile management.
+-   🔗 **OAuth/Social Login**: Authentication with Google, Facebook, GitHub, Apple, Microsoft, and Twitter/X.
+-   🧪 **Mocking with gomock**: Automatic generation of type-safe mocks for efficient unit testing.
+-   🛡️ **Observability**: Native integration with OpenTelemetry (Tracing & Metrics), Prometheus, and Health Checks with context handling.
+-   ⚡ **Error Handling**: Domain error system with automatic mapping to gRPC codes.
+-   📡 **Telemetry Helpers**: Integrated helpers for consistent tracing across all modules.
+-   🎯 **Typed Events**: Typed constants for events with autocomplete and typo prevention.
+-   🔄 **Multi-Module Migrations**: Automatic discovery and execution of migrations per module.
+-   🔐 **RBAC Built-in**: Authorization helpers for permissions, roles, and ownership.
+-   ⛴️ **Cloud Ready**: Multi-stage Dockerfile and flexible Helm Charts for Kubernetes (supports monolith and independent modules).
+-   🌍 **IaC with OpenTofu**: Reproducible base infrastructure (VPC, EKS, RDS) managed with OpenTofu and Terragrunt.
+-   🤖 **CI/CD**: GitHub Actions pipelines for automatic validation.
 
-## 🛠️ Requisitos Previos
+## 🛠️ Prerequisites
 
 -   Go 1.24+
 -   Docker & Docker Compose
--   Herramientas de desarrollo:
+-   Development tools:
     -   `sqlc`
     -   `buf`
     -   `migrate`
     -   `air`
     -   `golangci-lint`
 
-## 🚀 Inicio Rápido
+## 🚀 Quick Start
 
-### 1. Instalar dependencias
+### 1. Install dependencies
 
 ```bash
 make install-deps
 ```
 
-### 2. Levantar Infraestructura Completa
+### 2. Start Complete Infrastructure
 
-El template incluye un stack completo de observabilidad para desarrollo local:
+The template includes a complete observability stack for local development:
 
 ```bash
 make docker-up
 ```
 
-Esto levanta:
-- **PostgreSQL**: Base de datos principal
-- **Redis**: Caché y session storage
-- **Jaeger**: Distributed tracing (UI en http://localhost:16686)
-- **Prometheus**: Métricas y alertas (UI en http://localhost:9090)
-- **Grafana**: Dashboards de visualización (UI en http://localhost:3000, usuario: `admin`, password: `admin`)
+This starts:
+- **PostgreSQL**: Main database
+- **Redis**: Cache and session storage
+- **Jaeger**: Distributed tracing (UI at http://localhost:16686)
+- **Prometheus**: Metrics and alerts (UI at http://localhost:9090)
+- **Grafana**: Visualization dashboards (UI at http://localhost:3000, user: `admin`, password: `admin`)
 
-> 💡 **Tip**: Para solo levantar la base de datos, usa `docker-compose up db`.
+> 💡 **Tip**: To start only the database, use `docker-compose up db`.
 
-### 3. Configurar (Opcional)
+### 3. Configure (Optional)
 
-El proyecto soporta múltiples fuentes de configuración con precedencia clara:
+The project supports multiple configuration sources with clear precedence:
 
--   **`PORT`** (variable estándar 12-factor): Mayor prioridad, compatible con Heroku, Cloud Run, Railway, etc.
--   **YAML** (`configs/server.yaml`): Alta prioridad, ideal para configuraciones por entorno
--   **`.env`**: Sobrescribe variables del sistema
--   **Variables de entorno del sistema**: Valores base
--   **Defaults**: Valores hardcodeados en `config.go`
+-   **`PORT`** (standard 12-factor variable): Highest priority, compatible with Heroku, Cloud Run, Railway, etc.
+-   **YAML** (`configs/server.yaml`): High priority, ideal for environment-specific configurations
+-   **`.env`**: Overrides system environment variables
+-   **System environment variables**: Base values
+-   **Defaults**: Hardcoded values in `config.go`
 
-**Prioridad:** `PORT > YAML > .env > system ENV vars > defaults`
+**Priority:** `PORT > YAML > .env > system ENV vars > defaults`
 
 ```bash
-# Copia el archivo de ejemplo para variables de entorno
+# Copy the example file for environment variables
 cp .env.example .env
 
-# Edita .env con tus valores (DB, JWT secret, OAuth, etc.)
-# O configura directamente en configs/server.yaml
+# Edit .env with your values (DB, JWT secret, OAuth, etc.)
+# Or configure directly in configs/server.yaml
 ```
 
-Al iniciar, verás un log mostrando la fuente de cada variable de configuración.
+On startup, you'll see a log showing the source of each configuration variable.
 
-> 💡 **Tip para OAuth**: Para habilitar proveedores OAuth (Google, GitHub, etc.), configura las credenciales en `configs/server.yaml` o en tu archivo `.env`. Ver [guía completa de OAuth](docs/OAUTH_INTEGRATION.md).
+> 💡 **OAuth Tip**: To enable OAuth providers (Google, GitHub, etc.), configure credentials in `configs/server.yaml` or in your `.env` file. See [complete OAuth guide](docs/OAUTH_INTEGRATION.md).
 
-### 4. Ejecutar en Desarrollo (Hot Reload)
+### 4. Run in Development (Hot Reload)
 
 ```bash
 make dev
 ```
 
-Para ejecutar un módulo específico con hot reload:
+To run a specific module with hot reload:
 
 ```bash
 make dev-module auth
 ```
 
-Para ejecutar el worker process (tareas en background):
+To run the worker process (background tasks):
 
 ```bash
 make dev-worker
-# o
+# or
 make build-worker && ./bin/worker
 ```
 
-> 💡 **Tip**: Air monitorea automáticamente cambios en `.go`, `.yaml`, `.env`, `.proto`, `.sql` y archivos de configuración, reiniciando el servidor instantáneamente.
+> 💡 **Tip**: Air automatically monitors changes in `.go`, `.yaml`, `.env`, `.proto`, `.sql` and configuration files, restarting the server instantly.
 
-### 5. Gestión de Secretos
+### 5. Secrets Management
 
-El template incluye una abstracción para gestión de secretos que permite usar diferentes proveedores:
+The template includes an abstraction for secrets management that allows using different providers:
 
-- **Desarrollo**: Variables de entorno (implementación `EnvProvider`)
-- **Producción**: HashiCorp Vault, AWS Secrets Manager, etc. (extensible)
+- **Development**: Environment variables (`EnvProvider` implementation)
+- **Production**: HashiCorp Vault, AWS Secrets Manager, etc. (extensible)
 
-Ver [documentación de variables de entorno](docs/ENVIRONMENT.md) para más detalles.
+See [environment variables documentation](docs/ENVIRONMENT.md) for more details.
 
-### 6. Procesos Stateless (12-Factor App)
+### 6. Stateless Processes (12-Factor App)
 
-El template sigue el principio de **procesos stateless**:
+The template follows the **stateless processes** principle:
 
-- ✅ **Sin estado local:** No se escriben archivos temporales ni se almacena estado en disco
-- ✅ **Estado en servicios externos:** Sesiones en PostgreSQL, cache opcional en Redis
-- ✅ **Escalado horizontal:** Cualquier instancia puede manejar cualquier request
-- ⚠️ **WebSocket:** Requiere sticky sessions para escalado (ver documentación)
+- ✅ **No local state:** No temporary files are written or state stored on disk
+- ✅ **State in external services:** Sessions in PostgreSQL, optional cache in Redis
+- ✅ **Horizontal scaling:** Any instance can handle any request
+- ⚠️ **WebSocket:** Requires sticky sessions for scaling (see documentation)
 
-**Ver documentación completa:** `docs/MODULITH_ARCHITECTURE.md` (sección 20: Stateless Processes)
+**See complete documentation:** `docs/MODULITH_ARCHITECTURE.md` (section 20: Stateless Processes)
 
-### 7. Health Checks y Monitoreo
+### 7. Health Checks and Monitoring
 
-El servidor expone endpoints de health checks para integración con orquestadores (Kubernetes, Docker Swarm, etc.):
+The server exposes health check endpoints for integration with orchestrators (Kubernetes, Docker Swarm, etc.):
 
-- **`/livez`**: Liveness probe - siempre retorna 200 si el proceso está vivo
-- **`/readyz`**: Readiness probe - verifica dependencias (DB, módulos, event bus, WebSocket)
-- **`/healthz`**: Endpoint legacy (compatibilidad hacia atrás, mismo que `/livez`)
-- **`/healthz/ws`**: Estado de conexiones WebSocket (conexiones activas y usuarios conectados)
+- **`/livez`**: Liveness probe - always returns 200 if the process is alive
+- **`/readyz`**: Readiness probe - checks dependencies (DB, modules, event bus, WebSocket)
+- **`/healthz`**: Legacy endpoint (backward compatibility, same as `/livez`)
+- **`/healthz/ws`**: WebSocket connection status (active connections and connected users)
 
-El endpoint `/readyz` retorna un JSON detallado con el estado de cada dependencia:
+The `/readyz` endpoint returns detailed JSON with the status of each dependency:
 
 ```json
 {
@@ -159,136 +159,136 @@ El endpoint `/readyz` retorna un JSON detallado con el estado de cada dependenci
 }
 ```
 
-Si alguna dependencia no está saludable, el endpoint retorna `503 Service Unavailable`.
+If any dependency is unhealthy, the endpoint returns `503 Service Unavailable`.
 
-### 8. Tareas Administrativas
+### 8. Administrative Tasks
 
-El template incluye un sistema de tareas administrativas para operaciones de mantenimiento:
+The template includes an administrative task system for maintenance operations:
 
-**Tareas disponibles:**
-- `cleanup-sessions`: Limpia sesiones de usuario expiradas
-- `cleanup-magic-codes`: Limpia códigos mágicos expirados
+**Available tasks:**
+- `cleanup-sessions`: Cleans expired user sessions
+- `cleanup-magic-codes`: Cleans expired magic codes
 
-**Uso:**
+**Usage:**
 ```bash
-# Ejecutar una tarea administrativa
+# Run an administrative task
 make admin TASK=cleanup-sessions
 
-# O directamente con el binario
+# Or directly with the binary
 ./bin/server admin cleanup-sessions
 ./bin/server admin cleanup-magic-codes
 
-# Listar tareas disponibles
+# List available tasks
 ./bin/server admin
 ```
 
-Las tareas administrativas se ejecutan como comandos independientes y son útiles para:
-- Limpieza periódica de datos expirados
-- Mantenimiento de la base de datos
-- Operaciones de migración de datos
-- Tareas de auditoría
+Administrative tasks run as independent commands and are useful for:
+- Periodic cleanup of expired data
+- Database maintenance
+- Data migration operations
+- Audit tasks
 
-## 📖 Documentación Completa
+## 📖 Complete Documentation
 
--   **[Guía de Arquitectura](docs/MODULITH_ARCHITECTURE.md)** - ⭐ Arquitectura completa, patrones, manejo de errores, telemetría, eventos tipados, RBAC, testing y más
--   **[Comunicación entre Módulos](docs/MODULE_COMMUNICATION.md)** - ⭐ Cómo funciona la comunicación en Modulith vs Microservicios, gRPC in-process vs network, event bus
--   **[12-Factor App Compliance](docs/12_FACTOR_APP.md)** - Guía completa de cumplimiento con metodología 12-factor app
--   **[OAuth/Social Login](docs/OAUTH_INTEGRATION.md)** - Integración con Google, Facebook, GitHub, Apple, Microsoft, Twitter
--   **[Sistema de Notificaciones](docs/NOTIFICATION_SYSTEM.md)** - Templates, providers (SendGrid, Twilio, SES) y composite notifier
--   **[WebSocket en Tiempo Real](docs/WEBSOCKET_GUIDE.md)** - Comunicación bidireccional, event bus y autenticación JWT
--   **[Integración GraphQL](docs/GRAPHQL_INTEGRATION.md)** - Setup opcional con gqlgen, schema por módulo y subscriptions
--   **[Deployment & IaC](docs/DEPLOYMENT_SYNC.md)** - OpenTofu, Helm Charts, estrategias de despliegue y testing
--   **[Propuesta de Frontend](docs/FRONTEND_PROPOSAL.md)** - Go Templates + HTMX con WebSocket/GraphQL
--   **[Deployment Guide](deployment/README.md)** - Guía completa de despliegue en Kubernetes
--   **[Helm Chart Documentation](deployment/helm/modulith/README.md)** - Documentación detallada del Helm chart
+-   **[Architecture Guide](docs/MODULITH_ARCHITECTURE.md)** - ⭐ Complete architecture, patterns, error handling, telemetry, typed events, RBAC, testing and more
+-   **[Module Communication](docs/MODULE_COMMUNICATION.md)** - ⭐ How communication works in Modulith vs Microservices, gRPC in-process vs network, event bus
+-   **[12-Factor App Compliance](docs/12_FACTOR_APP.md)** - Complete guide to 12-factor app methodology compliance
+-   **[OAuth/Social Login](docs/OAUTH_INTEGRATION.md)** - Integration with Google, Facebook, GitHub, Apple, Microsoft, Twitter
+-   **[Notification System](docs/NOTIFICATION_SYSTEM.md)** - Templates, providers (SendGrid, Twilio, SES) and composite notifier
+-   **[Real-Time WebSocket](docs/WEBSOCKET_GUIDE.md)** - Bidirectional communication, event bus and JWT authentication
+-   **[GraphQL Integration](docs/GRAPHQL_INTEGRATION.md)** - Optional setup with gqlgen, schema per module and subscriptions
+-   **[Deployment & IaC](docs/DEPLOYMENT_SYNC.md)** - OpenTofu, Helm Charts, deployment strategies and testing
+-   **[Frontend Proposal](docs/FRONTEND_PROPOSAL.md)** - Go Templates + HTMX with WebSocket/GraphQL
+-   **[Deployment Guide](deployment/README.md)** - Complete Kubernetes deployment guide
+-   **[Helm Chart Documentation](deployment/helm/modulith/README.md)** - Detailed Helm chart documentation
 
 ## 📋 API Documentation
 
-El proyecto genera automáticamente documentación OpenAPI/Swagger:
+The project automatically generates OpenAPI/Swagger documentation:
 
--   **Ubicación**: `gen/openapiv2/proto/` (generada con `make proto`)
--   **Formato**: JSON compatible con Swagger UI
--   **Uso**: Importa los archivos `.swagger.json` en [Swagger Editor](https://editor.swagger.io/) o cualquier herramienta compatible
+-   **Location**: `gen/openapiv2/proto/` (generated with `make proto`)
+-   **Format**: JSON compatible with Swagger UI
+-   **Usage**: Import `.swagger.json` files into [Swagger Editor](https://editor.swagger.io/) or any compatible tool
 
-Ejemplo para el módulo de auth:
+Example for the auth module:
 ```bash
-# Genera la documentación
+# Generate documentation
 make proto
 
-# Visualiza la API
+# View the API
 open gen/openapiv2/proto/auth/v1/auth.swagger.json
 ```
 
-## 🛠️ Comandos Útiles (Makefile)
+## 🛠️ Useful Commands (Makefile)
 
-### Generación de Código
+### Code Generation
 
--   `make proto`: Genera código gRPC desde archivos `.proto` (incluye OpenAPI/Swagger en `gen/openapiv2/`).
--   `make sqlc`: Genera código Type-safe para queries SQL.
+-   `make proto`: Generates gRPC code from `.proto` files (includes OpenAPI/Swagger in `gen/openapiv2/`).
+-   `make sqlc`: Generates Type-safe code for SQL queries.
 
 ### Build
 
--   `make build`: Compila el binario del monolito en `bin/server`.
--   `make build-module MODULE_NAME`: Compila el binario de un módulo específico (ej: `make build-module auth`).
--   `make build-all`: Compila todos los binarios (servidor + todos los módulos).
--   `make clean`: Elimina todos los artefactos de build (directorio `bin/`).
+-   `make build`: Compiles the monolith binary in `bin/server`.
+-   `make build-module MODULE_NAME`: Compiles the binary for a specific module (e.g.: `make build-module auth`).
+-   `make build-all`: Compiles all binaries (server + all modules).
+-   `make clean`: Removes all build artifacts (`bin/` directory).
 
 ### Docker
 
--   `make docker-build`: Construye la imagen Docker del servidor (`modulith-server:latest`).
--   `make docker-build-module MODULE_NAME`: Construye la imagen Docker de un módulo específico (ej: `make docker-build-module auth`).
+-   `make docker-build`: Builds the server Docker image (`modulith-server:latest`).
+-   `make docker-build-module MODULE_NAME`: Builds the Docker image for a specific module (e.g.: `make docker-build-module auth`).
 
-### Calidad de Código
+### Code Quality
 
--   `make lint`: Ejecuta el linter estricto (**OBLIGATORIO** después de cambios en `.go`).
--   `make test`: Ejecuta todas las pruebas unitarias.
--   `make test-unit`: Ejecuta tests unitarios con mocks (rápidos, sin DB).
--   `make test-coverage`: Ejecuta pruebas y genera reporte HTML de cobertura.
--   `make coverage-report`: Muestra reporte detallado de cobertura en terminal.
--   `make coverage-html`: Abre reporte de cobertura en el navegador.
--   `make generate-mocks`: Genera mocks de interfaces para testing.
--   `make install-mocks`: Instala gomock para generación de mocks.
+-   `make lint`: Runs the strict linter (**MANDATORY** after changes to `.go` files).
+-   `make test`: Runs all unit tests.
+-   `make test-unit`: Runs unit tests with mocks (fast, no DB).
+-   `make test-coverage`: Runs tests and generates HTML coverage report.
+-   `make coverage-report`: Shows detailed coverage report in terminal.
+-   `make coverage-html`: Opens coverage report in browser.
+-   `make generate-mocks`: Generates interface mocks for testing.
+-   `make install-mocks`: Installs gomock for mock generation.
 
-### Desarrollo
+### Development
 
--   `make dev`: Ejecuta el servidor monolito con hot reload.
--   `make dev-module MODULE_NAME`: Ejecuta un módulo específico con hot reload (ej: `make dev-module auth`).
--   `make new-module MODULE_NAME`: Crea el boilerplate para un nuevo módulo funcional con configuración automática (genera estructura + `.air.{MODULE_NAME}.toml`).
+-   `make dev`: Runs the monolith server with hot reload.
+-   `make dev-module MODULE_NAME`: Runs a specific module with hot reload (e.g.: `make dev-module auth`).
+-   `make new-module MODULE_NAME`: Creates boilerplate for a new functional module with automatic configuration (generates structure + `.air.{MODULE_NAME}.toml`).
 
-### Base de Datos
+### Database
 
--   `make docker-up`: Levanta la infraestructura (PostgreSQL) con Docker Compose.
--   `make docker-down`: Detiene los contenedores de Docker.
--   `make migrate-up` / `make migrate`: Ejecuta las migraciones de todos los módulos (el modulith las descubre automáticamente).
--   `make migrate-down MODULE=auth`: Revierte la última migración de un módulo específico.
--   `make migrate-create MODULE=auth NAME=add_users`: Crea una nueva migración para un módulo específico.
--   `make db-down`: ⚠️ Borra todas las tablas de la base de datos (destructivo).
--   `make db-reset`: ⚠️ Borra todo y ejecuta todas las migraciones (equivalente a `db-down` + `migrate-up`).
+-   `make docker-up`: Starts infrastructure (PostgreSQL) with Docker Compose.
+-   `make docker-down`: Stops Docker containers.
+-   `make migrate-up` / `make migrate`: Runs migrations for all modules (the modulith discovers them automatically).
+-   `make migrate-down MODULE=auth`: Reverts the last migration for a specific module.
+-   `make migrate-create MODULE=auth NAME=add_users`: Creates a new migration for a specific module.
+-   `make db-down`: ⚠️ Deletes all database tables (destructive).
+-   `make db-reset`: ⚠️ Deletes everything and runs all migrations (equivalent to `db-down` + `migrate-up`).
 
-**Nota:** Las migraciones se ejecutan automáticamente cuando inicias el servidor. El modulith descubre y aplica las migraciones de todos los módulos registrados.
+**Note:** Migrations run automatically when you start the server. The modulith discovers and applies migrations for all registered modules.
 
-### Tareas Administrativas
+### Administrative Tasks
 
--   `make admin TASK=cleanup-sessions`: Ejecuta tarea administrativa para limpiar sesiones expiradas.
--   `make admin TASK=cleanup-magic-codes`: Ejecuta tarea administrativa para limpiar códigos mágicos expirados.
--   `./bin/server admin <task_name>`: Ejecuta una tarea administrativa directamente.
+-   `make admin TASK=cleanup-sessions`: Runs administrative task to clean expired sessions.
+-   `make admin TASK=cleanup-magic-codes`: Runs administrative task to clean expired magic codes.
+-   `./bin/server admin <task_name>`: Runs an administrative task directly.
 
-**Nota:** Las tareas administrativas se ejecutan como comandos independientes. Puedes listar las tareas disponibles ejecutando `./bin/server admin` sin argumentos.
+**Note:** Administrative tasks run as independent commands. You can list available tasks by running `./bin/server admin` without arguments.
 
-### GraphQL (Opcional)
+### GraphQL (Optional)
 
--   `make add-graphql`: Agrega soporte GraphQL opcional usando gqlgen (solo si lo necesitas).
--   `make graphql-generate`: Genera código GraphQL desde el schema.
--   `make graphql-validate`: Valida el schema GraphQL.
+-   `make add-graphql`: Adds optional GraphQL support using gqlgen (only if you need it).
+-   `make graphql-generate`: Generates GraphQL code from schema.
+-   `make graphql-validate`: Validates GraphQL schema.
 
-### ⚠️ Workflow de Calidad
+### ⚠️ Quality Workflow
 
-**Después de modificar archivos `.go`:**
+**After modifying `.go` files:**
 
-1. Ejecuta `make lint` y corrige **todos** los errores (0 issues).
-2. Ejecuta `make test` para verificar que no rompiste nada.
-3. **NUNCA** modifiques `.golangci.yaml` para ignorar errores - implementa fixes apropiados.
+1. Run `make lint` and fix **all** errors (0 issues).
+2. Run `make test` to verify you didn't break anything.
+3. **NEVER** modify `.golangci.yaml` to ignore errors - implement proper fixes.
 
 ---
 
-Creado con ❤️ para desarrolladores que buscan excelencia operativa.
+Made with ❤️ for developers seeking operational excellence.

@@ -1,8 +1,8 @@
 # WebSocket Real-Time Communication Guide
 
-Este documento explica cómo usar la infraestructura de WebSocket para comunicación en tiempo real con clientes.
+This document explains how to use the WebSocket infrastructure for real-time communication with clients.
 
-## 🎯 Arquitectura
+## 🎯 Architecture
 
 ```
 ┌─────────────┐
@@ -14,36 +14,36 @@ Este documento explica cómo usar la infraestructura de WebSocket para comunicac
 └─────────────┘
 ```
 
-**Principios clave:**
-- ✅ Los módulos **NO saben** que existe WebSocket
-- ✅ Los módulos solo publican eventos al bus (como siempre)
-- ✅ El WebSocket subscriber escucha eventos y los reenvía automáticamente
-- ✅ Desacoplamiento total = fácil testing y mantenimiento
+**Key principles:**
+- ✅ Modules **DO NOT know** WebSocket exists
+- ✅ Modules only publish events to the bus (as always)
+- ✅ WebSocket subscriber listens to events and automatically forwards them
+- ✅ Total decoupling = easy testing and maintenance
 
-## 📦 Componentes
+## 📦 Components
 
 ### 1. Hub (`internal/websocket/hub.go`)
 
-Gestiona todas las conexiones WebSocket activas.
+Manages all active WebSocket connections.
 
-**Responsabilidades:**
-- Registrar/desregistrar clientes
-- Broadcast a todos los clientes
-- Envío dirigido a usuarios específicos
-- Tracking de conexiones activas
+**Responsibilities:**
+- Register/unregister clients
+- Broadcast to all clients
+- Directed sending to specific users
+- Tracking active connections
 
-**API Principal:**
+**Main API:**
 ```go
 hub := websocket.NewHub(ctx)
 go hub.Run()
 
-// Broadcast a todos
+// Broadcast to all
 hub.Broadcast(&websocket.Message{
     Type: "notification",
     Payload: data,
 })
 
-// Enviar a usuario específico
+// Send to specific user
 hub.SendToUser("user-123", &websocket.Message{
     Type: "alert",
     Payload: data,
@@ -56,33 +56,33 @@ users := hub.GetConnectedUsers()
 
 ### 2. Client (`internal/websocket/client.go`)
 
-Representa una conexión WebSocket individual.
+Represents an individual WebSocket connection.
 
-**Características:**
-- ID único por conexión
-- User ID para targeting
-- Manejo de ping/pong automático
-- Buffer de mensajes salientes
-- Gestión de lifecycle
+**Features:**
+- Unique ID per connection
+- User ID for targeting
+- Automatic ping/pong handling
+- Outgoing message buffer
+- Lifecycle management
 
 ### 3. Subscriber (`internal/websocket/subscriber.go`)
 
-Integra el event bus con WebSocket.
+Integrates the event bus with WebSocket.
 
-**Eventos suscritos por defecto:**
+**Events subscribed by default:**
 - `*.created` (user.created, order.created, etc.)
 - `*.updated`
 - `*.deleted`
 - `notification.*`
 - `alert.*`
 
-**Extracción automática de user_id:**
+**Automatic user_id extraction:**
 ```go
-// Si el payload incluye user_id, el mensaje se envía solo a ese usuario
+// If payload includes user_id, message is sent only to that user
 bus.Publish(ctx, events.Event{
     Name: "order.created",
     Payload: map[string]interface{}{
-        "user_id": "user-123",  // ← Detectado automáticamente
+        "user_id": "user-123",  // ← Automatically detected
         "order_id": "order-456",
         "amount": 100.50,
     },
@@ -91,25 +91,25 @@ bus.Publish(ctx, events.Event{
 
 ### 4. Handler (`internal/websocket/handler.go`)
 
-HTTP handler para upgrade de conexiones.
+HTTP handler for connection upgrade.
 
 **Endpoint:** `/ws`
 
-**Autenticación:**
-- En desarrollo: `?user_id=xxx` en query string
-- En producción: Extraer de contexto (set por middleware de auth)
+**Authentication:**
+- In development: `?user_id=xxx` in query string
+- In production: Extract from context (set by auth middleware)
 
-## 🚀 Uso desde Módulos
+## 🚀 Usage from Modules
 
-### Ejemplo 1: Notificación Simple (Auth Module)
+### Example 1: Simple Notification (Auth Module)
 
 ```go
-// En modules/auth/internal/service/service.go
+// In modules/auth/internal/service/service.go
 
 func (s *AuthService) CompleteLogin(ctx context.Context, req *pb.CompleteLoginRequest) (*pb.CompleteLoginResponse, error) {
-    // ... lógica de login ...
+    // ... login logic ...
 
-    // Publicar evento (¡WebSocket lo maneja automáticamente!)
+    // Publish event (WebSocket handles it automatically!)
     s.bus.Publish(ctx, events.Event{
         Name: "user.created",
         Payload: map[string]interface{}{
@@ -123,7 +123,7 @@ func (s *AuthService) CompleteLogin(ctx context.Context, req *pb.CompleteLoginRe
 }
 ```
 
-**Resultado:** Todos los clientes conectados reciben:
+**Result:** All connected clients receive:
 ```json
 {
   "type": "user.created",
@@ -135,19 +135,19 @@ func (s *AuthService) CompleteLogin(ctx context.Context, req *pb.CompleteLoginRe
 }
 ```
 
-### Ejemplo 2: Notificación Dirigida (Order Module)
+### Example 2: Directed Notification (Order Module)
 
 ```go
-// En un hipotético módulo de órdenes
+// In a hypothetical orders module
 
 func (s *OrderService) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*pb.CreateOrderResponse, error) {
     order := s.repo.Create(...)
 
-    // Evento con user_id → solo ese usuario lo recibe
+    // Event with user_id → only that user receives it
     s.bus.Publish(ctx, events.Event{
         Name: "order.created",
         Payload: map[string]interface{}{
-            "user_id": req.UserId,  // ← Solo este usuario recibe el mensaje
+            "user_id": req.UserId,  // ← Only this user receives the message
             "order_id": order.ID,
             "status": "pending",
             "amount": order.Amount,
@@ -158,41 +158,41 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *pb.CreateOrderReque
 }
 ```
 
-**Resultado:** Solo el usuario `req.UserId` recibe el mensaje en sus conexiones WebSocket.
+**Result:** Only user `req.UserId` receives the message on their WebSocket connections.
 
-### Ejemplo 3: Eventos Personalizados
+### Example 3: Custom Events
 
-Si necesitas eventos que no están en los patrones por defecto:
+If you need events that aren't in the default patterns:
 
 ```go
-// En cmd/server/main.go (durante inicialización)
+// In cmd/server/main.go (during initialization)
 
 wsSubscriber := websocket.NewSubscriber(wsHub, ebus)
-wsSubscriber.Subscribe()  // Patrones por defecto
+wsSubscriber.Subscribe()  // Default patterns
 
-// Agregar eventos personalizados
+// Add custom events
 wsSubscriber.SubscribeToEvent("payment.processed")
 wsSubscriber.SubscribeToEvent("inventory.low")
 wsSubscriber.SubscribeToEvent("admin.alert")
 ```
 
-## 🔌 Cliente JavaScript/TypeScript
+## 🔌 JavaScript/TypeScript Client
 
-### Conexión Básica
+### Basic Connection
 
 ```javascript
-// Desarrollo
+// Development
 const ws = new WebSocket('ws://localhost:8080/ws?user_id=user-123');
 
-// Producción (con auth token en header no es posible con WebSocket estándar)
-// Opción 1: Pasar token en query string (menos seguro)
+// Production (auth token in header not possible with standard WebSocket)
+// Option 1: Pass token in query string (less secure)
 const ws = new WebSocket(`wss://api.example.com/ws?token=${authToken}`);
 
-// Opción 2: Usar protocolo personalizado (recomendado)
+// Option 2: Use custom protocol (recommended)
 const ws = new WebSocket('wss://api.example.com/ws', [authToken]);
 ```
 
-### Manejo de Mensajes
+### Message Handling
 
 ```javascript
 ws.onopen = () => {
@@ -226,7 +226,7 @@ ws.onerror = (error) => {
 
 ws.onclose = () => {
   console.log('WebSocket disconnected');
-  // Implementar reconexión automática
+  // Implement automatic reconnection
   setTimeout(() => connectWebSocket(), 5000);
 };
 ```

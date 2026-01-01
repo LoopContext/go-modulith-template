@@ -47,6 +47,8 @@ func NewAuthService(repo repository.Repository, svc *token.Service, bus *events.
 }
 
 // RequestLogin generates a magic code and emits an event to send it to the user
+// Note: Field format validation (email format, phone pattern) is handled by the validation interceptor.
+// This method handles business logic validation (one of email or phone must be provided).
 func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLoginRequest) (*authv1.RequestLoginResponse, error) {
 	if req.Email == "" && req.Phone == "" {
 		return nil, status.Error(codes.InvalidArgument, "email or phone must be provided")
@@ -104,6 +106,9 @@ func (s *AuthService) CompleteLogin(ctx context.Context, req *authv1.CompleteLog
 	return s.generateLoginResponse(user)
 }
 
+// verifyLoginRequest validates the login request.
+// Note: Field format validation is handled by the validation interceptor.
+// This method handles business logic validation (one of email or phone, magic code verification).
 func (s *AuthService) verifyLoginRequest(ctx context.Context, req *authv1.CompleteLoginRequest) error {
 	if req.Email == "" && req.Phone == "" {
 		return status.Error(codes.InvalidArgument, "email or phone required")

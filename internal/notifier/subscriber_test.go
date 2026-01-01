@@ -115,11 +115,11 @@ func TestSubscriber_HandleMagicCodeRequested_Email(t *testing.T) {
 		t.Errorf("expected email to 'user@example.com', got %s", emailMsg.To)
 	}
 
-	if emailMsg.Subject != "Tu Código de Acceso" {
-		t.Errorf("expected subject 'Tu Código de Acceso', got %s", emailMsg.Subject)
+	if emailMsg.Subject != "Your Access Code" {
+		t.Errorf("expected subject 'Your Access Code', got %s", emailMsg.Subject)
 	}
 
-	expectedBody := "Tu código mágico es: 654321"
+	expectedBody := "Your magic code is: 654321"
 	if emailMsg.Body != expectedBody {
 		t.Errorf("expected body '%s', got %s", expectedBody, emailMsg.Body)
 	}
@@ -160,7 +160,7 @@ func TestSubscriber_HandleMagicCodeRequested_Phone(t *testing.T) {
 		t.Errorf("expected SMS to '+1234567890', got %s", smsMsg.To)
 	}
 
-	expectedBody := "Tu código mágico es: 999888"
+	expectedBody := "Your magic code is: 999888"
 	if smsMsg.Body != expectedBody {
 		t.Errorf("expected body '%s', got %s", expectedBody, smsMsg.Body)
 	}

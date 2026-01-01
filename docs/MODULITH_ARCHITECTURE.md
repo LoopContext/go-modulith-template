@@ -1,116 +1,153 @@
-# Guía de Arquitectura e Implementación: Go Modulith
+# Architecture and Implementation Guide: Go Modulith
 
-Esta documentación define el estándar arquitectónico y de implementación para proyectos nuevos ("greenfield"). Establece las directrices para construir un **Monolito Modular** robusto, escalable y mantenible, utilizando un stack tecnológico moderno y tipado estrictamente.
+This documentation defines the architectural and implementation standard for new projects ("greenfield"). It establishes guidelines for building a robust, scalable, and maintainable **Modular Monolith** using a modern, strictly typed technology stack.
 
-## 1. Stack Tecnológico Definido
+## 1. Defined Technology Stack
 
-Todas las implementaciones deben adherirse estrictamente a las siguientes tecnologías:
+All implementations must strictly adhere to the following technologies:
 
--   **Lenguaje:** Go 1.23+.
--   **Arquitectura:** Monolito Modular.
--   **Comunicación/Contrato:** gRPC y Protocol Buffers (Single Source of Truth).
--   **API Externa:**
-    -   **gRPC:** Protocolo principal de comunicación backend-backend.
-    -   **REST/HTTP:** Expuesto automáticamente vía `grpc-gateway` (Proxy inverso).
-    -   **WebSocket:** Comunicación bidireccional en tiempo real (`/ws`).
-    -   **GraphQL (Opcional):** API flexible con subscripciones vía WebSocket (`/graphql`).
-    -   **Documentación:** Swagger UI (OpenAPIv2) disponible en `/swagger-ui/` (Solo Dev).
--   **Persistencia:** SQLC (Type-safe SQL).
--   **Base de Datos:** PostgreSQL (con migraciones versionadas).
--   **Infraestructura Local:** Docker Compose.
--   **Migraciones:** `golang-migrate` (Gestión de esquema).
--   **Observabilidad:**
-    -   **Logs:** Structured Logging (`log/slog`) con formato JSON.
-    -   **Métricas:** OpenTelemetry (OTel) exponiendo métricas en formato Prometheus.
+-   **Language:** Go 1.23+.
+-   **Architecture:** Modular Monolith.
+-   **Communication/Contract:** gRPC and Protocol Buffers (Single Source of Truth).
+-   **External API:**
+    -   **gRPC:** Primary backend-backend communication protocol.
+    -   **REST/HTTP:** Automatically exposed via `grpc-gateway` (Reverse proxy).
+    -   **WebSocket:** Bidirectional real-time communication (`/ws`).
+    -   **GraphQL (Optional):** Flexible API with subscriptions via WebSocket (`/graphql`).
+    -   **Documentation:** Swagger UI (OpenAPIv2) available at `/swagger-ui/` (Dev only).
+-   **Persistence:** SQLC (Type-safe SQL).
+-   **Database:** PostgreSQL (with versioned migrations).
+-   **Local Infrastructure:** Docker Compose.
+-   **Migrations:** `golang-migrate` (Schema management).
+-   **Observability:**
+    -   **Logs:** Structured Logging (`log/slog`) with JSON format.
+    -   **Metrics:** OpenTelemetry (OTel) exposing metrics in Prometheus format.
     -   **Tracing:** OpenTelemetry (Context propagation).
 
-## 2. Estructura del Proyecto (Project Layout)
+## 2. Project Structure (Project Layout)
 
-La organización de carpetas es crítica para mantener la modularidad. Cada módulo debe ser autocontenido.
+Folder organization is critical for maintaining modularity. Each module must be self-contained.
 
 ```text
-proyecto/
+project/
 ├── cmd/
-│   ├── server/             # Entrypoint Monolito (main.go)
-│   └── auth/           # Entrypoint Microservicio (main.go)
-├── configs/                # Configuraciones YAML por aplicación
-│   ├── server.yaml         # Configuración del monolito
-│   └── auth.yaml       # Configuración del microservicio
+│   ├── server/             # Monolith Entrypoint (main.go)
+│   └── auth/           # Microservice Entrypoint (main.go)
+├── configs/                # YAML configurations per application
+│   ├── server.yaml         # Monolith configuration
+│   └── auth.yaml       # Microservice configuration
 ├── internal/
-│   └── config/             # Cargador central de configuración (YAML + Env)
-├── scripts/                # Scripts de automatización (scaffolding)
-├── proto/                  # Definiciones centralizadas de API
-│   ├── google/             # Dependencias de Google (API, Protobuf)
-│   └── [modulo]/           # Protos específicos del módulo (v1)
-├── modules/                # Módulos de Negocio
-│   └── [nombre_modulo]/
+│   └── config/             # Central configuration loader (YAML + Env)
+├── scripts/                # Automation scripts (scaffolding)
+├── proto/                  # Centralized API definitions
+│   ├── google/             # Google dependencies (API, Protobuf)
+│   └── [module]/           # Module-specific protos (v1)
+├── modules/                # Business Modules
+│   └── [module_name]/
 │       ├── internal/
-│       │   ├── service/    # Implementación gRPC Server (Lógica de Negocio)
-│       │   ├── repository/ # Adaptadores de acceso a datos (Interfaz)
-│       │   ├── models/     # Modelos de dominio
+│       │   ├── service/    # gRPC Server implementation (Business Logic)
+│       │   ├── repository/ # Data access adapters (Interface)
+│       │   ├── models/     # Domain models
 │       │   └── db/
-│       │       ├── query/  # Archivos .sql (Queries handwritten)
-│       │       └── store/  # Código Go generado por SQLC
+│       │       ├── query/  # .sql files (Handwritten queries)
+│       │       └── store/  # Go code generated by SQLC
 │       └── resources/
 │           └── db/
-│               └── migration/ # Scripts SQL DDL (Schema Versioning)
-├── sqlc.yaml               # Configuración global de generación SQL
-├── buf.yaml                # Configuración de Buf
+│               └── migration/ # SQL DDL scripts (Schema Versioning)
+├── sqlc.yaml               # Global SQL generation configuration
+├── buf.yaml                # Buf configuration
 └── go.mod
 ```
 
-## 3. Reglas de Aislamiento de Módulos (Insulation)
+## 3. Module Isolation Rules (Insulation)
 
-El éxito de un modulith depende de la disciplina. Un módulo podrido infecta a los demás.
+The success of a modulith depends on discipline. A rotten module infects the others.
 
--   **Importaciones:** Un módulo `A` **NUNCA** puede importar nada de la carpeta `internal/` de un módulo `B`.
--   **Comunicación:** La única forma legítima de comunicación entre módulos es:
-    1.  **gRPC (in-process):** Llamando a través del cliente gRPC generado (usando el gateway interno). Al ser _in-process_, **no hay saltos de red**; es una llamada a función directa a través del stack de gRPC, garantizando performance y contratos fuertes.
-    2.  **Eventos:** Publicación/Suscripción (si se implementa en el futuro).
--   **Datos:** Prohibido compartir repositorios, queries de SQLC o modelos de base de datos entre módulos. Cada módulo es dueño absoluto de su esquema.
--   **DTOs:** Los mensajes de Protobuf son el lenguaje común. No se deben filtrar tipos de `store/` o `repository/` hacia afuera del propio módulo.
+-   **Imports:** A module `A` **NEVER** can import anything from the `internal/` folder of a module `B`.
+-   **Communication:** The only legitimate form of communication between modules is:
+    1.  **gRPC (in-process):** Calling through the generated gRPC client (using the internal gateway). Being _in-process_, **there are no network hops**; it's a direct function call through the gRPC stack, guaranteeing performance and strong contracts.
+    2.  **Events:** Publish/Subscribe (if implemented in the future).
+-   **Data:** Sharing repositories, SQLC queries, or database models between modules is forbidden. Each module is the absolute owner of its schema.
+-   **DTOs:** Protobuf messages are the common language. Types from `store/` or `repository/` should not leak outside the module.
 
-## 4. Dominio y Modelos
+## 4. Domain and Models
 
-Para evitar debates infinitos, establecemos el siguiente estándar:
+To avoid endless debates, we establish the following standard:
 
--   **Domain Ownership:** La lógica de negocio reside en la capa de `service/`.
--   **Modelos Simples:** No utilizamos entidades ricas (DDD complejo) a menos que sea estrictamente necesario.
--   **Flujo:** `store` (DB) -> `repository` (Adapter) -> `service` (Domain/Business) -> `proto` (DTO).
--   **Repository:** Devuelve structs simples del `store` o modelos de dominio básicos en `internal/models/`. No hay lógica de negocio en el repositorio.
+-   **Domain Ownership:** Business logic resides in the `service/` layer.
+-   **Simple Models:** We don't use rich entities (complex DDD) unless strictly necessary.
+-   **Flow:** `store` (DB) -> `repository` (Adapter) -> `service` (Domain/Business) -> `proto` (DTO).
+-   **Repository:** Returns simple structs from `store` or basic domain models in `internal/models/`. There is no business logic in the repository.
 
-## 5. Identificadores Únicos (TypeID)
+## 5. Unique Identifiers (TypeID)
 
-Para mejorar la trazabilidad, depuración y ordenabilidad de los datos, adoptamos el estándar de **Identificadores Prefijados y Ordenables por Tiempo** (estilo Stripe).
+To improve traceability, debugging, and sortability of data, we adopt the standard of **Prefixed and Time-Orderable Identifiers** (Stripe style).
 
--   **Estándar:** Utilizaremos **TypeID** (`github.com/jetpack-io/typeid-go`), que combina un prefijo legible con un **UUIDv7**.
--   **Formato:** `prefix_01h455vb4pex5vsknk084sn02q`.
-    -   **Prefix:** Indica el tipo de entidad (ej. `user`, `role`, `org`). Máximo 8 caracteres.
-    -   **Suffix:** Un UUIDv7 codificado en Base32 (Crockford), lo que lo hace lexicográficamente ordenable.
--   **Ventajas:**
-    -   **Sortable:** La ordenabilidad por tiempo permite que las bases de datos (PostgreSQL) indexen de forma más eficiente que con UUIDs aleatorios.
-    -   **Contextual:** Al ver un ID en un log (`user_...`), sabemos inmediatamente a qué entidad pertenece.
-    -   **Seguridad:** Son globalmente únicos y difíciles de predecir.
--   **Ownership:** Los TypeIDs se generan **únicamente** en la capa de `service`. El repositorio y la base de datos son pasivos y nunca generan identificadores.
--   **Semántica:** Los prefijos son puramente informativos para humanos y trazabilidad; no deben usarse para lógica de autorización o acceso cross-domain.
+-   **Standard:** We will use **TypeID** (`github.com/jetpack-io/typeid-go`), which combines a readable prefix with a **UUIDv7**.
+-   **Format:** `prefix_01h455vb4pex5vsknk084sn02q`.
+    -   **Prefix:** Indicates the entity type (e.g. `user`, `role`, `org`). Maximum 8 characters.
+    -   **Suffix:** A UUIDv7 encoded in Base32 (Crockford), making it lexicographically sortable.
+-   **Advantages:**
+    -   **Sortable:** Time-based sortability allows databases (PostgreSQL) to index more efficiently than with random UUIDs.
+    -   **Contextual:** When seeing an ID in a log (`user_...`), we immediately know which entity it belongs to.
+    -   **Security:** They are globally unique and hard to predict.
+-   **Ownership:** TypeIDs are generated **only** in the `service` layer. The repository and database are passive and never generate identifiers.
+-   **Semantics:** Prefixes are purely informative for humans and traceability; they should not be used for authorization logic or cross-domain access.
 
 > [!NOTE]
-> En este documento, por simplicidad, los TypeIDs se representan y almacenan como `VARCHAR` completos. En implementaciones de alto rendimiento, se podría almacenar solo el sufijo binario como `UUID` y reconstruir el prefijo en la aplicación.
+> In this document, for simplicity, TypeIDs are represented and stored as complete `VARCHAR`. In high-performance implementations, only the binary suffix could be stored as `UUID` and the prefix reconstructed in the application.
 
-## 6. Manejo de Errores gRPC
+## 6. gRPC Request Validation
 
-El template proporciona un sistema de manejo de errores estandarizado en `internal/errors` que elimina el boilerplate y garantiza consistencia.
+### Automatic Validation with Protovalidate
 
-### Domain Errors con Mapeo Automático a gRPC
+All gRPC requests are **automatically validated** using [protovalidate](https://github.com/bufbuild/protovalidate). The validation interceptor runs globally for all modules - **no per-module setup required**.
 
-En lugar de mapear manualmente cada error a códigos gRPC, utilizamos errores de dominio tipados:
+#### How It Works
+
+1. **Global Interceptor**: Registered once in `cmd/server/main.go` and applies to all gRPC requests
+2. **Automatic Detection**: Validates any protobuf message with validation annotations
+3. **Zero Configuration**: New modules automatically get validation
+
+#### Adding Validation Rules
+
+Add validation annotations to your proto messages:
+
+```protobuf
+import "buf/validate/validate.proto";
+
+message CreateUserRequest {
+  string email = 1 [(buf.validate.field).string = {
+    email: true,
+    min_len: 1
+  }];
+  string phone = 2 [(buf.validate.field).string.pattern = "^\\+?[1-9]\\d{1,14}$"];
+}
+```
+
+#### Validation Strategy
+
+- **Interceptor Level (Automatic)**: Field format validation (email, phone, URI, length, patterns)
+- **Service Level (Business Logic)**: Cross-field validation, database lookups, domain rules
+
+Validation errors are automatically converted to `codes.InvalidArgument` with detailed field-level messages.
+
+See `.cursor/rules/25-protobuf-validation.mdc` for comprehensive validation examples and best practices.
+
+## 7. gRPC Error Handling
+
+The template provides a standardized error handling system in `internal/errors` that eliminates boilerplate and guarantees consistency.
+
+### Domain Errors with Automatic Mapping to gRPC
+
+Instead of manually mapping each error to gRPC codes, we use typed domain errors:
 
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/errors"
 
-// En el servicio
+// In the service
 func (s *Service) CreateUser(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-    // Los errores de dominio se mapean automáticamente
+    // Domain errors are automatically mapped
     if err := s.repo.CreateUser(ctx, id, email); err != nil {
         return nil, errors.ToGRPC(errors.Internal("failed to create user", errors.WithWrappedError(err)))
     }
@@ -119,9 +156,9 @@ func (s *Service) CreateUser(ctx context.Context, req *pb.Request) (*pb.Response
 }
 ```
 
-### Tipos de Errores Disponibles
+### Available Error Types
 
-El paquete `internal/errors` proporciona constructores para todos los casos comunes:
+The `internal/errors` package provides constructors for all common cases:
 
 ```go
 // Not found (maps to codes.NotFound)
@@ -149,9 +186,9 @@ errors.Internal("internal server error")
 errors.Unavailable("service temporarily unavailable")
 ```
 
-### Opciones de Error
+### Error Options
 
-Los errores pueden incluir detalles adicionales:
+Errors can include additional details:
 
 ```go
 err := errors.NotFound("user not found",
@@ -160,7 +197,7 @@ err := errors.NotFound("user not found",
 )
 ```
 
-### Verificación de Tipos
+### Type Checking
 
 ```go
 if errors.Is(err, errors.TypeNotFound) {
@@ -174,49 +211,51 @@ if errors.As(err, &domainErr) {
 }
 ```
 
-### Beneficios
+### Benefits
 
--   ✅ **Consistencia:** Todos los servicios usan el mismo formato de error
--   ✅ **Trazabilidad:** Los errores wrappean la cadena completa con `%w`
--   ✅ **Type-safe:** El compilador detecta errores en los tipos
--   ✅ **Menos Boilerplate:** No más `status.Error()` manual en cada servicio
+-   ✅ **Consistency:** All services use the same error format
+-   ✅ **Traceability:** Errors wrap the complete chain with `%w`
+-   ✅ **Type-safe:** The compiler detects errors in types
+-   ✅ **Less Boilerplate:** No more manual `status.Error()` in each service
 
-## 7. Transacciones
+## 7. Transactions
 
-Las transacciones deben ser controladas por la capa de negocio (`service`) pero ejecutadas por el repositorio.
+Transactions must be controlled by the business layer (`service`) but executed by the repository.
 
--   **Patrón WithTx:** El repositorio debe ofrecer una forma de ejecutar múltiples operaciones en una transacción atómica.
--   **Ejemplo Conceptual:**
+-   **WithTx Pattern:** The repository must offer a way to execute multiple operations in an atomic transaction.
+-   **Conceptual Example:**
 
 ```go
 err := r.WithTx(ctx, func(txRepo Repository) error {
-    // Estas operaciones ocurren dentro de la misma transacción
+    // These operations occur within the same transaction
     if err := txRepo.CreateUser(ctx, ...); err != nil { return err }
     if err := txRepo.AssignRole(ctx, ...); err != nil { return err }
     return nil
 })
 ```
 
-## 8. Validación
+## 8. Validation Strategy
 
-Establecemos una frontera clara para evitar validaciones duplicadas:
+We establish a clear boundary to avoid duplicate validations:
 
--   **Estructural (Proto):** Formato, longitud, obligatorios, rangos. Se valida preferiblemente en el interceptor o al inicio del `service` usando la estructura del proto.
--   **Negocio (Service):** Existencia en BD, permisos complejos, reglas de estado, lógica temporal.
+-   **Structural (Proto) - Automatic**: Format, length, required fields, ranges, patterns. **Automatically validated by the protovalidate interceptor** (see Section 6). Add validation annotations to proto messages - no code needed.
+-   **Business (Service) - Manual**: Cross-field validation, database existence checks, complex permissions, state rules, temporal logic. Handled in the service layer.
 
-## 9. Seguridad: Autenticación y Autorización
+See **Section 6: gRPC Request Validation** for details on adding validation annotations to proto messages.
 
-### 9.1 Autenticación (JWT)
+## 9. Security: Authentication and Authorization
 
--   **Validación de Tokens:** Se realiza centralizadamente en un **gRPC Interceptor** global.
--   **Contexto:** El interceptor extrae el `user_id` y `role` del token y los inyecta en el `context.Context` para que estén disponibles en toda la cadena de llamada.
--   **Endpoints Públicos:** Los módulos declaran sus endpoints públicos (login, registro) que no requieren autenticación.
+### 9.1 Authentication (JWT)
 
-### 9.2 Autorización (RBAC)
+-   **Token Validation:** Performed centrally in a global **gRPC Interceptor**.
+-   **Context:** The interceptor extracts `user_id` and `role` from the token and injects them into `context.Context` so they're available throughout the call chain.
+-   **Public Endpoints:** Modules declare their public endpoints (login, registration) that don't require authentication.
 
-El template incluye helpers de autorización en `internal/authz` para implementar control de acceso basado en roles y permisos:
+### 9.2 Authorization (RBAC)
 
-#### Verificación de Permisos
+The template includes authorization helpers in `internal/authz` to implement role and permission-based access control:
+
+#### Permission Verification
 
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/authz"
@@ -231,7 +270,7 @@ func (s *Service) DeleteUser(ctx context.Context, req *pb.Request) (*pb.Response
 }
 ```
 
-#### Verificación de Roles
+#### Role Verification
 
 ```go
 // Require one of multiple roles
@@ -240,7 +279,7 @@ if err := authz.RequireRole(ctx, authz.RoleAdmin, authz.RoleModerator); err != n
 }
 ```
 
-#### Verificación de Propiedad del Recurso
+#### Resource Ownership Verification
 
 ```go
 // Ensure user owns the resource
@@ -254,9 +293,9 @@ if err := authz.RequireOwnershipOrRole(ctx, req.UserId, authz.RoleAdmin); err !=
 }
 ```
 
-#### Roles y Permisos Personalizados
+#### Custom Roles and Permissions
 
-Registra roles personalizados durante la inicialización del módulo:
+Register custom roles during module initialization:
 
 ```go
 func init() {
@@ -274,47 +313,47 @@ func init() {
 }
 ```
 
-#### Roles Predefinidos
+#### Predefined Roles
 
--   **`admin`**: Tiene permiso wildcard (`*`) - acceso total
--   **`user`**: Permisos básicos (`users:read`, `profile:read`, `profile:edit`)
+-   **`admin`**: Has wildcard permission (`*`) - full access
+-   **`user`**: Basic permissions (`users:read`, `profile:read`, `profile:edit`)
 
-#### Beneficios
+#### Benefits
 
--   ✅ **Centralizado:** Toda la lógica de autorización en un solo lugar
--   ✅ **Reutilizable:** Los mismos helpers funcionan en todos los módulos
--   ✅ **Type-safe:** Roles y permisos como constantes tipadas
--   ✅ **Flexible:** Soporta permisos, roles y ownership
+-   ✅ **Centralized:** All authorization logic in one place
+-   ✅ **Reusable:** Same helpers work across all modules
+-   ✅ **Type-safe:** Roles and permissions as typed constants
+-   ✅ **Flexible:** Supports permissions, roles, and ownership
 
 ### 9.3 OAuth/Social Login
 
-El template soporta autenticación con proveedores externos usando [markbates/goth](https://github.com/markbates/goth):
+The template supports authentication with external providers using [markbates/goth](https://github.com/markbates/goth):
 
--   **Providers soportados:** Google, Facebook, GitHub, Apple, Microsoft, Twitter/X
--   **Auto-link por email:** Vincula automáticamente cuentas externas a usuarios existentes con el mismo email
--   **Linking manual:** Los usuarios pueden vincular/desvincular cuentas desde su perfil
--   **Encriptación de tokens:** Los tokens OAuth se encriptan con AES-256-GCM antes de almacenarse
+-   **Supported providers:** Google, Facebook, GitHub, Apple, Microsoft, Twitter/X
+-   **Auto-link by email:** Automatically links external accounts to existing users with the same email
+-   **Manual linking:** Users can link/unlink accounts from their profile
+-   **Token encryption:** OAuth tokens are encrypted with AES-256-GCM before storage
 
-Para configuración completa, ver [OAuth Integration Guide](OAUTH_INTEGRATION.md).
+For complete configuration, see [OAuth Integration Guide](OAUTH_INTEGRATION.md).
 
-## 10. Configuración y Entorno (Environment)
+## 10. Configuration and Environment
 
-La jerarquía de configuración favorece la flexibilidad tanto en desarrollo como en despliegues complejos de microservicios.
+The configuration hierarchy favors flexibility both in development and complex microservices deployments.
 
-### Jerarquía de Carga
+### Loading Hierarchy
 
-La aplicación carga la configuración siguiendo un orden de precedencia estricto (de menor a mayor prioridad):
+The application loads configuration following a strict precedence order (from lowest to highest priority):
 
-1.  **Valores por Defecto:** Valores hardcodeados en `config.go` (ej. `Env: "dev"`, `HTTPPort: "8080"`).
-2.  **Variables de Entorno del Sistema:** Variables definidas en el entorno donde se ejecuta la aplicación (`os.Getenv`).
-3.  **Archivo `.env`:** Variables cargadas desde el archivo `.env` en la raíz del proyecto (usando `godotenv`). Sobrescribe las variables del sistema.
-4.  **Archivo YAML:** Configuración ubicada en `configs/` (ej. `configs/server.yaml`). **Tiene la mayor prioridad** y sobrescribe todo lo anterior.
+1.  **Default Values:** Hardcoded values in `config.go` (e.g. `Env: "dev"`, `HTTPPort: "8080"`).
+2.  **System Environment Variables:** Variables defined in the environment where the application runs (`os.Getenv`).
+3.  **`.env` File:** Variables loaded from the `.env` file in the project root (using `godotenv`). Overrides system variables.
+4.  **YAML File:** Configuration located in `configs/` (e.g. `configs/server.yaml`). **Has the highest priority** and overrides everything above.
 
-**Orden de Precedencia Final:** `YAML > .env > system ENV vars > defaults`
+**Final Precedence Order:** `YAML > .env > system ENV vars > defaults`
 
-### Logging de Fuentes de Configuración
+### Configuration Source Logging
 
-Al iniciar la aplicación, se registra un log estructurado que muestra el valor final y la fuente de cada variable de configuración:
+On application startup, a structured log is recorded showing the final value and source of each configuration variable:
 
 ```
 Configuration sources
@@ -324,85 +363,85 @@ Configuration sources
   JWT_SECRET="[42 bytes] = yaml"
 ```
 
-Esto facilita la depuración y el entendimiento de qué fuente está proporcionando cada valor.
+This facilitates debugging and understanding which source is providing each value.
 
-### Agregar nueva configuración
+### Adding New Configuration
 
-1.  Añadir el campo al struct en `internal/config/config.go` con los tags `yaml` y `env` correspondientes.
-2.  Implementar la lógica de carga en `OverrideWithEnv` y `OverrideWithEnvFromDotenv` para soportar variables de entorno.
-3.  Actualizar los archivos YAML en `configs/` si el valor es específico del entorno.
-4.  Inyectar el struct de configuración en la función `Initialize` del módulo correspondiente.
+1.  Add the field to the struct in `internal/config/config.go` with the corresponding `yaml` and `env` tags.
+2.  Implement loading logic in `OverrideWithEnv` and `OverrideWithEnvFromDotenv` to support environment variables.
+3.  Update YAML files in `configs/` if the value is environment-specific.
+4.  Inject the configuration struct in the `Initialize` function of the corresponding module.
 
-### Variables de Entorno Clave
+### Key Environment Variables
 
-Aunque residan en el YAML, estas variables son críticas para el entorno de ejecución:
+Although they reside in YAML, these variables are critical for the runtime environment:
 
--   `ENV`: `dev` o `prod`. Determina el nivel de logs y la activación de herramientas de depuración.
--   `DB_DSN`: Conexión a PostgreSQL.
--   `JWT_SECRET`: Clave secreta para tokens JWT. **Debe tener al menos 32 bytes (256 bits)** para el algoritmo HS256. Se valida automáticamente al cargar la configuración.
--   `HTTP_PORT` / `GRPC_PORT`: Puertos de escucha.
+-   `ENV`: `dev` or `prod`. Determines log level and activation of debugging tools.
+-   `DB_DSN`: PostgreSQL connection.
+-   `JWT_SECRET`: Secret key for JWT tokens. **Must be at least 32 bytes (256 bits)** for HS256 algorithm. Automatically validated when loading configuration.
+-   `HTTP_PORT` / `GRPC_PORT`: Listening ports.
 
-### Validación de Configuración
+### Configuration Validation
 
-El sistema valida automáticamente la configuración antes de iniciar:
+The system automatically validates configuration before starting:
 
--   **JWT Secret:** Debe tener al menos 32 bytes para cumplir con los requisitos de seguridad de HS256.
--   **Producción:** En modo `prod`, se requiere `DB_DSN` y `JWT_SECRET` obligatoriamente.
+-   **JWT Secret:** Must be at least 32 bytes to meet HS256 security requirements.
+-   **Production:** In `prod` mode, `DB_DSN` and `JWT_SECRET` are required.
 
-## 11. Infraestructura Local (Docker)
+## 11. Local Infrastructure (Docker)
 
-Utilizamos Docker Compose para levantar dependencias (Base de Datos).
+We use Docker Compose to start dependencies (Database).
 
--   El puerto de PostgreSQL es configurable vía `DB_PORT` en el `.env` del host.
--   Comandos útiles en `Makefile`: `make docker-up`, `make docker-down`.
+-   PostgreSQL port is configurable via `DB_PORT` in the host's `.env`.
+-   Useful commands in `Makefile`: `make docker-up`, `make docker-down`.
 
-## 12. Observabilidad
+## 12. Observability
 
-La observabilidad es ciudadana de primera clase. No se debe desplegar código sin visibilidad.
+Observability is a first-class citizen. Code should not be deployed without visibility.
 
-### 12.1. Logs Estructurados
+### 12.1. Structured Logs
 
-Usamos la librería estándar `log/slog` (Go 1.21+).
+We use the standard library `log/slog` (Go 1.21+).
 
--   **Formato:** JSON en producción, Texto en desarrollo.
--   **Contexto:** Todo log debe incluir `trace_id` y `span_id` si existen en el contexto.
--   **Niveles:** INFO (flujo normal), ERROR (excepciones), DEBUG (solo dev). El nivel DEBUG está habilitado por defecto en desarrollo para facilitar la depuración.
--   **Inicialización Temprana:** El logger se inicializa en dos fases: primero con un logger básico antes de cargar la configuración (para ver logs de inicialización), y luego se re-inicializa con la configuración completa (formato, nivel) después de cargar la configuración.
--   **Privacidad (PII):** **NUNCA** loguear información sensible (emails, tokens, passwords).
+-   **Format:** JSON in production, Text in development.
+-   **Context:** Every log must include `trace_id` and `span_id` if they exist in the context.
+-   **Levels:** INFO (normal flow), ERROR (exceptions), DEBUG (dev only). DEBUG level is enabled by default in development to facilitate debugging.
+-   **Early Initialization:** The logger is initialized in two phases: first with a basic logger before loading configuration (to see initialization logs), and then re-initialized with complete configuration (format, level) after loading configuration.
+-   **Privacy (PII):** **NEVER** log sensitive information (emails, tokens, passwords).
 
 ```go
-slog.InfoContext(ctx, "user created", "user_id", id) // Evitar loguear el email aquí
+slog.InfoContext(ctx, "user created", "user_id", id) // Avoid logging email here
 ```
 
-### 12.2. Métricas (OpenTelemetry)
+### 12.2. Metrics (OpenTelemetry)
 
-Instrumentamos la aplicación usando el SDK de OpenTelemetry.
+We instrument the application using the OpenTelemetry SDK.
 
--   **Protocolo:** Prometheus (`/metrics`).
--   **Métricas Standard:**
-    -   `http_request_duration_seconds` (Histograma).
-    -   `grpc_server_handled_total` (Contador).
--   **Mapeo:** Middleware/Interceptores automáticos para gRPC y HTTP.
+-   **Protocol:** Prometheus (`/metrics`).
+-   **Standard Metrics:**
+    -   `http_request_duration_seconds` (Histogram).
+    -   `grpc_server_handled_total` (Counter).
+-   **Mapping:** Automatic middleware/interceptors for gRPC and HTTP.
 
 ### 12.3. Health Checks
 
-El sistema expone dos endpoints críticos para el orquestador (K8s):
+The system exposes two critical endpoints for the orchestrator (K8s):
 
--   **/healthz (Liveness):** Indica si el proceso está vivo. Retorna `200 OK`.
--   **/readyz (Readiness):** Indica si el servicio puede recibir tráfico. Valida la conexión a la base de datos usando `db.PingContext(r.Context())` para respetar los timeouts del cliente HTTP y permitir que el orquestador cancele la verificación si es necesario.
+-   **/healthz (Liveness):** Indicates if the process is alive. Returns `200 OK`.
+-   **/readyz (Readiness):** Indicates if the service can receive traffic. Validates database connection using `db.PingContext(r.Context())` to respect HTTP client timeouts and allow the orchestrator to cancel the check if necessary.
 
 ### 12.4. Tracing (OpenTelemetry)
 
-Implementamos trazabilidad distribuida usando el exportador OTLP.
+We implement distributed tracing using the OTLP exporter.
 
--   **Propagación:** Los traces viajan automáticamente a través de los interceptores gRPC.
--   **Contexto:** Permite ver el camino de una petición desde el gateway hasta el repositorio.
+-   **Propagation:** Traces automatically travel through gRPC interceptors.
+-   **Context:** Allows seeing the path of a request from the gateway to the repository.
 
-### 12.5. Helpers de Telemetría (`internal/telemetry`)
+### 12.5. Telemetry Helpers (`internal/telemetry`)
 
-Para eliminar el boilerplate de OpenTelemetry, el template proporciona helpers que simplifican la instrumentación:
+To eliminate OpenTelemetry boilerplate, the template provides helpers that simplify instrumentation:
 
-#### Spans por Capa
+#### Spans by Layer
 
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/telemetry"
@@ -439,53 +478,53 @@ func (r *Repo) GetUser(ctx context.Context, id string) (*User, error) {
 }
 ```
 
-#### Helpers Disponibles
+#### Available Helpers
 
--   **`telemetry.StartSpan(ctx, name)`** - Span básico
--   **`telemetry.ServiceSpan(ctx, module, operation)`** - Span de capa de servicio
--   **`telemetry.RepositorySpan(ctx, module, operation, entity)`** - Span de repositorio
--   **`telemetry.SetAttribute(ctx, key, value)`** - Agregar atributo al span actual
--   **`telemetry.RecordError(span, err)`** - Registrar error en el span
--   **`telemetry.AddEvent(ctx, name, attrs)`** - Agregar evento al span
+-   **`telemetry.StartSpan(ctx, name)`** - Basic span
+-   **`telemetry.ServiceSpan(ctx, module, operation)`** - Service layer span
+-   **`telemetry.RepositorySpan(ctx, module, operation, entity)`** - Repository span
+-   **`telemetry.SetAttribute(ctx, key, value)`** - Add attribute to current span
+-   **`telemetry.RecordError(span, err)`** - Record error in span
+-   **`telemetry.AddEvent(ctx, name, attrs)`** - Add event to span
 
-#### Beneficios
+#### Benefits
 
--   ✅ **Menos Boilerplate:** No más imports de múltiples paquetes de OTel
--   ✅ **Consistencia:** Todos los spans siguen la misma convención de nombres
--   ✅ **Atributos Automáticos:** Module, operation y entity se incluyen automáticamente
--   ✅ **Context Propagation:** El context se propaga correctamente entre capas
+-   ✅ **Less Boilerplate:** No more imports from multiple OTel packages
+-   ✅ **Consistency:** All spans follow the same naming convention
+-   ✅ **Automatic Attributes:** Module, operation and entity are automatically included
+-   ✅ **Context Propagation:** Context propagates correctly between layers
 
-## 13. Comunicación Asíncrona (Eventos)
+## 13. Asynchronous Communication (Events)
 
-Para evitar acoplamiento fuerte entre módulos, disponemos de un **Bus de Eventos** interno (`internal/events`).
+To avoid tight coupling between modules, we have an internal **Event Bus** (`internal/events`).
 
--   **Patrón Pub/Sub:** Los módulos se suscriben a eventos (ej. `user.created`) sin conocer quién los emite.
--   **No Bloqueante:** La publicación de eventos ocurre en goroutines separadas para no penalizar el tiempo de respuesta gRPC/HTTP.
--   **Extensibilidad:** Facilita añadir efectos secundarios (auditoría, notificaciones) sin modificar el servicio original.
+-   **Pub/Sub Pattern:** Modules subscribe to events (e.g. `user.created`) without knowing who emits them.
+-   **Non-Blocking:** Event publication occurs in separate goroutines to avoid penalizing gRPC/HTTP response time.
+-   **Extensibility:** Facilitates adding side effects (auditing, notifications) without modifying the original service.
 
-### Eventos Tipados (`internal/events/types.go`)
+### Typed Events (`internal/events/types.go`)
 
-Para evitar errores de tipeo y mejorar el autocomplete, el template incluye constantes tipadas para eventos comunes:
+To avoid typos and improve autocomplete, the template includes typed constants for common events:
 
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/events"
 
-// En el servicio - usando constantes tipadas
+// In the service - using typed constants
 bus.Publish(ctx, events.Event{
-    Name:    events.UserCreatedEvent,  // Autocomplete disponible!
+    Name:    events.UserCreatedEvent,  // Autocomplete available!
     Payload: events.NewUserCreatedPayload(userID, email),
 })
 
-// Suscripción - usando las mismas constantes
+// Subscription - using the same constants
 bus.Subscribe(events.UserCreatedEvent, func(ctx context.Context, e events.Event) error {
     slog.InfoContext(ctx, "audit: logging user creation", "user_id", e.Payload["user_id"])
     return nil
 })
 ```
 
-#### Eventos Predefinidos
+#### Predefined Events
 
-El template incluye eventos comunes del módulo auth:
+The template includes common events from the auth module:
 
 ```go
 // Auth module events
@@ -497,9 +536,9 @@ events.OAuthAccountLinkedEvent    // "auth.oauth_account_linked"
 events.ContactChangeRequestedEvent // "user.contact_change_requested"
 ```
 
-#### Agregar Eventos de Tu Módulo
+#### Adding Events for Your Module
 
-Añade tus eventos en `internal/events/types.go`:
+Add your events in `internal/events/types.go`:
 
 ```go
 const (
@@ -508,7 +547,7 @@ const (
     OrderShippedEvent   = "order.shipped"
 )
 
-// Helper para crear payloads type-safe
+// Helper to create type-safe payloads
 func NewOrderCreatedPayload(orderID, userID string, amount float64) (map[string]any, error) {
     if orderID == "" || userID == "" {
         return nil, Validation("order ID and user ID are required")
@@ -521,23 +560,23 @@ func NewOrderCreatedPayload(orderID, userID string, amount float64) (map[string]
 }
 ```
 
-#### Beneficios
+#### Benefits
 
--   ✅ **Type-safe:** El compilador detecta nombres de eventos incorrectos
--   ✅ **Autocomplete:** Los IDEs sugieren eventos disponibles
--   ✅ **Validación:** Los helpers de payload validan campos requeridos
--   ✅ **Documentación:** Los eventos están centralizados y son fáciles de descubrir
+-   ✅ **Type-safe:** The compiler detects incorrect event names
+-   ✅ **Autocomplete:** IDEs suggest available events
+-   ✅ **Validation:** Payload helpers validate required fields
+-   ✅ **Documentation:** Events are centralized and easy to discover
 
-## 13.1. WebSocket: Comunicación en Tiempo Real
+## 13.1. WebSocket: Real-Time Communication
 
-El proyecto incluye soporte completo para **WebSocket** (`internal/websocket`), permitiendo comunicación bidireccional y en tiempo real con los clientes.
+The project includes complete support for **WebSocket** (`internal/websocket`), enabling bidirectional real-time communication with clients.
 
-### Características
+### Features
 
--   **Integración con Event Bus:** Los eventos publicados en el bus pueden ser enviados automáticamente a clientes WebSocket conectados.
--   **Autenticación JWT:** Las conexiones WebSocket están protegidas mediante JWT extraído del query parameter (`?token=...`).
--   **Mensajes Dirigidos:** Soporte para broadcast (todos los clientes) y mensajes específicos por `user_id`.
--   **Gestión de Ciclo de Vida:** Manejo automático de conexiones, desconexiones, heartbeat (ping/pong).
+-   **Event Bus Integration:** Events published to the bus can be automatically sent to connected WebSocket clients.
+-   **JWT Authentication:** WebSocket connections are protected via JWT extracted from query parameter (`?token=...`).
+-   **Directed Messages:** Support for broadcast (all clients) and specific messages by `user_id`.
+-   **Lifecycle Management:** Automatic handling of connections, disconnections, heartbeat (ping/pong).
 
 ### Arquitectura
 
@@ -554,95 +593,95 @@ El proyecto incluye soporte completo para **WebSocket** (`internal/websocket`), 
                                             └─────────────┘
 ```
 
-### Ejemplo de Uso
+### Usage Example
 
 ```go
-// Enviar evento desde un módulo (se propagará vía WebSocket)
+// Send event from a module (will propagate via WebSocket)
 bus.Publish(ctx, events.Event{
     Name: "notification.new",
     Payload: map[string]any{
         "user_id": "user_123",
-        "message": "Nueva notificación",
+        "message": "New notification",
     },
 })
 
-// El subscriber de WebSocket lo captura y envía al cliente conectado
+// WebSocket subscriber captures it and sends to connected client
 ```
 
 **Endpoint:** `ws://localhost:8080/ws?token={jwt_token}`
 
-**Ver guía completa:** `docs/WEBSOCKET_GUIDE.md`
+**See complete guide:** `docs/WEBSOCKET_GUIDE.md`
 
-## 13.2. GraphQL: API Flexible (Opcional)
+## 13.2. GraphQL: Flexible API (Optional)
 
-El proyecto soporta integración **opcional** de GraphQL usando `gqlgen`, proporcionando una alternativa flexible a gRPC/REST.
+The project supports **optional** GraphQL integration using `gqlgen`, providing a flexible alternative to gRPC/REST.
 
-### Características
+### Features
 
--   **Schema por Módulo:** Cada módulo define su propio schema GraphQL (`internal/graphql/schema/{module}.graphql`).
--   **Subscriptions:** Soporte para subscripciones en tiempo real vía WebSocket.
--   **Integración con Event Bus:** Las subscriptions pueden escuchar eventos del bus interno.
--   **Setup Automatizado:** Script de instalación y configuración (`scripts/add-graphql.sh`).
+-   **Schema per Module:** Each module defines its own GraphQL schema (`internal/graphql/schema/{module}.graphql`).
+-   **Subscriptions:** Support for real-time subscriptions via WebSocket.
+-   **Event Bus Integration:** Subscriptions can listen to events from the internal bus.
+-   **Automated Setup:** Installation and configuration script (`scripts/add-graphql.sh`).
 
-### Arquitectura
+### Architecture
 
 ```
 internal/graphql/
 ├── schema/
-│   ├── schema.graphql      # Root schema (combina todos)
-│   ├── auth.graphql        # Schema del módulo auth
-│   └── order.graphql       # Schema del módulo order
+│   ├── schema.graphql      # Root schema (combines all)
+│   ├── auth.graphql        # Auth module schema
+│   └── order.graphql       # Order module schema
 ├── resolver/
 │   ├── resolver.go         # Root resolver
-│   ├── auth.go             # Resolvers de auth
-│   └── order.go            # Resolvers de order
-└── server.go               # Setup de GraphQL
+│   ├── auth.go             # Auth resolvers
+│   └── order.go            # Order resolvers
+└── server.go               # GraphQL setup
 ```
 
-### Instalación y Uso
+### Installation and Usage
 
 ```bash
-# 1. Agregar GraphQL al proyecto
+# 1. Add GraphQL to project
 make add-graphql
 
-# 2. Definir schemas por módulo en internal/graphql/schema/
+# 2. Define schemas per module in internal/graphql/schema/
 
-# 3. Generar código
+# 3. Generate code
 make graphql-generate
 
-# 4. Implementar resolvers en internal/graphql/resolver/
+# 4. Implement resolvers in internal/graphql/resolver/
 
-# 5. Validar
+# 5. Validate
 make graphql-validate
 ```
 
 **Endpoints:**
 -   GraphQL API: `POST /graphql`
--   Playground: `GET /graphql/playground` (solo dev)
+-   Playground: `GET /graphql/playground` (dev only)
 
-**Ver guía completa:** `docs/GRAPHQL_INTEGRATION.md`
+**See complete guide:** `docs/GRAPHQL_INTEGRATION.md`
 
-## 14. Escalabilidad y Alta Disponibilidad
+## 14. Scalability and High Availability
 
-El diseño modular y el empaquetado permiten escalar el sistema de forma eficiente:
+The modular design and packaging allow efficient system scaling:
 
 ### Horizontal Pod Autoscaler (HPA)
 
-El sistema soporta escalado automático basado en CPU/Memoria definido en el Helm Chart. Se recomienda un umbral del 80% para disparar nuevas réplicas.
+The system supports automatic scaling based on CPU/Memory defined in the Helm Chart. An 80% threshold is recommended to trigger new replicas.
 
 ### Graceful Shutdown
 
-La aplicación maneja señales de terminación para cerrar conexiones a base de datos y terminar peticiones gRPC en curso antes de morir.
+The application handles termination signals to close database connections and finish in-flight gRPC requests before dying.
 
 ### Pod Disruption Budget (PDB)
 
-Garantizamos un mínimo de disponibilidad durante mantenimientos del cluster Kubernetes, asegurando que siempre haya al menos una réplica operativa.
+We guarantee minimum availability during Kubernetes cluster maintenance, ensuring there's always at least one operational replica.
 
-## 15. Guía de Implementación: De Cero a Producción
+## 15. Implementation Guide: From Zero to Production
 
-### Fase 1: Definición del Contrato (Protocol Buffers)
+### Phase 1: Contract Definition (Protocol Buffers)
 
-El desarrollo comienza definiendo la API. Esto garantiza que frontend y backend acuerden la estructura de datos antes de escribir código.
+Development begins by defining the API. This ensures frontend and backend agree on data structure before writing code.
 
 `proto/users/v1/users.proto`:
 
@@ -654,7 +693,7 @@ package users.v1;
 import "google/api/annotations.proto";
 
 service UserService {
-  // Crea un nuevo usuario
+  // Creates a new user
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {
     option (google.api.http) = {
       post: "/v1/users"
@@ -674,12 +713,12 @@ message CreateUserResponse {
 }
 ```
 
-### Fase 2: Persistencia (Schema & SQLC)
+### Phase 2: Persistence (Schema & SQLC)
 
-Diseñamos la base de datos y las operaciones necesarias. SQLC se encargará de generar el código de acceso a datos.
+We design the database and necessary operations. SQLC will generate the data access code.
 
-**1. Migración (DDL):**
-Creamos las migraciones utilizando `golang-migrate`.
+**1. Migration (DDL):**
+We create migrations using `golang-migrate`.
 `modules/users/resources/db/migration/000001_initial_schema.up.sql`:
 
 ```sql
@@ -688,7 +727,7 @@ CREATE TABLE users (
   username VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP -- Debe actualizarse desde la aplicación o vía Trigger
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP -- Must be updated from application or via Trigger
 );
 ```
 
@@ -709,9 +748,9 @@ ORDER BY created_at DESC LIMIT 1;
 ```
 
 > [!NOTE]
-> Para queries que involucran comparaciones de tiempo (ej. códigos mágicos con expiración), se recomienda pasar el tiempo actual como parámetro (`$3`) desde la aplicación en lugar de usar `CURRENT_TIMESTAMP` en SQL. Esto garantiza consistencia entre el tiempo de la aplicación y el tiempo de la base de datos, evitando problemas de sincronización.
+> For queries involving time comparisons (e.g. magic codes with expiration), it's recommended to pass the current time as a parameter (`$3`) from the application instead of using `CURRENT_TIMESTAMP` in SQL. This guarantees consistency between application time and database time, avoiding synchronization issues.
 
-**3. Configuración SQLC:**
+**3. SQLC Configuration:**
 `sqlc.yaml`:
 
 ```yaml
@@ -729,16 +768,16 @@ sql:
               emit_json_tags: true
 ```
 
-**4. Generación:**
-Ejecutar `sqlc generate`. Esto crea `modules/users/internal/db/store/` con tipos seguros.
+**4. Generation:**
+Run `sqlc generate`. This creates `modules/users/internal/db/store/` with type-safe code.
 
-**5. Sistema de Migraciones Multi-Módulo (`internal/migration`):**
+**5. Multi-Module Migration System (`internal/migration`):**
 
-El template incluye un sistema automático de descubrimiento y ejecución de migraciones para todos los módulos registrados.
+The template includes an automatic discovery and execution system for migrations for all registered modules.
 
-#### Declaración en el Módulo
+#### Module Declaration
 
-Cada módulo implementa la interfaz `ModuleMigration` para declarar su ruta de migraciones:
+Each module implements the `ModuleMigration` interface to declare its migration path:
 
 ```go
 // En modules/users/module.go
@@ -747,60 +786,60 @@ func (m *Module) MigrationPath() string {
 }
 ```
 
-#### Ejecución Automática
+#### Automatic Execution
 
-Las migraciones se ejecutan automáticamente al iniciar el servidor:
+Migrations run automatically when starting the server:
 
 ```go
-// En cmd/server/main.go - ya está implementado
+// In cmd/server/main.go - already implemented
 runner := migration.NewRunner(cfg.DBDSN, reg)
 if err := runner.RunAll(); err != nil {
     return err
 }
 ```
 
-El sistema:
-1. Descubre todos los módulos que implementan `ModuleMigration`
-2. Ejecuta las migraciones en el orden de registro de módulos
-3. Usa `golang-migrate` internamente para track de versiones
-4. Cada módulo mantiene su propio historial de migraciones
+The system:
+1. Discovers all modules that implement `ModuleMigration`
+2. Executes migrations in module registration order
+3. Uses `golang-migrate` internally for version tracking
+4. Each module maintains its own migration history
 
-#### Comandos de Makefile
+#### Makefile Commands
 
 ```bash
-# Ejecutar todas las migraciones de todos los módulos
-make migrate-up  # o simplemente: make migrate
+# Run all migrations for all modules
+make migrate-up  # or simply: make migrate
 
-# Revertir la última migración de un módulo específico
+# Revert last migration for a specific module
 make migrate-down MODULE=users
 
-# Crear una nueva migración para un módulo
+# Create a new migration for a module
 make migrate-create MODULE=users NAME=add_profile_fields
 
-# Borrar todas las tablas y re-ejecutar migraciones
-make db-down    # Solo borra las tablas
-make db-reset   # Borra y re-ejecuta (db-down + migrate-up)
+# Delete all tables and re-run migrations
+make db-down    # Only deletes tables
+make db-reset   # Deletes and re-runs (db-down + migrate-up)
 ```
 
-#### Ejecución Manual de Solo Migraciones
+#### Manual Migration Execution Only
 
 ```bash
-# Ejecutar solo migraciones sin levantar el servidor
+# Run only migrations without starting server
 go run cmd/server/main.go -migrate
-# o
+# or
 make migrate
 ```
 
-#### Beneficios
+#### Benefits
 
--   ✅ **Automático:** No necesitas modificar `main.go` al agregar módulos
--   ✅ **Ordenado:** Las migraciones se ejecutan en el orden de registro
--   ✅ **Autónomo:** Cada módulo gestiona su propio esquema
--   ✅ **Portable:** Funciona tanto en monolito como en microservicios
+-   ✅ **Automatic:** You don't need to modify `main.go` when adding modules
+-   ✅ **Ordered:** Migrations execute in registration order
+-   ✅ **Autonomous:** Each module manages its own schema
+-   ✅ **Portable:** Works in both monolith and microservices
 
-### Fase 3: Capa de Repositorio (Adapter)
+### Phase 3: Repository Layer (Adapter)
 
-Creamos una capa intermedia que abstrae `sqlc` del resto de la aplicación. El repositorio es un **esclavo** del servicio: no genera IDs ni contiene lógica.
+We create an intermediate layer that abstracts `sqlc` from the rest of the application. The repository is a **slave** of the service: it doesn't generate IDs or contain logic.
 
 `modules/users/internal/repository/repository.go`:
 
@@ -812,10 +851,10 @@ import (
   "database/sql"
   "fmt"
 
-  "proyecto/modules/users/internal/db/store"
+  "project/modules/users/internal/db/store"
 )
 
-// Repository define las operaciones de negocio sobre los datos
+// Repository defines business operations on data
 type Repository interface {
     CreateUser(ctx context.Context, id, username, email string) error
 }
@@ -833,22 +872,22 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 }
 
 func (r *SQLRepository) CreateUser(ctx context.Context, id, username, email string) error {
-    // Ejecución segura y tipada. El repositorio NO genera el ID.
+    // Type-safe execution. The repository does NOT generate the ID.
     err := r.q.CreateUser(ctx, store.CreateUserParams{
         ID:       id,
         Username: username,
         Email:    email,
     })
     if err != nil {
-        return fmt.Errorf("error persistiendo usuario: %w", err)
+        return fmt.Errorf("error persisting user: %w", err)
     }
     return nil
 }
 ```
 
-### Fase 4: Capa de Servicio (Lógica de Negocio)
+### Phase 4: Service Layer (Business Logic)
 
-Implementamos la interfaz gRPC generada por `protoc`. Aquí reside la lógica de orquestación y el **ownership** del dominio.
+We implement the gRPC interface generated by `protoc`. This is where orchestration logic and domain **ownership** reside.
 
 `modules/users/internal/service/service.go`:
 
@@ -864,8 +903,8 @@ import (
   "go.jetify.com/typeid"
   "google.golang.org/grpc/codes"
   "google.golang.org/grpc/status"
-  usersv1 "proyecto/gen/go/users/v1" // Código generado por Buf/Protoc
-  "proyecto/modules/users/internal/repository"
+  usersv1 "project/gen/go/users/v1" // Code generated by Buf/Protoc
+  "project/modules/users/internal/repository"
 )
 
 type UserService struct {
@@ -878,14 +917,14 @@ func NewUserService(repo repository.Repository) *UserService {
 }
 
 func (s *UserService) CreateUser(ctx context.Context, req *usersv1.CreateUserRequest) (*usersv1.CreateUserResponse, error) {
-    // 1. Lógica de Dominio: Generación de Identidades (TypeID)
-    tid, _ := typeid.WithPrefix("user") // Generación centralizada en el Service
+    // 1. Domain Logic: Identity Generation (TypeID)
+    tid, _ := typeid.WithPrefix("user") // Centralized generation in Service
     idStr := tid.String()
 
-    // 2. Llamada a persistencia
+    // 2. Persistence call
     err := s.repo.CreateUser(ctx, idStr, req.Username, req.Email)
     if err != nil {
-        // Manejo de errores específicos: mapeo a códigos gRPC apropiados
+        // Specific error handling: mapping to appropriate gRPC codes
         if errors.Is(err, sql.ErrNoRows) {
             slog.DebugContext(ctx, "user not found", "email", req.Email)
             return nil, status.Error(codes.NotFound, "user not found")
@@ -895,7 +934,7 @@ func (s *UserService) CreateUser(ctx context.Context, req *usersv1.CreateUserReq
         return nil, status.Error(codes.Internal, "failed to create user")
     }
 
-    // 3. Mapeo a respuesta Proto
+    // 3. Mapping to Proto response
     return &usersv1.CreateUserResponse{
         Id:       idStr,
         Username: req.Username,
@@ -905,44 +944,44 @@ func (s *UserService) CreateUser(ctx context.Context, req *usersv1.CreateUserReq
 
 ---
 
-## 16. Workflows de Desarrollo (Development Workflows)
+## 16. Development Workflows
 
-### Agregar un nuevo campo a una tabla
+### Adding a New Field to a Table
 
-1.  Crear nuevo script de migración: `modules/[mod]/resources/db/migration/00X_add_field.up.sql`.
-2.  Actualizar Queries en `.sql` si es necesario incluir el campo en SELECTs o INSERTs.
-3.  Ejecutar `sqlc generate`. El struct Go se actualizará automáticamente.
-4.  Corregir errores de compilación (el compilador de Go te avisará dónde falta el campo).
+1.  Create new migration script: `modules/[mod]/resources/db/migration/00X_add_field.up.sql`.
+2.  Update Queries in `.sql` if necessary to include the field in SELECTs or INSERTs.
+3.  Run `sqlc generate`. The Go struct will update automatically.
+4.  Fix compilation errors (the Go compiler will tell you where the field is missing).
 
 ### Testing
 
-Establecemos una disciplina de testing que garantice la calidad sin burocracia:
+We establish a testing discipline that guarantees quality without bureaucracy:
 
 ### Mocking (gomock)
 
-Para facilitar el testing unitario, utilizamos **gomock** (`go.uber.org/mock`) para generar mocks automáticos de interfaces.
+To facilitate unit testing, we use **gomock** (`go.uber.org/mock`) to generate automatic mocks of interfaces.
 
-**Filosofía:**
--   **Type-safe:** Los mocks fallan en compilación si la interfaz cambia, garantizando que los tests estén siempre sincronizados.
--   **Automático:** Generación mediante `//go:generate`, alineado con la filosofía del proyecto (sqlc, buf).
--   **Validable:** Verificaciones de expectativas en tests para asegurar que el código llama a las dependencias correctamente.
+**Philosophy:**
+-   **Type-safe:** Mocks fail at compilation if the interface changes, ensuring tests are always synchronized.
+-   **Automatic:** Generation via `//go:generate`, aligned with project philosophy (sqlc, buf).
+-   **Validatable:** Expectation verifications in tests to ensure code calls dependencies correctly.
 
-**Comandos:**
+**Commands:**
 
 ```bash
-# Instalar herramienta
+# Install tool
 make install-mocks
 
-# Generar todos los mocks
+# Generate all mocks
 make generate-mocks
 
-# Ejecutar tests unitarios (genera mocks automáticamente)
+# Run unit tests (generates mocks automatically)
 make test-unit
 ```
 
-**Agregar mocks a una nueva interfaz:**
+**Adding mocks to a new interface:**
 
-1.  Agregar anotación al inicio del archivo (antes del package doc):
+1.  Add annotation at the start of the file (before package doc):
 
 ```go
 //go:generate mockgen -source=myinterface.go -destination=mocks/myinterface_mock.go -package=mocks
@@ -955,9 +994,9 @@ type MyInterface interface {
 }
 ```
 
-2.  Generar: `make generate-mocks`
+2.  Generate: `make generate-mocks`
 
-3.  Usar en tests:
+3.  Use in tests:
 
 ```go
 package service_test
@@ -985,97 +1024,97 @@ func TestWithMock(t *testing.T) {
 }
 ```
 
-**Mocks vs Repository Real:**
--   **Unit Tests:** Usar mocks (rápidos, aislados, no requieren DB).
--   **Integration Tests:** Usar DB real con Testcontainers (validan queries SQL reales).
+**Mocks vs Real Repository:**
+-   **Unit Tests:** Use mocks (fast, isolated, don't require DB).
+-   **Integration Tests:** Use real DB with Testcontainers (validate real SQL queries).
 
-**Ejemplo Real:**
+**Real Example:**
 
-Ver `modules/auth/internal/service/service_mock_test.go` para ejemplos completos de cómo testear servicios usando mocks del repositorio.
+See `modules/auth/internal/service/service_mock_test.go` for complete examples of how to test services using repository mocks.
 
-### Hot Reload (Desarrollo Rápido)
+### Hot Reload (Rapid Development)
 
-Para una experiencia de desarrollo fluida, utilizamos **Air** para recompilar automáticamente el código al guardar:
+For a smooth development experience, we use **Air** to automatically recompile code on save:
 
-1.  **Monolito:** `make dev`
-2.  **Cualquier Módulo:** `make dev-module {nombre}` (ej. `make dev-module auth`)
+1.  **Monolith:** `make dev`
+2.  **Any Module:** `make dev-module {name}` (e.g. `make dev-module auth`)
 
 > [!TIP]
-> Air vigila cambios en archivos `.go`, `.yaml`, `.yml`, `.proto`, `.sql`, `.env` y archivos de configuración específicos, reiniciando el binario instantáneamente. El generador de módulos (`make new-module`) crea automáticamente el archivo `.air.{module}.toml` necesario.
+> Air watches for changes in `.go`, `.yaml`, `.yml`, `.proto`, `.sql`, `.env` files and specific configuration files, restarting the binary instantly. The module generator (`make new-module`) automatically creates the necessary `.air.{module}.toml` file.
 
-### Comandos de Build Genéricos
+### Generic Build Commands
 
-El proyecto proporciona comandos comodín para trabajar con cualquier módulo:
+The project provides wildcard commands to work with any module:
 
 ```bash
 # Build
-make build-module auth      # Genera bin/auth
-make build-module payments  # Genera bin/payments
-make build-all              # Compila server + todos los módulos
+make build-module auth      # Generates bin/auth
+make build-module payments  # Generates bin/payments
+make build-all              # Compiles server + all modules
 
 # Docker
-make docker-build-module auth      # Genera modulith-auth:latest
-make docker-build-module payments  # Genera modulith-payments:latest
+make docker-build-module auth      # Generates modulith-auth:latest
+make docker-build-module payments  # Generates modulith-payments:latest
 
-# Desarrollo con Hot Reload
-make dev-module auth      # Ejecuta auth con hot reload
-make dev-module payments  # Ejecuta payments con hot reload
+# Development with Hot Reload
+make dev-module auth      # Runs auth with hot reload
+make dev-module payments  # Runs payments with hot reload
 ```
 
 > [!NOTE]
-> Todos los binarios se compilan en el directorio `bin/` centralizado, ignorado por Git.
+> All binaries are compiled in the centralized `bin/` directory, ignored by Git.
 
--   **Convención:** Archivos `*_test.go` al lado del código que prueban.
+-   **Convention:** `*_test.go` files next to the code they test.
 -   **Unit Tests:**
-    -   **Enfoque:** Probar lógica de negocio pura y transformaciones.
-    -   **Mocks:** **Mockear** la interfaz `repository.Repository` en los tests del Servicio. Prohibido usar DB real en unit tests.
+    -   **Approach:** Test pure business logic and transformations.
+    -   **Mocks:** **Mock** the `repository.Repository` interface in Service tests. Using real DB in unit tests is forbidden.
 -   **Integration Tests:**
-    -   **Ubicación:** Pueden vivir dentro de cada módulo o en una carpeta `tests/integration` aparte.
-    -   **Infra:** Usar `docker-compose` o **Testcontainers** para levantar una base de datos real.
-    -   **Flujo:** Probar el endpoint gRPC -> Repository -> DB real y verificar efectos secundarios.
+    -   **Location:** Can live within each module or in a separate `tests/integration` folder.
+    -   **Infrastructure:** Use `docker-compose` or **Testcontainers** to start a real database.
+    -   **Flow:** Test gRPC endpoint -> Repository -> real DB and verify side effects.
 
-## 17. Generación Automática de Módulos (Scaffolding)
+## 17. Automatic Module Generation (Scaffolding)
 
-Para acelerar el inicio de nuevos módulos y asegurar que sigan los estándares definidos, disponemos de una herramienta de scaffolding robusta.
+To accelerate the start of new modules and ensure they follow defined standards, we have a robust scaffolding tool.
 
--   **Comando:** `make new-module {nombre}` (ej. `make new-module payments`)
--   **Automatización:**
-    -   Genera la estructura de carpetas estándar.
-    -   Crea los archivos boilerplate (`module.go`, `service.go`, `repository.go`, `proto`).
-    -   **Configura automáticamente `sqlc.yaml`** añadiendo la entrada para el nuevo módulo.
-    -   **Genera archivo `.air.{module}.toml`** para hot reload con Air.
-    -   **Crea `cmd/{module}/main.go`** para despliegue independiente como microservicio.
-    -   **Crea `configs/{module}.yaml`** con configuración específica del módulo.
-    -   **Manejo de Plurales:** Detecta nombres en plural (ej. `products`) y ajusta el nombre del struct generado (ej. `Product`) en los templates para evitar errores de compilación.
--   **Archivos Generados:**
-    -   `cmd/[name]/main.go`: Entrypoint para microservicio independiente.
-    -   `configs/[name].yaml`: Configuración específica del módulo.
-    -   `.air.[name].toml`: Configuración de hot reload.
-    -   `modules/[name]/module.go`: Implementación completa de `registry.Module` con:
-        -   `Name()` - Identificador del módulo
-        -   `Initialize(reg)` - Inicialización con acceso al registry
-        -   `RegisterGRPC(server)` - Registro de handlers gRPC
-        -   `RegisterGateway(ctx, mux, conn)` - Registro de gateway HTTP
-        -   `MigrationPath()` - Ruta de migraciones del módulo
-        -   `PublicGRPCEndpoints()` - Endpoints públicos (sin auth)
-    -   `modules/[name]/internal/service/service.go`: Servicio con:
-        -   Integración con `internal/errors` para manejo de errores
-        -   Integración con `internal/telemetry` para tracing
-        -   Integración con `internal/events` para pub/sub
-        -   Generación de TypeIDs
-        -   Validación y autorización
+-   **Command:** `make new-module {name}` (e.g. `make new-module payments`)
+-   **Automation:**
+    -   Generates standard folder structure.
+    -   Creates boilerplate files (`module.go`, `service.go`, `repository.go`, `proto`).
+    -   **Automatically configures `sqlc.yaml`** adding the entry for the new module.
+    -   **Generates `.air.{module}.toml` file** for hot reload with Air.
+    -   **Creates `cmd/{module}/main.go`** for independent deployment as microservice.
+    -   **Creates `configs/{module}.yaml`** with module-specific configuration.
+    -   **Plural Handling:** Detects plural names (e.g. `products`) and adjusts the generated struct name (e.g. `Product`) in templates to avoid compilation errors.
+-   **Generated Files:**
+    -   `cmd/[name]/main.go`: Entrypoint for independent microservice.
+    -   `configs/[name].yaml`: Module-specific configuration.
+    -   `.air.[name].toml`: Hot reload configuration.
+    -   `modules/[name]/module.go`: Complete `registry.Module` implementation with:
+        -   `Name()` - Module identifier
+        -   `Initialize(reg)` - Initialization with registry access
+        -   `RegisterGRPC(server)` - gRPC handler registration
+        -   `RegisterGateway(ctx, mux, conn)` - HTTP gateway registration
+        -   `MigrationPath()` - Module migration path
+        -   `PublicGRPCEndpoints()` - Public endpoints (no auth)
+    -   `modules/[name]/internal/service/service.go`: Service with:
+        -   Integration with `internal/errors` for error handling
+        -   Integration with `internal/telemetry` for tracing
+        -   Integration with `internal/events` for pub/sub
+        -   TypeID generation
+        -   Validation and authorization
     -   `modules/[name]/internal/repository/repository.go`:
-        -   Interfaz `Repository` para testabilidad
-        -   Implementación `SQLRepository` con SQLC
-        -   Soporte de transacciones con `WithTx()`
-    -   `modules/[name]/resources/db/migration/`: Scripts SQL iniciales (up/down)
-    -   `proto/[name]/v1/`: Definición Protocol Buffer con anotaciones HTTP
+        -   `Repository` interface for testability
+        -   `SQLRepository` implementation with SQLC
+        -   Transaction support with `WithTx()`
+    -   `modules/[name]/resources/db/migration/`: Initial SQL scripts (up/down)
+    -   `proto/[name]/v1/`: Protocol Buffer definition with HTTP annotations
 
-**Después de generar un módulo:**
+**After generating a module:**
 ```bash
-# Generar código
-make proto  # Genera código gRPC
-make sqlc   # Genera código de DB
+# Generate code
+make proto  # Generates gRPC code
+make sqlc   # Generates DB code
 
 # Build
 make build-module payments
@@ -1083,42 +1122,42 @@ make build-module payments
 # Docker
 make docker-build-module payments
 
-# Desarrollo
+# Development
 make dev-module payments
 ```
 
-### Quick Start: Creando Tu Primer Módulo
+### Quick Start: Creating Your First Module
 
-Una vez generado el módulo con `make new-module orders`, implementa la lógica de negocio:
+Once the module is generated with `make new-module orders`, implement the business logic:
 
 ```go
 // modules/orders/internal/service/service.go
 func (s *Service) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*pb.CreateOrderResponse, error) {
-    // 1. Telemetry (ya incluido en el template)
+    // 1. Telemetry (already included in template)
     ctx, span := telemetry.ServiceSpan(ctx, "orders", "CreateOrder")
     defer span.End()
 
-    // 2. Autorización (usando helpers del template)
+    // 2. Authorization (using template helpers)
     if err := authz.RequirePermission(ctx, "orders:create"); err != nil {
         return nil, errors.ToGRPC(err)
     }
 
-    // 3. Validación de negocio
+    // 3. Business validation
     if req.Amount <= 0 {
         return nil, errors.ToGRPC(errors.Validation("amount must be positive"))
     }
 
-    // 4. Generar TypeID (sortable, prefijado)
+    // 4. Generate TypeID (sortable, prefixed)
     tid, _ := typeid.WithPrefix("order")
     id := tid.String()
 
-    // 5. Persistencia
+    // 5. Persistence
     if err := s.repo.CreateOrder(ctx, id, req); err != nil {
         telemetry.RecordError(span, err)
         return nil, errors.ToGRPC(errors.Internal("failed to create order", errors.WithWrappedError(err)))
     }
 
-    // 6. Publicar evento (typed event)
+    // 6. Publish event (typed event)
     payload, _ := events.NewOrderCreatedPayload(id, req.UserId, req.Amount)
     s.bus.Publish(ctx, events.Event{
         Name:    events.OrderCreatedEvent,
@@ -1129,90 +1168,90 @@ func (s *Service) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (
 }
 ```
 
-**Todo lo anterior utiliza las abstracciones del template - tu código solo contiene lógica de negocio.**
+**All of the above uses template abstractions - your code only contains business logic.**
 
-## 18. Despliegue Granular y Configuración (Microservices Path)
+## 18. Granular Deployment and Configuration (Microservices Path)
 
-Un Modulito bien diseñado permite transicionar de un único binario (Monolito) a múltiples binarios (Microservicios) sin cambiar la lógica de los módulos.
+A well-designed Modulith allows transitioning from a single binary (Monolith) to multiple binaries (Microservices) without changing module logic.
 
-### Configuración por Módulo
+### Configuration per Module
 
-Cada módulo debe definir su propio struct de configuración para evitar depender de variables globales.
+Each module must define its own configuration struct to avoid depending on global variables.
 
 ```go
 // modules/auth/module.go
 type Config struct {
-    JWTSecret string `yaml:"jwt_secret"` // Tag yaml requerido para mapeo desde YAML
+    JWTSecret string `yaml:"jwt_secret"` // yaml tag required for mapping from YAML
 }
 
 func Initialize(db *sql.DB, grpcServer *grpc.Server, bus *events.Bus, cfg Config) error {
-    // Validación temprana: verificar que la configuración requerida esté presente
+    // Early validation: verify required configuration is present
     if cfg.JWTSecret == "" {
         return fmt.Errorf("JWT secret is empty, cannot initialize auth module")
     }
-    // ... resto de la inicialización
+    // ... rest of initialization
 }
 ```
 
-### Uso de YAML y Variables de Entorno
+### Using YAML and Environment Variables
 
-El proyecto utiliza un cargador centralizado en `internal/config` (basado en `yaml.v3`) con la siguiente jerarquía:
+The project uses a centralized loader in `internal/config` (based on `yaml.v3`) with the following hierarchy:
 
-1.  **Archivos por Aplicación**: Se recomienda una carpeta `configs/` con archivos YAML específicos para cada entrypoint (ej. `configs/server.yaml`, `configs/auth.yaml`).
-2.  **Schema Unificado**: Aunque los archivos sean distintos, todos mapean al struct `AppConfig` central para mantener consistencia. Un microservicio simplemente ignorará las secciones YAML que no le correspondan.
-3.  **Jerarquía de Precedencia**: El orden de carga es: **YAML > .env > system ENV vars > defaults**. Esto significa que los valores en el YAML tienen la máxima prioridad, seguidos por el archivo `.env`, luego las variables del sistema, y finalmente los valores por defecto.
-4.  **Trazabilidad**: Al iniciar, la aplicación registra la fuente de cada variable de configuración, facilitando la depuración y el entendimiento de qué valor se está utilizando.
+1.  **Files per Application**: A `configs/` folder with YAML files specific to each entrypoint (e.g. `configs/server.yaml`, `configs/auth.yaml`) is recommended.
+2.  **Unified Schema**: Although files are different, they all map to the central `AppConfig` struct to maintain consistency. A microservice will simply ignore YAML sections that don't apply to it.
+3.  **Precedence Hierarchy**: The loading order is: **YAML > .env > system ENV vars > defaults**. This means YAML values have the highest priority, followed by the `.env` file, then system variables, and finally default values.
+4.  **Traceability**: On startup, the application logs the source of each configuration variable, facilitating debugging and understanding which value is being used.
 
-### De Monolito a Microservicios
+### From Monolith to Microservices
 
-La separación se logra creando diferentes puntos de entrada (`cmd/`) que apuntan a sus respectivos archivos de configuración:
+Separation is achieved by creating different entry points (`cmd/`) that point to their respective configuration files:
 
-1.  **Modo Monolito (`cmd/server/main.go`):** Inicia todos los módulos, una única conexión a DB y un único servidor gRPC.
-2.  **Modo Microservicio (`cmd/auth/main.go`):** Solo importa e inicializa el módulo de `auth`.
+1.  **Monolith Mode (`cmd/server/main.go`):** Starts all modules, a single DB connection and a single gRPC server.
+2.  **Microservice Mode (`cmd/auth/main.go`):** Only imports and initializes the `auth` module.
 
-### Comunicación Inter-Módulo en Microservicios
+### Inter-Module Communication in Microservices
 
-Cuando los módulos viven en binarios distintos, las llamadas gRPC que antes eran in-process (directas) ahora deben viajar por la red. Para que esto sea transparente:
+When modules live in different binaries, gRPC calls that were previously in-process (direct) must now travel over the network. To make this transparent:
 
--   Se utiliza un **Service Discovery** o un **Load Balancer** interno.
--   El cliente gRPC inyectado en un módulo debe apuntar a la dirección del microservicio externo en lugar de `127.0.0.1` (o usar la misma interfaz de cliente).
+-   A **Service Discovery** or internal **Load Balancer** is used.
+-   The gRPC client injected in a module must point to the external microservice address instead of `127.0.0.1` (or use the same client interface).
 
 ---
 
-## 19. Contenerización y Despliegue en la Nube
+## 19. Containerization and Cloud Deployment
 
-El proyecto está preparado para ejecutarse en entornos de contenedores (Docker) y orquestadores (Kubernetes) de forma nativa, con un enfoque modular que permite evolucionar de monolito a microservicios sin fricciones.
+The project is ready to run in container environments (Docker) and orchestrators (Kubernetes) natively, with a modular approach that allows evolution from monolith to microservices without friction.
 
 ### Dockerfile: Multi-Stage Build
 
-Utilizamos un `Dockerfile` optimizado con dos etapas que soporta construcción dinámica de cualquier módulo:
+We use an optimized `Dockerfile` with two stages that supports dynamic building of any module:
 
-1.  **Builder:** Compila el binario en una imagen de Go (Alpine). Usa `--build-arg TARGET={module}` para seleccionar qué construir.
-2.  **Runner:** Una imagen ligera (`alpine:3.20`) que solo contiene el binario y los archivos de configuración necesarios.
+1.  **Builder:** Compiles the binary in a Go image (Alpine). Uses `--build-arg TARGET={module}` to select what to build.
+2.  **Runner:** A lightweight image (`alpine:3.20`) that only contains the binary and necessary configuration files.
 
-**Todos los binarios se compilan en `/app/bin/` y se consolidan automáticamente.**
+**All binaries are compiled in `/app/bin/` and automatically consolidated.**
 
 ```bash
-# Construir el servidor monolito
+# Build monolith server
 make docker-build
-# Genera: modulith-server:latest
+# Generates: modulith-server:latest
 
-# Construir un módulo específico
+# Build a specific module
 make docker-build-module auth
-# Genera: modulith-auth:latest
+# Generates: modulith-auth:latest
 
-# Construir cualquier módulo
+# Build any module
 make docker-build-module payments
-# Genera: modulith-payments:latest
+# Generates: modulith-payments:latest
 ```
 
-### Helm Charts: Despliegue Flexible en Kubernetes
+### Helm Charts: Flexible Kubernetes Deployment
 
-En `deployment/helm/modulith` se encuentra el chart estándar que soporta múltiples estrategias de despliegue.
+In `deployment/helm/modulith` is the standard chart that supports multiple deployment strategies.
 
-#### Estrategia 1: Monolito (Fase Inicial)
+#### Strategy 1: Monolith (Initial Phase)
 
-Despliega todo como un solo deployment con autoscaling:
+Deploys everything as a single deployment with autoscaling:
 
 ```bash
 helm install modulith-server ./deployment/helm/modulith \
@@ -1220,26 +1259,26 @@ helm install modulith-server ./deployment/helm/modulith \
   --namespace production
 ```
 
-#### Estrategia 2: Híbrida (Transición)
+#### Strategy 2: Hybrid (Transition)
 
-Combina el monolito con módulos independientes para componentes que necesitan escalar de forma diferente:
+Combines monolith with independent modules for components that need to scale differently:
 
 ```bash
-# Servidor principal con módulos core
+# Main server with core modules
 helm install modulith-server ./deployment/helm/modulith \
   --values values-server.yaml
 
-# Módulo Auth separado (mayor demanda)
+# Auth module separated (higher demand)
 helm install modulith-auth ./deployment/helm/modulith \
   --values values-auth-module.yaml
 ```
 
-#### Estrategia 3: Microservicios (Fase Avanzada)
+#### Strategy 3: Microservices (Advanced Phase)
 
-Cada módulo como deployment independiente:
+Each module as independent deployment:
 
 ```bash
-# Cada módulo con su propio ciclo de vida
+# Each module with its own lifecycle
 helm install modulith-auth ./deployment/helm/modulith \
   --set deploymentType=module \
   --set moduleName=auth
@@ -1249,128 +1288,128 @@ helm install modulith-orders ./deployment/helm/modulith \
   --set moduleName=orders
 ```
 
-#### Características del Helm Chart
+#### Helm Chart Features
 
--   **✅ Soporte Multi-Módulo:** Un solo chart para server y todos los módulos
--   **✅ Convención de Nombres:** Genera automáticamente `modulith-{module}:tag`
--   **✅ HPA y PDB:** Horizontal Pod Autoscaling y Pod Disruption Budgets configurables
--   **✅ Health Checks:** Liveness (`/healthz`) y Readiness (`/readyz`) probes
--   **✅ Secrets:** Gestión de configuración sensible (DB_DSN, JWT_SECRET)
--   **✅ Resource Limits:** Configuración de CPU y memoria por deployment
+-   **✅ Multi-Module Support:** Single chart for server and all modules
+-   **✅ Naming Convention:** Automatically generates `modulith-{module}:tag`
+-   **✅ HPA and PDB:** Configurable Horizontal Pod Autoscaling and Pod Disruption Budgets
+-   **✅ Health Checks:** Liveness (`/healthz`) and Readiness (`/readyz`) probes
+-   **✅ Secrets:** Sensitive configuration management (DB_DSN, JWT_SECRET)
+-   **✅ Resource Limits:** CPU and memory configuration per deployment
 
-**Ver documentación completa en:** `deployment/helm/modulith/README.md`
+**See complete documentation at:** `deployment/helm/modulith/README.md`
 
-## 20. Infraestructura como Código (IaC)
+## 20. Infrastructure as Code (IaC)
 
-Manejamos la infraestructura base utilizando un enfoque modular con **OpenTofu** (Fork Open Source de Terraform) y **Terragrunt** para garantizar entornos consistentes y reproducibles.
+We manage base infrastructure using a modular approach with **OpenTofu** (Open Source Fork of Terraform) and **Terragrunt** to guarantee consistent and reproducible environments.
 
-**Nota:** La IaC gestiona la infraestructura base (VPC, EKS, RDS), mientras que los deployments de aplicaciones se manejan con Helm Charts (ver sección anterior).
+**Note:** IaC manages base infrastructure (VPC, EKS, RDS), while application deployments are handled with Helm Charts (see previous section).
 
-### Estructura de Directorios
+### Directory Structure
 
--   `deployment/opentofu/modules/`: Definición de componentes base (VPC, RDS, EKS).
--   `deployment/terragrunt/envs/`: Configuraciones específicas por entorno (`dev`, `prod`).
+-   `deployment/opentofu/modules/`: Definition of base components (VPC, RDS, EKS).
+-   `deployment/terragrunt/envs/`: Environment-specific configurations (`dev`, `prod`).
 
-### Módulos Principales
+### Main Modules
 
-1.  **VPC (Red):** Configura subredes públicas (ELBs) y privadas (Nodos/DB) con NAT Gateway.
-2.  **RDS (Base de Datos):** Instancia de PostgreSQL 16 aislada en subredes privadas.
-3.  **EKS (Compute):** Cluster de Kubernetes gestionado con Node Groups escalables.
+1.  **VPC (Network):** Configures public (ELBs) and private (Nodes/DB) subnets with NAT Gateway.
+2.  **RDS (Database):** PostgreSQL 16 instance isolated in private subnets.
+3.  **EKS (Compute):** Managed Kubernetes cluster with scalable Node Groups.
 
-### Despliegue con Terragrunt
+### Deployment with Terragrunt
 
-Terragrunt nos permite mantener el código DRY (Don't Repeat Yourself) y es 100% compatible con OpenTofu. Para desplegar el entorno de desarrollo:
+Terragrunt allows us to keep code DRY (Don't Repeat Yourself) and is 100% compatible with OpenTofu. To deploy the development environment:
 
 ```bash
 cd deployment/terragrunt/envs/dev
-terragrunt run-all plan  # Previsualizar cambios (usa tofu internamente)
-terragrunt run-all apply # Aplicar infraestructura
+terragrunt run-all plan  # Preview changes (uses tofu internally)
+terragrunt run-all apply # Apply infrastructure
 ```
 
 ---
 
-## 21. CI/CD y Calidad de Código
+## 21. CI/CD and Code Quality
 
-El proyecto integra un pipeline de automatización para garantizar la estabilidad:
+The project integrates an automation pipeline to guarantee stability:
 
 ### GitHub Actions
 
-Se ejecutan automáticamente en cada Push/PR:
+Run automatically on each Push/PR:
 
-1.  **Checksum/Verify:** Valida que las dependencias no hayan sido alteradas.
+1.  **Checksum/Verify:** Validates that dependencies haven't been altered.
 
-### Calidad de Código Estricta
+### Strict Code Quality
 
-El proyecto impone un estándar de calidad de "Clase Mundial" a través de un linter altamente configurado:
+The project imposes a "World Class" quality standard through a highly configured linter:
 
-1.  **Linter Estricto:** `golangci-lint` está configurado para detectar no solo errores, sino también:
-    -   **Complejidad Ciclomática y Cognitiva:** Evita funciones inmanejables.
-    -   **Nivel de Anidación:** Máximo 5 niveles (linters `nestif`).
-    -   **Documentación:** Todo elemento público **DEBE** tener comentarios de Godoc.
-    -   **Seguridad:** Análisis estático con `gosec` en cada commit.
-2.  **Validación de Configuración:** El cargador de configuración valida semánticamente las variables críticas antes de que la aplicación inicie (Fail-Fast).
-3.  **Tests con Race Detection:** No se permite código con condiciones de carrera (`-race`).
+1.  **Strict Linter:** `golangci-lint` is configured to detect not only errors, but also:
+    -   **Cyclomatic and Cognitive Complexity:** Avoids unmanageable functions.
+    -   **Nesting Level:** Maximum 5 levels (linters `nestif`).
+    -   **Documentation:** Every public element **MUST** have Godoc comments.
+    -   **Security:** Static analysis with `gosec` on each commit.
+2.  **Configuration Validation:** The configuration loader semantically validates critical variables before the application starts (Fail-Fast).
+3.  **Tests with Race Detection:** Code with race conditions is not allowed (`-race`).
 
-### Cobertura de Tests
+### Test Coverage
 
-El proyecto incluye un sistema de reporting de cobertura avanzado:
+The project includes an advanced coverage reporting system:
 
 ```bash
-# Reporte visual en terminal con estadísticas
+# Visual report in terminal with statistics
 make coverage-report
 
-# Reporte HTML interactivo
+# Interactive HTML report
 make test-coverage
 make coverage-html
 ```
 
-El reporte de cobertura muestra:
--   📦 Cobertura por paquete con indicadores visuales (🟢 >95%, 🟡 80-95%, 🟠 60-80%)
--   📈 Estadísticas generales (paquetes con excelente/buena/media cobertura)
--   🎯 Top 10 archivos con mejor cobertura
--   ⚠️ Áreas que necesitan más tests
+The coverage report shows:
+-   📦 Coverage per package with visual indicators (🟢 >95%, 🟡 80-95%, 🟠 60-80%)
+-   📈 General statistics (packages with excellent/good/medium coverage)
+-   🎯 Top 10 files with best coverage
+-   ⚠️ Areas that need more tests
 
-**Nota:** La cobertura total del proyecto excluye automáticamente código generado (`*.pb.go`, `sqlc`, etc.) para proporcionar métricas precisas del código escrito a mano.
+**Note:** Total project coverage automatically excludes generated code (`*.pb.go`, `sqlc`, etc.) to provide accurate metrics of hand-written code.
 
-### Estándares de Linting (Actualizado)
+### Linting Standards (Updated)
 
-Hemos adoptado un set de reglas estricto para garantizar consistencia:
+We've adopted a strict set of rules to guarantee consistency:
 
--   **wsl_v5 (Whitespace Linter):** Fuerza el uso de espacios en blanco para separar bloques lógicos (ej. antes de un `return` o `if`).
--   **wrapcheck:** Obliga a envolver errores externos con `fmt.Errorf("...: %w", err)` para mantener la cadena de trazabilidad.
--   **revive:** Reemplazo moderno de `golint` para estilo y convención de nombres.
--   **errcheck:** Verifica que todos los errores retornados sean manejados apropiadamente.
--   **goconst:** Detecta strings repetidos que deberían ser constantes.
--   **cyclop:** Limita la complejidad ciclomática de funciones (máximo 10).
--   **funlen:** Limita la longitud de funciones (máximo 60 líneas).
--   **package-comments:** Todos los paquetes deben tener documentación.
+-   **wsl_v5 (Whitespace Linter):** Forces use of whitespace to separate logical blocks (e.g. before a `return` or `if`).
+-   **wrapcheck:** Forces wrapping external errors with `fmt.Errorf("...: %w", err)` to maintain traceability chain.
+-   **revive:** Modern replacement for `golint` for style and naming conventions.
+-   **errcheck:** Verifies that all returned errors are handled appropriately.
+-   **goconst:** Detects repeated strings that should be constants.
+-   **cyclop:** Limits cyclomatic complexity of functions (maximum 10).
+-   **funlen:** Limits function length (maximum 60 lines).
+-   **package-comments:** All packages must have documentation.
 
-### Workflow de Linting (CRÍTICO)
+### Linting Workflow (CRITICAL)
 
-**Regla de Oro:** NUNCA modificar `.golangci.yaml` para ignorar o suprimir errores. Siempre implementar fixes apropiados.
+**Golden Rule:** NEVER modify `.golangci.yaml` to ignore or suppress errors. Always implement appropriate fixes.
 
-**Proceso Obligatorio:**
+**Mandatory Process:**
 
-1.  **Ejecutar:** `make lint` después de CUALQUIER modificación a archivos `.go`.
-2.  **Iterar:** Corregir todos los errores hasta alcanzar **0 issues**.
-3.  **Fixes Apropiados:**
-    -   `errcheck`: Agregar manejo de errores o asignar explícitamente a `_` si el error debe ser ignorado intencionalmente.
-    -   `goconst`: Extraer strings repetidos a constantes con nombres descriptivos.
-    -   `revive`: Renombrar parámetros no utilizados a `_`.
-    -   `wsl_v5`: Agregar espacios en blanco apropiados entre declaraciones y control de flujo.
-    -   `cyclop`: Reducir complejidad extrayendo lógica a funciones auxiliares.
-    -   `funlen`: Dividir funciones largas en funciones más pequeñas y enfocadas.
-4.  **Validación:** El CI/CD rechazará cualquier PR con errores de linting.
+1.  **Run:** `make lint` after ANY modification to `.go` files.
+2.  **Iterate:** Fix all errors until reaching **0 issues**.
+3.  **Appropriate Fixes:**
+    -   `errcheck`: Add error handling or explicitly assign to `_` if the error should be intentionally ignored.
+    -   `goconst`: Extract repeated strings to constants with descriptive names.
+    -   `revive`: Rename unused parameters to `_`.
+    -   `wsl_v5`: Add appropriate whitespace between statements and control flow.
+    -   `cyclop`: Reduce complexity by extracting logic to helper functions.
+    -   `funlen`: Split long functions into smaller, focused functions.
+4.  **Validation:** CI/CD will reject any PR with linting errors.
 
-**Ejemplo de Refactoring (Complejidad):**
+**Refactoring Example (Complexity):**
 
 ```go
-// ❌ MAL: Función compleja con cyclomatic complexity > 10
+// ❌ BAD: Complex function with cyclomatic complexity > 10
 func TestComplexFunction(t *testing.T) {
-    // 50+ líneas de código con muchos if/else anidados
+    // 50+ lines of code with many nested if/else
 }
 
-// ✅ BIEN: Extraer a funciones auxiliares
+// ✅ GOOD: Extract to helper functions
 func TestComplexFunction(t *testing.T) {
     t.Run("case 1", func(t *testing.T) { testCase1(t) })
     t.Run("case 2", func(t *testing.T) { testCase2(t) })
@@ -1378,38 +1417,38 @@ func TestComplexFunction(t *testing.T) {
 
 func testCase1(t *testing.T) {
     t.Helper()
-    // Lógica enfocada
+    // Focused logic
 }
 ```
 
-## 22. Checklist de Replicabilidad para LLMs
+## 22. Replicability Checklist for LLMs
 
-Si estás utilizando un LLM para generar o extender este proyecto, asegúrate de seguir este orden lógico para mantener la integridad:
+If you're using an LLM to generate or extend this project, make sure to follow this logical order to maintain integrity:
 
-1.  **Skeleton Primero:** Crea la estructura de carpetas y los archivos `go.mod`, `buf.yaml`, `sqlc.yaml`.
-2.  **Contrato (Proto):** Define los archivos `.proto` y genera el código con `buf generate`.
-3.  **Persistencia (SQL):** Crea las migraciones `.sql` y genera el store con `sqlc generate`.
-4.  **Repositorio:** Implementa la interfaz `Repository` envolviendo el código de `sqlc`.
-5.  **Servicio:** Crea la lógica de negocio, genera los **TypeIDs** y realiza el mapeo de errores gRPC.
-6.  **Cableado (Module):** Exporta la función `Initialize` del módulo y regístrala en `cmd/server/main.go`.
-7.  **Inyección:** Asegúrate de que el `db *sql.DB` y el `bus *events.Bus` se pasen correctamente entre capas.
+1.  **Skeleton First:** Create folder structure and `go.mod`, `buf.yaml`, `sqlc.yaml` files.
+2.  **Contract (Proto):** Define `.proto` files and generate code with `buf generate`.
+3.  **Persistence (SQL):** Create `.sql` migrations and generate store with `sqlc generate`.
+4.  **Repository:** Implement the `Repository` interface wrapping `sqlc` code.
+5.  **Service:** Create business logic, generate **TypeIDs** and perform gRPC error mapping.
+6.  **Wiring (Module):** Export the module's `Initialize` function and register it in `cmd/server/main.go`.
+7.  **Injection:** Ensure `db *sql.DB` and `bus *events.Bus` are passed correctly between layers.
 
-## 23. Abstracciones de Notificación (Event-Driven Notifiers)
+## 23. Notification Abstractions (Event-Driven Notifiers)
 
-Para evitar el acoplamiento con proveedores externos (Twilio, SendGrid, etc.), el sistema utiliza el **Patrón Adapter** combinado con un enfoque **Event-Driven**.
+To avoid coupling with external providers (Twilio, SendGrid, etc.), the system uses the **Adapter Pattern** combined with an **Event-Driven** approach.
 
--   **Interfaces:** Definidas en `internal/notifier/notifier.go` (`EmailProvider`, `SMSProvider`).
--   **Implementación Reactiva:** Un `notifier.Subscriber` escucha eventos globales (ej. `auth.magic_code_requested`) y despacha la notificación de forma **asíncrona** y **no bloqueante**.
--   **LogNotifier para Dev:** Imprime las notificaciones en los logs estructurados, permitiendo probar flujos como el "Magic Code" sin configurar APIs externas.
--   **Inyección y Registro:**
-    -   El módulo (ej. `auth`) emite el evento al `Bus`.
-    -   El `Subscriber` se registra al `Bus` en el `main.go`, garantizando que la lógica de entrega esté totalmente fuera del dominio del módulo.
+-   **Interfaces:** Defined in `internal/notifier/notifier.go` (`EmailProvider`, `SMSProvider`).
+-   **Reactive Implementation:** A `notifier.Subscriber` listens to global events (e.g. `auth.magic_code_requested`) and dispatches notifications **asynchronously** and **non-blocking**.
+-   **LogNotifier for Dev:** Prints notifications in structured logs, allowing testing flows like "Magic Code" without configuring external APIs.
+-   **Injection and Registration:**
+    -   The module (e.g. `auth`) emits the event to the `Bus`.
+    -   The `Subscriber` registers to the `Bus` in `main.go`, ensuring delivery logic is completely outside the module's domain.
 
 ---
 
 ## 24. Caching (`internal/cache`)
 
-El sistema proporciona una abstracción de caché para session storage, rate limiting y caching general.
+The system provides a cache abstraction for session storage, rate limiting, and general caching.
 
 ### Interface
 
@@ -1423,29 +1462,29 @@ type Cache interface {
 }
 ```
 
-### Implementaciones
+### Implementations
 
--   **MemoryCache:** Caché en memoria con limpieza automática de entradas expiradas. Ideal para desarrollo y despliegues single-instance.
--   **RedisCache:** Stub preparado para Redis. Agregar dependencia `github.com/redis/go-redis/v9` para usar.
+-   **MemoryCache:** In-memory cache with automatic cleanup of expired entries. Ideal for development and single-instance deployments.
+-   **RedisCache:** Stub prepared for Redis. Add dependency `github.com/redis/go-redis/v9` to use.
 
-### Ejemplo de Uso
+### Usage Example
 
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/cache"
 
-// Crear caché en memoria
+// Create in-memory cache
 mc := cache.NewMemoryCache()
 
-// Guardar valor con TTL
+// Save value with TTL
 err := mc.Set(ctx, "session:123", sessionData, 30*time.Minute)
 
-// Recuperar valor
+// Retrieve value
 data, err := mc.Get(ctx, "session:123")
 if errors.Is(err, cache.ErrNotFound) {
     // Cache miss
 }
 
-// Helper para strings
+// Helper for strings
 sc := cache.NewStringCache(mc)
 token, err := sc.Get(ctx, "token:456")
 ```
@@ -1454,39 +1493,39 @@ token, err := sc.Get(ctx, "token:456")
 
 ## 25. Resilience Patterns (`internal/resilience`)
 
-Para proteger el sistema contra fallos en cascada, el template incluye patrones de resiliencia.
+To protect the system against cascading failures, the template includes resilience patterns.
 
 ### Circuit Breaker
 
-Implementa el patrón Circuit Breaker para servicios externos:
+Implements the Circuit Breaker pattern for external services:
 
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/resilience"
 
-// Crear circuit breaker
+// Create circuit breaker
 config := resilience.DefaultCircuitBreakerConfig()
 config.MaxFailures = 5
 config.Timeout = 30 * time.Second
 
 cb := resilience.NewCircuitBreaker("payment-service", config)
 
-// Usar para llamadas externas
+// Use for external calls
 err := cb.Execute(ctx, func(ctx context.Context) error {
     return paymentClient.Charge(ctx, amount)
 })
 
 if errors.Is(err, resilience.ErrCircuitOpen) {
-    // Servicio está fallando, usar fallback
+    // Service is failing, use fallback
 }
 ```
 
-### Estados del Circuit Breaker
+### Circuit Breaker States
 
--   **Closed:** Operación normal, las llamadas pasan.
--   **Open:** Circuito abierto, rechaza llamadas inmediatamente.
--   **Half-Open:** Probando recuperación, permite algunas llamadas.
+-   **Closed:** Normal operation, calls pass through.
+-   **Open:** Circuit open, rejects calls immediately.
+-   **Half-Open:** Testing recovery, allows some calls.
 
-### Retry con Backoff Exponencial
+### Retry with Exponential Backoff
 
 ```go
 config := resilience.DefaultRetryConfig()
@@ -1502,48 +1541,48 @@ err := resilience.Retry(ctx, config, func(ctx context.Context) error {
 
 ## 26. Feature Flags (`internal/feature`)
 
-Sistema de feature flags para rollouts graduales y A/B testing.
+Feature flag system for gradual rollouts and A/B testing.
 
-### Uso Básico
+### Basic Usage
 
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/feature"
 
-// Crear manager
+// Create manager
 fm := feature.NewInMemoryManager()
 
-// Registrar flags
+// Register flags
 fm.RegisterFlag("new_checkout", "New checkout flow", false)
 fm.RegisterFlag("dark_mode", "Enable dark mode", true)
 
-// Verificar flag
+// Check flag
 if fm.IsEnabled(ctx, "new_checkout") {
-    // Usar nuevo flujo
+    // Use new flow
 }
 ```
 
-### Rollout por Porcentaje
+### Percentage Rollout
 
 ```go
-// Flag habilitado para 20% de usuarios
+// Flag enabled for 20% of users
 fm.SetFlag(ctx, feature.Flag{
     Name:       "experimental_feature",
     Enabled:    true,
-    Percentage: 20,  // Solo 20% de usuarios
+    Percentage: 20,  // Only 20% of users
 })
 
-// Verificar para un usuario específico
+// Check for specific user
 featureCtx := feature.Context{
     UserID: userID,
     Email:  email,
 }
 
 if fm.IsEnabledFor(ctx, "experimental_feature", featureCtx) {
-    // Usuario está en el 20%
+    // User is in the 20%
 }
 ```
 
-### Reglas Condicionales
+### Conditional Rules
 
 ```go
 fm.SetFlag(ctx, feature.Flag{
@@ -1563,11 +1602,11 @@ fm.SetFlag(ctx, feature.Flag{
 
 ## 27. Structured Error Codes
 
-Los errores de dominio ahora incluyen códigos estables para clientes API.
+Domain errors now include stable codes for API clients.
 
-### Formato de Respuesta
+### Response Format
 
-Los errores gRPC incluyen el código en el mensaje: `[ERROR_CODE] mensaje`
+gRPC errors include the code in the message: `[ERROR_CODE] message`
 
 ```
 [USER_NOT_FOUND] user with email test@example.com not found
@@ -1575,30 +1614,30 @@ Los errores gRPC incluyen el código en el mensaje: `[ERROR_CODE] mensaje`
 [VALIDATION_FAILED] email format is invalid
 ```
 
-### Códigos Disponibles
+### Available Codes
 
-| Código | Tipo | Descripción |
-|--------|------|-------------|
-| `NOT_FOUND` | NotFound | Recurso no encontrado |
-| `ALREADY_EXISTS` | AlreadyExists | Recurso ya existe |
-| `VALIDATION_FAILED` | Validation | Error de validación |
-| `AUTH_REQUIRED` | Unauthorized | Autenticación requerida |
-| `AUTH_TOKEN_EXPIRED` | Unauthorized | Token expirado |
-| `FORBIDDEN` | Forbidden | Acceso denegado |
-| `RATE_LIMITED` | Forbidden | Rate limit excedido |
+| Code | Type | Description |
+|------|------|-------------|
+| `NOT_FOUND` | NotFound | Resource not found |
+| `ALREADY_EXISTS` | AlreadyExists | Resource already exists |
+| `VALIDATION_FAILED` | Validation | Validation error |
+| `AUTH_REQUIRED` | Unauthorized | Authentication required |
+| `AUTH_TOKEN_EXPIRED` | Unauthorized | Token expired |
+| `FORBIDDEN` | Forbidden | Access denied |
+| `RATE_LIMITED` | Forbidden | Rate limit exceeded |
 
-### Uso
+### Usage
 
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/errors"
 
-// Crear error con código específico
+// Create error with specific code
 err := errors.WithCode(errors.CodeUserNotFound, "user not found")
 
-// O usar helpers existentes (código se asigna automáticamente)
-err := errors.NotFound("user not found")  // Código: NOT_FOUND
+// Or use existing helpers (code assigned automatically)
+err := errors.NotFound("user not found")  // Code: NOT_FOUND
 
-// Obtener código de un error
+// Get code from an error
 code := errors.GetErrorCode(err)  // "NOT_FOUND"
 ```
 
@@ -1606,17 +1645,17 @@ code := errors.GetErrorCode(err)  // "NOT_FOUND"
 
 ## 28. Request Logging Middleware
 
-El middleware de logging registra todas las peticiones HTTP con información detallada.
+The logging middleware records all HTTP requests with detailed information.
 
-### Información Registrada
+### Recorded Information
 
--   Método HTTP y path
--   Status code y duración
--   Bytes escritos
--   Request ID (si disponible)
--   User-Agent y Remote Address
+-   HTTP method and path
+-   Status code and duration
+-   Bytes written
+-   Request ID (if available)
+-   User-Agent and Remote Address
 
-### Configuración
+### Configuration
 
 ```go
 config := middleware.LoggingConfig{
@@ -1627,28 +1666,28 @@ config := middleware.LoggingConfig{
 handler := middleware.Logging(config)(yourHandler)
 ```
 
-### Niveles de Log
+### Log Levels
 
--   **INFO:** Peticiones exitosas (2xx, 3xx)
--   **WARN:** Errores de cliente (4xx) o peticiones lentas
--   **ERROR:** Errores de servidor (5xx)
+-   **INFO:** Successful requests (2xx, 3xx)
+-   **WARN:** Client errors (4xx) or slow requests
+-   **ERROR:** Server errors (5xx)
 
 ---
 
-## 29. Health Checks y Monitoreo
+## 29. Health Checks and Monitoring
 
-El template incluye endpoints de health checks diseñados para integración con orquestadores (Kubernetes, Docker Swarm, etc.).
+The template includes health check endpoints designed for integration with orchestrators (Kubernetes, Docker Swarm, etc.).
 
-### Endpoints Disponibles
+### Available Endpoints
 
-- **`/livez`**: Liveness probe - siempre retorna 200 si el proceso está vivo
-- **`/readyz`**: Readiness probe - verifica todas las dependencias críticas
-- **`/healthz`**: Endpoint legacy (compatibilidad hacia atrás, mismo que `/livez`)
-- **`/healthz/ws`**: Estado de conexiones WebSocket (conexiones activas y usuarios conectados)
+- **`/livez`**: Liveness probe - always returns 200 if the process is alive
+- **`/readyz`**: Readiness probe - checks all critical dependencies
+- **`/healthz`**: Legacy endpoint (backward compatibility, same as `/livez`)
+- **`/healthz/ws`**: WebSocket connection status (active connections and connected users)
 
-### Readiness Probe Detallado
+### Detailed Readiness Probe
 
-El endpoint `/readyz` retorna un JSON con el estado de cada dependencia:
+The `/readyz` endpoint returns JSON with the status of each dependency:
 
 ```json
 {
@@ -1662,19 +1701,19 @@ El endpoint `/readyz` retorna un JSON con el estado de cada dependencia:
 }
 ```
 
-**Códigos de respuesta:**
-- `200 OK`: Todas las dependencias están saludables
-- `503 Service Unavailable`: Una o más dependencias no están disponibles
+**Response codes:**
+- `200 OK`: All dependencies are healthy
+- `503 Service Unavailable`: One or more dependencies are unavailable
 
-**Verificaciones realizadas:**
-- **Módulos**: Ejecuta `HealthCheckAll()` en todos los módulos registrados
-- **Base de datos**: Verifica conectividad con `db.PingContext()`
-- **Event Bus**: Verifica que el bus de eventos esté inicializado
-- **WebSocket Hub**: Verifica que el hub de WebSocket esté inicializado
+**Checks performed:**
+- **Modules**: Executes `HealthCheckAll()` on all registered modules
+- **Database**: Verifies connectivity with `db.PingContext()`
+- **Event Bus**: Verifies that the event bus is initialized
+- **WebSocket Hub**: Verifies that the WebSocket hub is initialized
 
-### Integración con Kubernetes
+### Kubernetes Integration
 
-El Helm chart configura automáticamente los probes:
+The Helm chart automatically configures probes:
 
 ```yaml
 livenessProbe:
@@ -1701,32 +1740,32 @@ startupProbe:
 
 ---
 
-## 30. Admin Tasks (Tareas Administrativas)
+## 30. Admin Tasks
 
-Sistema de tareas administrativas para operaciones de mantenimiento y limpieza.
+Administrative task system for maintenance and cleanup operations.
 
-### Tareas Disponibles
+### Available Tasks
 
-- **`cleanup-sessions`**: Limpia sesiones de usuario expiradas
-- **`cleanup-magic-codes`**: Limpia códigos mágicos expirados
+- **`cleanup-sessions`**: Cleans expired user sessions
+- **`cleanup-magic-codes`**: Cleans expired magic codes
 
-### Uso
+### Usage
 
 ```bash
-# Ejecutar una tarea administrativa
+# Run an administrative task
 make admin TASK=cleanup-sessions
 
-# O directamente con el binario
+# Or directly with the binary
 ./bin/server admin cleanup-sessions
 ./bin/server admin cleanup-magic-codes
 
-# Listar tareas disponibles
+# List available tasks
 ./bin/server admin
 ```
 
-### Crear Nuevas Tareas
+### Creating New Tasks
 
-Las tareas administrativas implementan la interfaz `admin.Task`:
+Administrative tasks implement the `admin.Task` interface:
 
 ```go
 package tasks
@@ -1753,28 +1792,28 @@ func (t *MyTask) Description() string {
 }
 
 func (t *MyTask) Execute(ctx context.Context) error {
-    // Implementación de la tarea
+    // Task implementation
     slog.Info("Running my task")
     return nil
 }
 
-// Registrar en internal/admin/tasks/register.go
+// Register in internal/admin/tasks/register.go
 func RegisterAllTasks(runner *admin.Runner, db *sql.DB) {
     runner.Register(NewCleanupSessionsTask(db))
     runner.Register(NewCleanupMagicCodesTask(db))
-    runner.Register(NewMyTask(db))  // Nueva tarea
+    runner.Register(NewMyTask(db))  // New task
 }
 ```
 
-### Ejecución en Producción
+### Production Execution
 
-Las tareas administrativas se ejecutan como comandos independientes y son útiles para:
-- Limpieza periódica de datos expirados (cron jobs)
-- Mantenimiento de la base de datos
-- Operaciones de migración de datos
-- Tareas de auditoría
+Administrative tasks run as independent commands and are useful for:
+- Periodic cleanup of expired data (cron jobs)
+- Database maintenance
+- Data migration operations
+- Audit tasks
 
-**Ejemplo con Kubernetes CronJob:**
+**Example with Kubernetes CronJob:**
 
 ```yaml
 apiVersion: batch/v1
@@ -1782,7 +1821,7 @@ kind: CronJob
 metadata:
   name: cleanup-sessions
 spec:
-  schedule: "0 2 * * *"  # Diario a las 2 AM
+  schedule: "0 2 * * *"  # Daily at 2 AM
   jobTemplate:
     spec:
       template:
@@ -1798,42 +1837,42 @@ spec:
 
 ## 31. Request Timeout Middleware
 
-Middleware para limitar la duración máxima de las peticiones HTTP.
+Middleware to limit the maximum duration of HTTP requests.
 
-### Configuración
+### Configuration
 
 ```yaml
 # configs/server.yaml
-request_timeout: 30s  # Duración máxima de una petición
+request_timeout: 30s  # Maximum duration of a request
 ```
 
-O mediante variable de entorno:
+Or via environment variable:
 
 ```bash
 REQUEST_TIMEOUT=30s
 ```
 
-### Comportamiento
+### Behavior
 
-- Si una petición excede el timeout, el middleware retorna `504 Gateway Timeout`
-- El timeout se propaga al contexto de la petición, permitiendo que los handlers cancelen operaciones largas
-- El timeout se aplica después de otros middlewares (CORS, rate limiting, etc.)
+- If a request exceeds the timeout, the middleware returns `504 Gateway Timeout`
+- The timeout propagates to the request context, allowing handlers to cancel long operations
+- The timeout is applied after other middlewares (CORS, rate limiting, etc.)
 
-### Uso en Handlers
+### Usage in Handlers
 
-Los handlers pueden verificar el contexto para cancelar operaciones:
+Handlers can check the context to cancel operations:
 
 ```go
 func (s *Service) LongRunningOperation(ctx context.Context) error {
-    // Verificar si el contexto fue cancelado
+    // Check if context was cancelled
     select {
     case <-ctx.Done():
         return ctx.Err()  // context.DeadlineExceeded
     default:
-        // Continuar con la operación
+        // Continue with operation
     }
 
-    // Operación larga...
+    // Long operation...
     return nil
 }
 ```
@@ -1842,9 +1881,9 @@ func (s *Service) LongRunningOperation(ctx context.Context) error {
 
 ## 32. Secrets Management
 
-Sistema de abstracción para gestión de secretos que permite usar diferentes proveedores sin cambiar el código de negocio.
+Abstraction system for secrets management that allows using different providers without changing business code.
 
-### Interfaz
+### Interface
 
 ```go
 package secrets
@@ -1855,29 +1894,29 @@ type Provider interface {
 }
 ```
 
-### Implementaciones
+### Implementations
 
-#### EnvProvider (Desarrollo)
+#### EnvProvider (Development)
 
-Lee secretos desde variables de entorno:
+Reads secrets from environment variables:
 
 ```go
 provider := secrets.NewEnvProvider()
 secret, err := provider.GetSecret(ctx, "DB_PASSWORD")
 ```
 
-#### Implementaciones Futuras
+#### Future Implementations
 
 - **VaultProvider**: HashiCorp Vault
 - **AWSSecretsProvider**: AWS Secrets Manager
 - **K8sSecretsProvider**: Kubernetes Secrets
 
-### Uso
+### Usage
 
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/secrets"
 
-// Inicializar provider (desde configuración)
+// Initialize provider (from configuration)
 var secretProvider secrets.Provider
 if cfg.Env == "prod" {
     secretProvider = secrets.NewVaultProvider(cfg.VaultAddr)
@@ -1885,13 +1924,13 @@ if cfg.Env == "prod" {
     secretProvider = secrets.NewEnvProvider()
 }
 
-// Obtener secreto
+// Get secret
 dbPassword, err := secretProvider.GetSecret(ctx, "DB_PASSWORD")
 if err != nil {
     return fmt.Errorf("failed to get DB password: %w", err)
 }
 
-// Obtener secreto JSON
+// Get JSON secret
 var dbConfig struct {
     Host     string `json:"host"`
     Port     int    `json:"port"`
@@ -1905,115 +1944,115 @@ if err := secretProvider.GetSecretJSON(ctx, "DB_CONFIG", &dbConfig); err != nil 
 ### Helpers
 
 ```go
-// Obtener secreto con valor por defecto
+// Get secret with default value
 value, err := secrets.GetSecretOrDefault(ctx, provider, "API_KEY", "default-key")
 ```
 
 ---
 
-## 33. Futuras Mejoras y Nota Final
+## 33. Future Improvements and Final Note
 
-Esta arquitectura favorece la seguridad en tiempo de compilación y la disciplina operativa. Go 1.24+ se elige por el soporte nativo de `slog`, mejoras en el `toolchain` y optimizaciones de performance que permiten un código más limpio y eficiente.
+This architecture favors compile-time safety and operational discipline. Go 1.24+ is chosen for native `slog` support, `toolchain` improvements, and performance optimizations that enable cleaner and more efficient code.
 
 ## 20. Stateless Processes (12-Factor App: Factor VI)
 
-El template está diseñado siguiendo el principio de **procesos stateless** de la metodología 12-factor app. Esto garantiza que la aplicación pueda escalar horizontalmente sin problemas.
+The template is designed following the **stateless processes** principle of the 12-factor app methodology. This ensures the application can scale horizontally without issues.
 
-### Principios de Stateless
+### Stateless Principles
 
-**Todos los procesos de la aplicación son stateless:**
+**All application processes are stateless:**
 
-1. **No hay estado local en el sistema de archivos:**
-   - ✅ No se escriben archivos temporales
-   - ✅ No se almacenan sesiones en disco
-   - ✅ No se guardan datos en `/tmp` o directorios locales
-   - ✅ Solo lectura de archivos de configuración y recursos estáticos (Swagger JSON)
+1. **No local state in the file system:**
+   - ✅ No temporary files are written
+   - ✅ No sessions stored on disk
+   - ✅ No data saved in `/tmp` or local directories
+   - ✅ Only reading configuration files and static resources (Swagger JSON)
 
-2. **Estado persistente en servicios externos:**
-   - ✅ **Sesiones:** Almacenadas en PostgreSQL (`sessions` table)
-   - ✅ **Datos de aplicación:** PostgreSQL
-   - ✅ **Cache (opcional):** Redis (si se configura)
-   - ✅ **Logs:** Enviados a stdout/stderr (capturados por el orquestador)
+2. **Persistent state in external services:**
+   - ✅ **Sessions:** Stored in PostgreSQL (`sessions` table)
+   - ✅ **Application data:** PostgreSQL
+   - ✅ **Cache (optional):** Redis (if configured)
+   - ✅ **Logs:** Sent to stdout/stderr (captured by orchestrator)
 
-3. **Estado efímero en memoria:**
-   - ⚠️ **WebSocket Hub:** Mantiene conexiones activas en memoria
-   - ⚠️ **Event Bus:** Estado de suscripciones en memoria
-   - ℹ️ **Nota:** Estos son aceptables para procesos stateless, pero tienen implicaciones para escalado horizontal (ver abajo)
+3. **Ephemeral state in memory:**
+   - ⚠️ **WebSocket Hub:** Maintains active connections in memory
+   - ⚠️ **Event Bus:** Subscription state in memory
+   - ℹ️ **Note:** These are acceptable for stateless processes, but have implications for horizontal scaling (see below)
 
-### Verificación de Stateless
+### Stateless Verification
 
-**Verificación realizada:**
+**Verification performed:**
 
 ```bash
-# No hay escritura de archivos temporales
+# No temporary file writing
 grep -r "os.Create\|ioutil.WriteFile\|/tmp" cmd/ internal/ modules/ --exclude-dir=vendor
 
-# No hay estado en sistema de archivos
+# No state in file system
 grep -r "file.*state\|local.*state" cmd/ internal/ modules/
 ```
 
-**Resultado:** ✅ No se encontraron escrituras de archivos temporales o almacenamiento de estado local.
+**Result:** ✅ No temporary file writes or local state storage found.
 
-### Implicaciones para Escalado Horizontal
+### Implications for Horizontal Scaling
 
-#### ✅ Escalado Sin Problemas
+#### ✅ Scaling Without Issues
 
-- **HTTP/gRPC requests:** Completamente stateless, cualquier instancia puede manejar cualquier request
-- **Sesiones:** Almacenadas en DB compartida, cualquier instancia puede validar sesiones
-- **JWT tokens:** Stateless, no requieren almacenamiento en servidor
+- **HTTP/gRPC requests:** Completely stateless, any instance can handle any request
+- **Sessions:** Stored in shared DB, any instance can validate sessions
+- **JWT tokens:** Stateless, don't require server storage
 
-#### ⚠️ Consideraciones para WebSocket
+#### ⚠️ WebSocket Considerations
 
-El **WebSocket Hub** mantiene conexiones activas en memoria. Esto significa:
+The **WebSocket Hub** maintains active connections in memory. This means:
 
-1. **Sticky Sessions (Recomendado):**
-   - Configurar load balancer con sticky sessions (session affinity)
-   - Asegura que un cliente siempre se conecte a la misma instancia
-   - Implementación: Configurar `sessionAffinity` en Kubernetes Service
+1. **Sticky Sessions (Recommended):**
+   - Configure load balancer with sticky sessions (session affinity)
+   - Ensures a client always connects to the same instance
+   - Implementation: Configure `sessionAffinity` in Kubernetes Service
 
-2. **Alternativa: Shared State (Avanzado):**
-   - Para escalado sin sticky sessions, considerar Redis Pub/Sub para WebSocket
-   - Implementar hub distribuido usando `internal/events/distributed.go` como referencia
-   - Requiere implementación adicional (no incluida en template base)
+2. **Alternative: Shared State (Advanced):**
+   - For scaling without sticky sessions, consider Redis Pub/Sub for WebSocket
+   - Implement distributed hub using `internal/events/distributed.go` as reference
+   - Requires additional implementation (not included in base template)
 
-**Recomendación para producción:**
-- Para la mayoría de casos, sticky sessions son suficientes
-- Para alta disponibilidad sin sticky sessions, implementar hub distribuido
+**Production recommendation:**
+- For most cases, sticky sessions are sufficient
+- For high availability without sticky sessions, implement distributed hub
 
-### Proceso de Inicio y Shutdown
+### Startup and Shutdown Process
 
-**Inicio (Startup):**
-1. Carga configuración desde environment/YAML
-2. Conecta a servicios externos (DB, Redis opcional)
-3. Ejecuta migraciones (si es necesario)
-4. Inicializa módulos
-5. Inicia servidores HTTP/gRPC
-6. Listo para recibir requests
+**Startup:**
+1. Loads configuration from environment/YAML
+2. Connects to external services (DB, optional Redis)
+3. Runs migrations (if necessary)
+4. Initializes modules
+5. Starts HTTP/gRPC servers
+6. Ready to receive requests
 
 **Shutdown (Graceful):**
-1. Detiene aceptar nuevas conexiones
-2. Cierra conexiones WebSocket activas
-3. Espera que requests en vuelo terminen (timeout configurable)
-4. Cierra conexiones a servicios externos
-5. Flush de telemetría (tracing/metrics)
-6. Termina proceso
+1. Stops accepting new connections
+2. Closes active WebSocket connections
+3. Waits for in-flight requests to finish (configurable timeout)
+4. Closes connections to external services
+5. Flushes telemetry (tracing/metrics)
+6. Terminates process
 
-**Tiempo de shutdown:** Configurable via `SHUTDOWN_TIMEOUT` (default: 30s)
+**Shutdown time:** Configurable via `SHUTDOWN_TIMEOUT` (default: 30s)
 
-### Proceso Modelo
+### Process Model
 
-El template soporta dos tipos de procesos:
+The template supports two types of processes:
 
 1. **Web Process (`cmd/server/main.go`):**
-   - Maneja requests HTTP/gRPC
-   - Gestiona conexiones WebSocket
-   - Escala horizontalmente (con consideraciones de WebSocket)
+   - Handles HTTP/gRPC requests
+   - Manages WebSocket connections
+   - Scales horizontally (with WebSocket considerations)
 
 2. **Worker Process (`cmd/worker/main.go`):**
-   - Procesa eventos asíncronos
-   - Ejecuta tareas programadas
-   - Consume del event bus
-   - Escala independientemente del web process
+   - Processes asynchronous events
+   - Executes scheduled tasks
+   - Consumes from event bus
+   - Scales independently from web process
 
 **Procfile (Heroku/Railway compatible):**
 ```
@@ -2021,50 +2060,50 @@ web: go run cmd/server/main.go
 worker: go run cmd/worker/main.go
 ```
 
-### Checklist de Stateless
+### Stateless Checklist
 
-Antes de agregar nueva funcionalidad, verificar:
+Before adding new functionality, verify:
 
-- [ ] ¿Se escribe algún archivo temporal? → **NO**
-- [ ] ¿Se almacena estado en memoria que debe persistir entre reinicios? → **NO** (usar DB/Redis)
-- [ ] ¿Se depende de estado local del proceso? → **NO** (cualquier instancia debe funcionar)
-- [ ] ¿Las sesiones están en DB compartida? → **SÍ**
-- [ ] ¿Los logs van a stdout? → **SÍ**
+- [ ] Is any temporary file written? → **NO**
+- [ ] Is state stored in memory that must persist between restarts? → **NO** (use DB/Redis)
+- [ ] Does it depend on local process state? → **NO** (any instance must work)
+- [ ] Are sessions in shared DB? → **YES**
+- [ ] Do logs go to stdout? → **YES**
 
-### Referencias
+### References
 
 - [12-Factor App: Processes](https://12factor.net/processes)
 - [12-Factor App: Disposability](https://12factor.net/disposability)
-- Ver también: `docs/12_FACTOR_APP.md` (guía completa de compliance)
+- See also: `docs/12_FACTOR_APP.md` (complete compliance guide)
 
 ## 21. Concurrency (12-Factor App: Factor VIII)
 
-El template está diseñado para escalar horizontalmente mediante el **modelo de procesos** de la metodología 12-factor app.
+The template is designed to scale horizontally through the **process model** of the 12-factor app methodology.
 
-### Modelo de Procesos
+### Process Model
 
-La aplicación se ejecuta como uno o más **procesos stateless** que comparten nada o comparten solo servicios externos (DB, Redis).
+The application runs as one or more **stateless processes** that share nothing or share only external services (DB, Redis).
 
-**Tipos de Procesos:**
+**Process Types:**
 
 1. **Web Process** (`cmd/server/main.go`):
-   - Maneja requests HTTP/gRPC
-   - Gestiona conexiones WebSocket
-   - Escala horizontalmente
+   - Handles HTTP/gRPC requests
+   - Manages WebSocket connections
+   - Scales horizontally
 
 2. **Worker Process** (`cmd/worker/main.go`):
-   - Procesa eventos asíncronos
-   - Ejecuta tareas programadas
-   - Escala independientemente
+   - Processes asynchronous events
+   - Executes scheduled tasks
+   - Scales independently
 
-### Escalado Horizontal
+### Horizontal Scaling
 
 **HTTP/gRPC Requests:**
-- ✅ **Completamente stateless:** Cualquier instancia puede manejar cualquier request
-- ✅ **Sin sticky sessions requeridas:** Load balancer puede distribuir requests aleatoriamente
-- ✅ **Escalado automático:** HPA (Horizontal Pod Autoscaler) configurado en Helm chart
+- ✅ **Completely stateless:** Any instance can handle any request
+- ✅ **No sticky sessions required:** Load balancer can distribute requests randomly
+- ✅ **Automatic scaling:** HPA (Horizontal Pod Autoscaler) configured in Helm chart
 
-**Ejemplo de escalado:**
+**Scaling example:**
 ```yaml
 # deployment/helm/modulith/values-server.yaml
 autoscaling:
@@ -2075,21 +2114,21 @@ autoscaling:
 ```
 
 **Worker Processes:**
-- ✅ **Escalado independiente:** Puede tener más workers que web processes
-- ✅ **Event-driven:** Escala según volumen de eventos
-- ✅ **Sin dependencias:** Cada worker es independiente
+- ✅ **Independent scaling:** Can have more workers than web processes
+- ✅ **Event-driven:** Scales according to event volume
+- ✅ **No dependencies:** Each worker is independent
 
-### Consideraciones de Concurrencia
+### Concurrency Considerations
 
 #### 1. WebSocket Scaling
 
-**Limitación:**
-- El WebSocket Hub mantiene conexiones en memoria
-- Un cliente debe conectarse siempre a la misma instancia
+**Limitation:**
+- The WebSocket Hub maintains connections in memory
+- A client must always connect to the same instance
 
-**Solución Recomendada: Sticky Sessions**
+**Recommended Solution: Sticky Sessions**
 ```yaml
-# Kubernetes Service con session affinity
+# Kubernetes Service with session affinity
 apiVersion: v1
 kind: Service
 metadata:
@@ -2098,44 +2137,44 @@ spec:
   sessionAffinity: ClientIP
   sessionAffinityConfig:
     clientIP:
-      timeoutSeconds: 10800  # 3 horas
+      timeoutSeconds: 10800  # 3 hours
 ```
 
-**Alternativa: Hub Distribuido (Avanzado)**
-- Implementar hub distribuido usando Redis Pub/Sub
-- Requiere implementación adicional (no incluida en template base)
-- Ver `internal/events/distributed.go` como referencia
+**Alternative: Distributed Hub (Advanced)**
+- Implement distributed hub using Redis Pub/Sub
+- Requires additional implementation (not included in base template)
+- See `internal/events/distributed.go` as reference
 
 #### 2. Database Connections
 
 **Connection Pooling:**
 ```yaml
 # configs/server.yaml
-db_max_open_conns: 25      # Por instancia
+db_max_open_conns: 25      # Per instance
 db_max_idle_conns: 25
 db_conn_max_lifetime: 5m
 ```
 
-**Cálculo de conexiones:**
-- Si tienes 5 instancias: 5 × 25 = 125 conexiones máximas
-- Ajustar `DB_MAX_OPEN_CONNS` según número de instancias esperadas
-- PostgreSQL default: 100 conexiones (ajustar `max_connections` si es necesario)
+**Connection calculation:**
+- If you have 5 instances: 5 × 25 = 125 maximum connections
+- Adjust `DB_MAX_OPEN_CONNS` according to expected number of instances
+- PostgreSQL default: 100 connections (adjust `max_connections` if necessary)
 
 #### 3. Event Bus Concurrency
 
 **In-Process Bus:**
-- ✅ Thread-safe con `sync.RWMutex`
-- ✅ Múltiples goroutines pueden publicar/subscribir simultáneamente
-- ⚠️ Solo funciona dentro de un proceso
+- ✅ Thread-safe with `sync.RWMutex`
+- ✅ Multiple goroutines can publish/subscribe simultaneously
+- ⚠️ Only works within a process
 
-**Distributed Bus (Futuro):**
-- Usar `internal/events/distributed.go` como base
-- Implementar con Kafka, RabbitMQ, o Redis Pub/Sub
-- Permite eventos entre instancias
+**Distributed Bus (Future):**
+- Use `internal/events/distributed.go` as base
+- Implement with Kafka, RabbitMQ, or Redis Pub/Sub
+- Enables events between instances
 
-### Proceso de Escalado
+### Scaling Process
 
-**1. Escalado Manual:**
+**1. Manual Scaling:**
 ```bash
 # Kubernetes
 kubectl scale deployment modulith-server --replicas=5
@@ -2145,9 +2184,9 @@ helm upgrade modulith-server ./deployment/helm/modulith \
   --set replicaCount=5
 ```
 
-**2. Escalado Automático (HPA):**
+**2. Automatic Scaling (HPA):**
 ```yaml
-# Ya configurado en Helm chart
+# Already configured in Helm chart
 autoscaling:
   enabled: true
   minReplicas: 2
@@ -2156,9 +2195,9 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
 ```
 
-**3. Escalado Basado en Métricas:**
+**3. Metrics-Based Scaling:**
 ```yaml
-# Ejemplo: Escalar basado en requests por segundo
+# Example: Scale based on requests per second
 metrics:
   - type: Pods
     pods:
@@ -2169,7 +2208,7 @@ metrics:
         averageValue: "100"
 ```
 
-### Mejores Prácticas
+### Best Practices
 
 **1. Resource Limits:**
 ```yaml
@@ -2183,20 +2222,20 @@ resources:
 ```
 
 **2. Readiness Probes:**
-- Asegurar que el pod está listo antes de recibir tráfico
-- Configurado en Helm chart: `/readyz`
+- Ensure pod is ready before receiving traffic
+- Configured in Helm chart: `/readyz`
 
 **3. Graceful Shutdown:**
-- Configurar `SHUTDOWN_TIMEOUT` apropiado
-- Permitir que requests en vuelo terminen
-- Default: 30 segundos
+- Configure appropriate `SHUTDOWN_TIMEOUT`
+- Allow in-flight requests to finish
+- Default: 30 seconds
 
 **4. Health Checks:**
-- Liveness: `/livez` (proceso vivo)
-- Readiness: `/readyz` (listo para requests)
-- Startup: `/readyz` (primera vez)
+- Liveness: `/livez` (process alive)
+- Readiness: `/readyz` (ready for requests)
+- Startup: `/readyz` (first time)
 
-### Ejemplo: Arquitectura Escalada
+### Example: Scaled Architecture
 
 ```
                     ┌───────-──────┐
@@ -2223,15 +2262,15 @@ resources:
    └─────────┘     └─────────┘     └─────────┘
 ```
 
-### Checklist de Concurrencia
+### Concurrency Checklist
 
-Antes de escalar a producción:
+Before scaling to production:
 
-- [ ] Configurar HPA con límites apropiados
-- [ ] Ajustar connection pool según número de instancias
-- [ ] Configurar sticky sessions para WebSocket (si aplica)
-- [ ] Validar que health checks funcionan correctamente
-- [ ] Configurar resource limits y requests
-- [ ] Probar escalado manual antes de habilitar automático
-- [ ] Monitorear métricas durante escalado
-- [ ] Documentar límites conocidos (WebSocket, etc.)
+- [ ] Configure HPA with appropriate limits
+- [ ] Adjust connection pool according to number of instances
+- [ ] Configure sticky sessions for WebSocket (if applicable)
+- [ ] Validate that health checks work correctly
+- [ ] Configure resource limits and requests
+- [ ] Test manual scaling before enabling automatic
+- [ ] Monitor metrics during scaling
+- [ ] Document known limitations (WebSocket, etc.)

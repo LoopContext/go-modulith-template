@@ -1,104 +1,104 @@
-# Propuesta: Integración de Frontend con Go Templates + HTMX
+# Proposal: Frontend Integration with Go Templates + HTMX
 
-## Resumen Ejecutivo
+## Executive Summary
 
-Esta propuesta documenta la decisión arquitectónica de incluir el frontend web en el mismo repositorio del modulith, utilizando **Go Templates** para renderizado del servidor y **HTMX** para interacciones dinámicas. Esta arquitectura mantiene la coherencia con el diseño monolítico modular y simplifica significativamente el despliegue y desarrollo.
+This proposal documents the architectural decision to include the web frontend in the same modulith repository, using **Go Templates** for server-side rendering and **HTMX** for dynamic interactions. This architecture maintains consistency with the modular monolith design and significantly simplifies deployment and development.
 
-## Justificación
+## Justification
 
-### Ventajas de la Integración
+### Integration Advantages
 
-1. **Arquitectura Coherente**: El proyecto ya expone HTTP vía `grpc-gateway`; servir HTML con templates es una extensión natural del mismo servidor HTTP.
+1. **Coherent Architecture**: The project already exposes HTTP via `grpc-gateway`; serving HTML with templates is a natural extension of the same HTTP server.
 
-2. **Un Solo Binario**: Simplifica el despliegue eliminando la necesidad de gestionar múltiples servicios, builds y configuraciones separadas.
+2. **Single Binary**: Simplifies deployment by eliminating the need to manage multiple services, builds, and separate configurations.
 
-3. **Co-locación de Código**: Templates y handlers viven junto al código de negocio, facilitando el desarrollo y mantenimiento.
+3. **Code Co-location**: Templates and handlers live alongside business code, facilitating development and maintenance.
 
-4. **HTMX como Complemento Perfecto**:
-   - No requiere build step (solo HTML + JavaScript inline)
-   - Peticiones pequeñas y eficientes
-   - El servidor ya maneja HTTP de forma robusta
-   - Permite interacciones dinámicas sin complejidad de SPA
+4. **HTMX as Perfect Complement**:
+   - No build step required (just HTML + inline JavaScript)
+   - Small and efficient requests
+   - Server already handles HTTP robustly
+   - Enables dynamic interactions without SPA complexity
 
-5. **Consistencia con Modulith**: Mantiene el principio de "todo en un lugar" mientras permite separación modular interna.
+5. **Consistency with Modulith**: Maintains the "everything in one place" principle while allowing internal modular separation.
 
-6. **Desarrollo Simplificado**:
-   - Hot reload con Air funciona para templates también
-   - No hay sincronización entre repositorios
-   - Testing más simple (todo en un proceso)
+6. **Simplified Development**:
+   - Hot reload with Air works for templates too
+   - No synchronization between repositories
+   - Simpler testing (everything in one process)
 
-### Comunicación en Tiempo Real
+### Real-Time Communication
 
-El backend ya incluye **WebSocket** integrado (`/ws`) para comunicación bidireccional en tiempo real:
+The backend already includes integrated **WebSocket** (`/ws`) for bidirectional real-time communication:
 
-- **Autenticación JWT**: Las conexiones WebSocket están protegidas
-- **Integración con Event Bus**: Los eventos del backend se propagan automáticamente a los clientes
-- **Broadcast y Mensajes Dirigidos**: Soporte para notificaciones globales y específicas por usuario
+- **JWT Authentication**: WebSocket connections are protected
+- **Event Bus Integration**: Backend events automatically propagate to clients
+- **Broadcast and Directed Messages**: Support for global and user-specific notifications
 
-**Ver documentación completa:** `docs/WEBSOCKET_GUIDE.md`
+**See complete documentation:** `docs/WEBSOCKET_GUIDE.md`
 
-### API Flexible (Opcional)
+### Flexible API (Optional)
 
-Si necesitas una API más flexible que REST, el backend soporta **GraphQL** opcional:
+If you need a more flexible API than REST, the backend supports optional **GraphQL**:
 
-- **Schema por Módulo**: Cada módulo define su propio schema GraphQL
-- **Subscriptions**: Subscripciones en tiempo real vía WebSocket
-- **Integración con Event Bus**: Las subscriptions pueden escuchar eventos internos
+- **Schema per Module**: Each module defines its own GraphQL schema
+- **Subscriptions**: Real-time subscriptions via WebSocket
+- **Event Bus Integration**: Subscriptions can listen to internal events
 
-**Ver documentación completa:** `docs/GRAPHQL_INTEGRATION.md`
+**See complete documentation:** `docs/GRAPHQL_INTEGRATION.md`
 
-### Casos de Uso Ideales
+### Ideal Use Cases
 
 - **Dashboards administrativos**: Interfaces de gestión internas
 - **Aplicaciones B2B**: Portales para clientes empresariales
 - **Herramientas internas**: Paneles de control, configuraciones
-- **Aplicaciones con bajo tráfico de UI**: Donde la simplicidad supera la necesidad de optimización extrema
+- **Applications with low UI traffic**: Where simplicity outweighs the need for extreme optimization
 
-## Estructura Propuesta
+## Proposed Structure
 
 ```
-proyecto/
+project/
 ├── cmd/
 │   └── server/
 │       └── main.go
 ├── internal/
 │   ├── config/
-│   ├── handlers/          # Nuevo: HTTP handlers para HTML
-│   │   ├── web.go        # Handlers principales que renderizan templates
-│   │   └── middleware.go # Middleware para web (CSRF, auth, etc.)
-│   └── templates/         # Nuevo: Templates HTML
-│       ├── base.html      # Template base con layout común
-│       ├── pages/         # Páginas completas
+│   ├── handlers/          # New: HTTP handlers for HTML
+│   │   ├── web.go        # Main handlers that render templates
+│   │   └── middleware.go # Middleware for web (CSRF, auth, etc.)
+│   └── templates/         # New: HTML templates
+│       ├── base.html      # Base template with common layout
+│       ├── pages/         # Complete pages
 │       │   ├── login.html
 │       │   ├── dashboard.html
 │       │   └── profile.html
-│       └── components/    # Componentes reutilizables (partials)
+│       └── components/    # Reusable components (partials)
 │           ├── navbar.html
 │           ├── footer.html
 │           └── form.html
-├── static/                # Nuevo: Assets estáticos
+├── static/                # New: Static assets
 │   ├── css/
 │   │   └── main.css
 │   ├── js/
-│   │   └── htmx.min.js   # HTMX desde CDN o local
+│   │   └── htmx.min.js   # HTMX from CDN or local
 │   └── images/
 │       └── logo.svg
 ├── modules/
 │   └── auth/
 │       └── internal/
-│           └── handlers/  # Handlers específicos del módulo auth
+│           └── handlers/  # Auth module-specific handlers
 │               └── web.go # Login, logout, etc.
 └── configs/
     └── server.yaml
 ```
 
-## Implementación Técnica
+## Technical Implementation
 
-### 1. Estructura de Handlers
+### 1. Handler Structure
 
-Los handlers web pueden organizarse de dos formas:
+Web handlers can be organized in two ways:
 
-#### Opción A: Handlers Centralizados (Recomendado para inicio)
+#### Option A: Centralized Handlers (Recommended for start)
 
 ```go
 // internal/handlers/web.go
@@ -115,7 +115,7 @@ var templatesFS embed.FS
 
 type WebHandler struct {
     tmpl *template.Template
-    // Dependencias: auth service, etc.
+    // Dependencies: auth service, etc.
 }
 
 func NewWebHandler() (*WebHandler, error) {
@@ -135,7 +135,7 @@ func (h *WebHandler) Home(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-#### Opción B: Handlers por Módulo (Recomendado para escalar)
+#### Option B: Handlers per Module (Recommended for scaling)
 
 ```go
 // modules/auth/internal/handlers/web.go
@@ -151,20 +151,20 @@ func (h *AuthWebHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthWebHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
-    // Procesar login vía HTMX
+    // Process login via HTMX
     email := r.FormValue("email")
-    // ... lógica de login
+    // ... login logic
 
-    // Respuesta HTMX (fragmento HTML o redirect)
+    // HTMX response (HTML fragment or redirect)
     w.Header().Set("HX-Redirect", "/dashboard")
     w.WriteHeader(http.StatusOK)
 }
 ```
 
-### 2. Integración en main.go
+### 2. Integration in main.go
 
 ```go
-// En cmd/server/main.go, después de setupGateway:
+// In cmd/server/main.go, after setupGateway:
 
 // Setup web handlers (HTML + HTMX)
 webHandler, err := handlers.NewWebHandler()
@@ -185,13 +185,13 @@ webMux.Handle("/static/", http.StripPrefix("/static/",
 // Mount web routes on HTTP server
 mux := http.NewServeMux()
 mux.Handle("/", webMux)              // Web routes (HTML)
-mux.Handle("/v1/", grpcGatewayMux)   // gRPC Gateway (API REST)
+mux.Handle("/v1/", grpcGatewayMux)   // gRPC Gateway (REST API)
 mux.Handle("/metrics", metricsHandler)
 mux.HandleFunc("/healthz", healthz)
 mux.HandleFunc("/readyz", readyz)
 ```
 
-### 3. Template Base con HTMX
+### 3. Base Template with HTMX
 
 ```html
 <!-- internal/templates/base.html -->
@@ -226,7 +226,7 @@ mux.HandleFunc("/readyz", readyz)
           hx-target="#login-result"
           hx-swap="innerHTML">
         <input type="email" name="email" placeholder="Email" required>
-        <button type="submit">Enviar Código Mágico</button>
+        <button type="submit">Send Magic Code</button>
     </form>
 
     <div id="login-result"></div>
@@ -234,23 +234,23 @@ mux.HandleFunc("/readyz", readyz)
 {{end}}
 ```
 
-## Routing y Middleware
+## Routing and Middleware
 
-### Estructura de Rutas Sugerida
+### Suggested Route Structure
 
 ```
 /                    → Home/Dashboard (HTML)
-/login               → Página de login (HTML)
-/api/auth/login      → Endpoint HTMX para login
-/api/auth/complete   → Endpoint HTMX para completar login
-/static/*            → Assets estáticos (CSS, JS, imágenes)
-/v1/*                → gRPC Gateway (API REST para clientes externos)
+/login               → Login page (HTML)
+/api/auth/login      → HTMX endpoint for login
+/api/auth/complete   → HTMX endpoint to complete login
+/static/*            → Static assets (CSS, JS, images)
+/v1/*                → gRPC Gateway (REST API for external clients)
 /metrics             → Prometheus metrics
 /healthz             → Liveness probe
 /readyz              → Readiness probe
 ```
 
-### Middleware Recomendado
+### Recommended Middleware
 
 ```go
 // internal/handlers/middleware.go
@@ -258,30 +258,30 @@ package handlers
 
 func RequireAuth(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        // Verificar JWT del cookie o header
-        // Si no autenticado, redirect a /login
+        // Verify JWT from cookie or header
+        // If not authenticated, redirect to /login
         next.ServeHTTP(w, r)
     })
 }
 
 func CSRFProtection(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        // Validar CSRF token para POST/PUT/DELETE
+        // Validate CSRF token for POST/PUT/DELETE
         next.ServeHTTP(w, r)
     })
 }
 ```
 
-## Assets Estáticos
+## Static Assets
 
-### Opción 1: FileServer (Desarrollo)
+### Option 1: FileServer (Development)
 
 ```go
 webMux.Handle("/static/", http.StripPrefix("/static/",
     http.FileServer(http.Dir("static"))))
 ```
 
-### Opción 2: embed (Producción - Recomendado)
+### Option 2: embed (Production - Recommended)
 
 ```go
 //go:embed static/*
@@ -291,37 +291,37 @@ webMux.Handle("/static/", http.StripPrefix("/static/",
     http.FileServer(http.FS(staticFS))))
 ```
 
-**Ventaja de embed**: Todo el frontend queda empaquetado en el binario, eliminando dependencias de archivos externos en producción.
+**embed advantage**: All frontend is packaged in the binary, eliminating external file dependencies in production.
 
-## Consideraciones de Seguridad
+## Security Considerations
 
-1. **CSRF Protection**: Implementar tokens CSRF para todas las formas
-2. **XSS Prevention**: Usar `html/template` (no `text/template`) que escapa automáticamente
-3. **Content Security Policy**: Headers CSP apropiados
-4. **Authentication**: Cookies HTTP-only para tokens JWT
-5. **HTTPS**: Obligatorio en producción
+1. **CSRF Protection**: Implement CSRF tokens for all forms
+2. **XSS Prevention**: Use `html/template` (not `text/template`) which automatically escapes
+3. **Content Security Policy**: Appropriate CSP headers
+4. **Authentication**: HTTP-only cookies for JWT tokens
+5. **HTTPS**: Mandatory in production
 
-## Escalabilidad Futura
+## Future Scalability
 
-### Separación Gradual
+### Gradual Separation
 
-Si en el futuro necesitas separar frontend/backend:
+If you need to separate frontend/backend in the future:
 
-1. **Fase 1 (Actual)**: Todo en un binario
-2. **Fase 2**: Extraer handlers web a un módulo independiente
-3. **Fase 3**: Mover a microservicio separado manteniendo la misma API
+1. **Phase 1 (Current)**: Everything in one binary
+2. **Phase 2**: Extract web handlers to an independent module
+3. **Phase 3**: Move to separate microservice maintaining the same API
 
-El diseño modulith facilita esta transición sin cambios drásticos.
+The modulith design facilitates this transition without drastic changes.
 
-### Alternativas para Escalar
+### Scaling Alternatives
 
-- **CDN para Assets**: Servir CSS/JS desde CDN en producción
-- **Caching**: Headers de cache apropiados para assets estáticos
-- **SSR Caching**: Cachear templates renderizados si es necesario
+- **CDN for Assets**: Serve CSS/JS from CDN in production
+- **Caching**: Appropriate cache headers for static assets
+- **SSR Caching**: Cache rendered templates if necessary
 
 ## Testing
 
-### Unit Tests para Handlers
+### Unit Tests for Handlers
 
 ```go
 func TestWebHandler_Home(t *testing.T) {
@@ -341,62 +341,62 @@ func TestWebHandler_Home(t *testing.T) {
 
 ```go
 func TestLoginFlow(t *testing.T) {
-    // Test completo: página login → HTMX request → redirect
-    // Similar a los tests de gRPC pero con HTTP
+    // Complete test: login page → HTMX request → redirect
+    // Similar to gRPC tests but with HTTP
 }
 ```
 
 ## Hot Reload
 
-Air ya está configurado para monitorear archivos `.html`. Los cambios en templates se reflejarán automáticamente al reiniciar el servidor.
+Air is already configured to monitor `.html` files. Template changes will automatically reflect when the server restarts.
 
-**Recomendación**: Agregar `"html"` a `include_ext` en `.air.toml` (ya está incluido según el diff).
+**Recommendation**: Add `"html"` to `include_ext` in `.air.toml` (already included according to diff).
 
-## Ventajas vs Desventajas
+## Advantages vs Disadvantages
 
-### Ventajas ✅
+### Advantages ✅
 
-- Simplicidad operativa (un solo binario)
-- Desarrollo más rápido (sin sincronización entre repos)
-- Menor complejidad de infraestructura
-- Co-locación de código relacionado
-- HTMX es ligero y eficiente
-- Fácil de testear (todo en un proceso)
+- Operational simplicity (single binary)
+- Faster development (no synchronization between repos)
+- Lower infrastructure complexity
+- Co-location of related code
+- HTMX is lightweight and efficient
+- Easy to test (everything in one process)
 
-### Desventajas ⚠️
+### Disadvantages ⚠️
 
-- Equipos frontend/backend trabajan en el mismo repo (puede ser ventaja también)
-- Si necesitas SPA complejo, esta arquitectura no es ideal
-- Assets estáticos aumentan el tamaño del binario (mitigado con CDN)
-- Menos flexibilidad para deployar frontend/backend por separado (mitigado por diseño modulith)
+- Frontend/backend teams work in the same repo (can also be an advantage)
+- If you need a complex SPA, this architecture is not ideal
+- Static assets increase binary size (mitigated with CDN)
+- Less flexibility to deploy frontend/backend separately (mitigated by modulith design)
 
-## Recomendación Final
+## Final Recommendation
 
-**✅ SÍ, incluir el frontend en el mismo repositorio** si:
+**✅ YES, include frontend in the same repository** if:
 
-- Usas Go Templates + HTMX (arquitectura tradicional de servidor)
-- Priorizas simplicidad sobre separación estricta
-- El equipo es pequeño o el mismo equipo trabaja en ambos
-- No necesitas un SPA complejo con React/Vue/etc.
+- You use Go Templates + HTMX (traditional server architecture)
+- You prioritize simplicity over strict separation
+- The team is small or the same team works on both
+- You don't need a complex SPA with React/Vue/etc.
 
-**❌ NO incluir** si:
+**❌ DON'T include** if:
 
-- Necesitas un SPA complejo con framework moderno (React, Vue, Svelte)
-- Tienes equipos completamente separados frontend/backend
-- Requieres deployar frontend/backend independientemente desde el inicio
+- You need a complex SPA with modern framework (React, Vue, Svelte)
+- You have completely separate frontend/backend teams
+- You require deploying frontend/backend independently from the start
 
-## Próximos Pasos
+## Next Steps
 
-1. Crear estructura de carpetas (`internal/templates/`, `static/`)
-2. Implementar handler base con template parsing
-3. Integrar en `cmd/server/main.go`
-4. Crear template base y primera página de ejemplo
-5. Configurar middleware de autenticación para web
-6. Documentar patrones de HTMX en el proyecto
+1. Create folder structure (`internal/templates/`, `static/`)
+2. Implement base handler with template parsing
+3. Integrate in `cmd/server/main.go`
+4. Create base template and first example page
+5. Configure authentication middleware for web
+6. Document HTMX patterns in the project
 
 ---
 
-**Fecha de Propuesta**: 2025-01-XX
+**Proposal Date**: 2025-01-XX
 **Estado**: Propuesto
 **Decisión**: Pendiente de aprobación
 

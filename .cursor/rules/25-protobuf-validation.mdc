@@ -1,0 +1,123 @@
+---
+globs: *.proto
+alwaysApply: false
+---
+
+## Protobuf Validation with Protovalidate
+
+### Overview
+
+All gRPC requests are **automatically validated** using [protovalidate](https://github.com/bufbuild/protovalidate). The validation interceptor runs globally for all modules - **no per-module setup required**.
+
+### How It Works
+
+1. **Global Interceptor**: The validation interceptor is registered once in `cmd/server/main.go` and applies to all gRPC requests across all modules.
+
+2. **Automatic Detection**: The interceptor automatically validates any protobuf message that has validation annotations.
+
+3. **Zero Configuration**: New modules automatically get validation - just add annotations to proto messages.
+
+### Adding Validation to Proto Messages
+
+#### Required Import
+
+```protobuf
+import "buf/validate/validate.proto";
+```
+
+#### Common Validation Rules
+
+**String Fields:**
+```protobuf
+message CreateUserRequest {
+  // Required field with min length
+  string email = 1 [(buf.validate.field).string = {
+    email: true,
+    min_len: 1
+  }];
+
+  // Optional field with max length (validation only applies when set)
+  string display_name = 2 [(buf.validate.field).string.max_len = 100];
+
+  // Pattern validation (phone number)
+  string phone = 3 [(buf.validate.field).string.pattern = "^\\+?[1-9]\\d{1,14}$"];
+
+  // URI validation
+  string avatar_url = 4 [(buf.validate.field).string.uri = true];
+}
+```
+
+**Numeric Fields:**
+```protobuf
+message UpdateQuantityRequest {
+  // Must be greater than 0
+  int32 quantity = 1 [(buf.validate.field).int32.gt = 0];
+
+  // Range validation
+  int64 price = 2 [(buf.validate.field).int64 = {
+    gte: 0,
+    lte: 1000000
+  }];
+}
+```
+
+**Repeated Fields:**
+```protobuf
+message CreateOrderRequest {
+  // At least one item required
+  repeated string items = 1 [(buf.validate.field).repeated.min_items = 1];
+
+  // Maximum 100 items
+  repeated OrderItem items = 2 [(buf.validate.field).repeated.max_items = 100];
+}
+```
+
+**Enum Fields:**
+```protobuf
+message UpdateStatusRequest {
+  // Must be one of the allowed values
+  Status status = 1 [(buf.validate.field).enum = {
+    in: [1, 2, 3]  // Use numeric enum values
+  }];
+}
+```
+
+### Validation Strategy
+
+#### Interceptor Level (Automatic)
+- **Field format validation**: email format, phone patterns, URI format, string length, numeric ranges
+- **Required field validation**: Use `min_len: 1` for required strings
+- **Pattern validation**: Regex patterns for strings
+- Returns `codes.InvalidArgument` with detailed field-level error messages
+
+#### Service Level (Business Logic)
+- **Cross-field validation**: "one of email or phone must be provided" - handled in service layer
+- **Database-dependent validation**: Check if user exists, verify magic codes, etc.
+- **Domain-specific rules**: Business logic that requires database lookups
+
+### Best Practices
+
+1. **Always validate format** in proto files (email, phone, URI, etc.)
+2. **Use `min_len: 1`** for required string fields
+3. **Keep business logic validation** in service layer (cross-field, database lookups)
+4. **Add validation annotations** when creating new proto messages
+5. **Test validation** by sending invalid requests to verify error messages
+
+### Error Handling
+
+Validation errors are automatically converted to gRPC status errors:
+- **Code**: `codes.InvalidArgument`
+- **Message**: Field-specific validation error details from protovalidate
+- **Format**: `"validation failed: <detailed error>"`
+
+### Module Template
+
+The module scaffolding template (`templates/module/proto/module.proto.tmpl`) already includes:
+- Validation import
+- Example validation annotations on request messages
+
+New modules created with `make new-module` will have validation examples by default.
+
+### Examples
+
+See `proto/auth/v1/auth.proto` for comprehensive examples of validation annotations on all request messages.

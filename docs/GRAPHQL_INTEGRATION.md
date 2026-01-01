@@ -1,102 +1,102 @@
 # GraphQL Integration Guide (Optional)
 
-Esta guía explica cómo agregar GraphQL opcionalmente a tu proyecto usando [gqlgen](https://github.com/99designs/gqlgen), manteniendo la arquitectura modular y desacoplada.
+This guide explains how to optionally add GraphQL to your project using [gqlgen](https://github.com/99designs/gqlgen), maintaining a modular and decoupled architecture.
 
-## 🎯 ¿Por qué GraphQL Opcional?
+## 🎯 Why Optional GraphQL?
 
-- ✅ **Flexibilidad**: Los clientes pueden elegir entre gRPC (eficiente) o GraphQL (flexible)
-- ✅ **Frontend-friendly**: GraphQL es ideal para aplicaciones web/móviles
-- ✅ **Subscriptions**: Integración nativa con WebSocket para tiempo real
-- ✅ **Desacoplado**: Los módulos siguen usando el event bus, GraphQL solo expone
+- ✅ **Flexibility**: Clients can choose between gRPC (efficient) or GraphQL (flexible)
+- ✅ **Frontend-friendly**: GraphQL is ideal for web/mobile applications
+- ✅ **Subscriptions**: Native integration with WebSocket for real-time
+- ✅ **Decoupled**: Modules continue using the event bus, GraphQL only exposes
 
-## 📦 Instalación Rápida
+## 📦 Quick Installation
 
-### Opción 1: Script Automático (Recomendado)
+### Option 1: Automatic Script (Recommended)
 
 ```bash
 make add-graphql
 ```
 
-Este comando:
-- ✅ Instala gqlgen y dependencias
-- ✅ Crea estructura base de GraphQL
-- ✅ Genera código inicial
-- ✅ Integra con el servidor existente
-- ✅ Configura subscriptions con WebSocket
+This command:
+- ✅ Installs gqlgen and dependencies
+- ✅ Creates base GraphQL structure
+- ✅ Generates initial code
+- ✅ Integrates with existing server
+- ✅ Configures subscriptions with WebSocket
 
-### Opción 2: Manual
+### Option 2: Manual
 
 ```bash
-# 1. Instalar gqlgen
+# 1. Install gqlgen
 go install github.com/99designs/gqlgen@latest
 
-# 2. Inicializar GraphQL
+# 2. Initialize GraphQL
 make graphql-init
 
-# 3. Generar código
+# 3. Generate code
 make graphql-generate
 
-# 4. Integrar en servidor
-# (Ver sección de integración)
+# 4. Integrate in server
+# (See integration section)
 ```
 
-## 🏗️ Arquitectura
+## 🏗️ Architecture
 
 ```
 ┌─────────────────┐
-│  GraphQL API    │  ← Opcional, expone módulos
+│  GraphQL API    │  ← Optional, exposes modules
 │  (gqlgen)       │
 └────────┬────────┘
          │
          ↓
 ┌─────────────────┐
-│  Modules        │  ← Sin cambios
+│  Modules        │  ← No changes
 │  (gRPC + Bus)   │
 └─────────────────┘
 ```
 
-**Principio clave:** GraphQL es una **capa de exposición**, no reemplaza gRPC ni el event bus.
+**Key principle:** GraphQL is an **exposure layer**, it doesn't replace gRPC or the event bus.
 
-## 📁 Estructura de Archivos
+## 📁 File Structure
 
-Después de la instalación:
+After installation:
 
 ```
 go-modulith-template/
 ├── internal/
-│   └── graphql/          # ← Nuevo (opcional)
+│   └── graphql/          # ← New (optional)
 │       ├── schema/
-│       │   ├── schema.graphql    # Root schema (combina todos)
-│       │   ├── auth.graphql      # Schema del módulo auth
-│       │   ├── order.graphql     # Schema del módulo order
-│       │   └── payment.graphql   # Schema del módulo payment
+│       │   ├── schema.graphql    # Root schema (combines all)
+│       │   ├── auth.graphql      # Auth module schema
+│       │   ├── order.graphql     # Order module schema
+│       │   └── payment.graphql   # Payment module schema
 │       ├── resolver/
 │       │   ├── resolver.go       # Root resolver
-│       │   ├── auth.go           # Resolvers del módulo auth
-│       │   ├── order.go          # Resolvers del módulo order
-│       │   └── payment.go        # Resolvers del módulo payment
+│       │   ├── auth.go           # Auth module resolvers
+│       │   ├── order.go          # Order module resolvers
+│       │   └── payment.go        # Payment module resolvers
 │       ├── generated/
-│       │   └── (código generado)
+│       │   └── (generated code)
 │       └── server.go
-├── gqlgen.yml           # ← Configuración gqlgen
-└── cmd/server/main.go   # ← Integración opcional
+├── gqlgen.yml           # ← gqlgen configuration
+└── cmd/server/main.go   # ← Optional integration
 ```
 
-## 🎯 Estrategia: Schema por Módulo
+## 🎯 Strategy: Schema per Module
 
-**Recomendamos schema por módulo** por las siguientes razones:
+**We recommend schema per module** for the following reasons:
 
-### ✅ Ventajas
+### ✅ Advantages
 
-1. **Desacoplamiento**: Cada módulo mantiene su propio schema
-2. **Evolución Independiente**: Los módulos pueden cambiar sin afectar otros
-3. **Escalabilidad**: Si un módulo se separa a microservicio, su schema va con él
-4. **Mantenibilidad**: Más fácil encontrar y modificar código relacionado
-5. **Alineado con Modulith**: Respeta la filosofía de módulos independientes
+1. **Decoupling**: Each module maintains its own schema
+2. **Independent Evolution**: Modules can change without affecting others
+3. **Scalability**: If a module is separated to microservice, its schema goes with it
+4. **Maintainability**: Easier to find and modify related code
+5. **Aligned with Modulith**: Respects the philosophy of independent modules
 
-### 📝 Cómo Funciona
+### 📝 How It Works
 
-gqlgen **combina automáticamente** todos los schemas en `schema/*.graphql`:
+gqlgen **automatically combines** all schemas in `schema/*.graphql`:
 
 ```graphql
 # schema/schema.graphql (root)
@@ -112,7 +112,7 @@ type Subscription {
   _empty: String
 }
 
-# schema/auth.graphql (módulo auth)
+# schema/auth.graphql (auth module)
 extend type Query {
   me: User
 }
@@ -121,7 +121,7 @@ extend type Mutation {
   requestLogin(email: String): Boolean!
 }
 
-# schema/order.graphql (módulo order)
+# schema/order.graphql (order module)
 extend type Query {
   orders(userId: ID): [Order!]!
 }
@@ -131,20 +131,20 @@ extend type Mutation {
 }
 ```
 
-**Resultado final combinado:**
+**Final combined result:**
 ```graphql
 type Query {
-  me: User              # ← De auth.graphql
-  orders(userId: ID): [Order!]!  # ← De order.graphql
+  me: User              # ← From auth.graphql
+  orders(userId: ID): [Order!]!  # ← From order.graphql
 }
 ```
 
-## 🔧 Configuración
+## 🔧 Configuration
 
 ### gqlgen.yml
 
 ```yaml
-# Configuración base generada automáticamente
+# Base configuration automatically generated
 schema:
   - internal/graphql/schema/*.graphql
 
@@ -162,33 +162,33 @@ resolver:
   package: resolver
 ```
 
-## 📝 Ejemplo: Exponer Módulo Auth
+## 📝 Example: Exposing Auth Module
 
-### 1. Crear Schema del Módulo
+### 1. Create Module Schema
 
-**Estrategia: Un archivo por módulo**
+**Strategy: One file per module**
 
 ```graphql
 # internal/graphql/schema/auth.graphql
-# Schema específico del módulo auth
+# Auth module-specific schema
 
-# Extender el Query root (definido en schema.graphql)
+# Extend Query root (defined in schema.graphql)
 extend type Query {
   me: User
 }
 
-# Extender el Mutation root
+# Extend Mutation root
 extend type Mutation {
   requestLogin(email: String, phone: String): Boolean!
   completeLogin(email: String, phone: String, code: String!): AuthPayload!
 }
 
-# Extender el Subscription root
+# Extend Subscription root
 extend type Subscription {
   userEvents: UserEvent!
 }
 
-# Tipos específicos del módulo auth
+# Auth module-specific types
 type User {
   id: ID!
   email: String
@@ -207,15 +207,15 @@ type UserEvent {
 }
 ```
 
-**Nota:** Usa `extend type` para agregar campos a los tipos root definidos en `schema.graphql`.
+**Note:** Use `extend type` to add fields to root types defined in `schema.graphql`.
 
-### 2. Implementar Resolver del Módulo
+### 2. Implement Module Resolver
 
-**Estrategia: Un resolver por módulo**
+**Strategy: One resolver per module**
 
 ```go
 // internal/graphql/resolver/auth.go
-// Resolvers específicos del módulo auth
+// Auth module-specific resolvers
 
 package resolver
 
@@ -227,15 +227,15 @@ import (
     "github.com/cmelgarejo/go-modulith-template/internal/events"
 )
 
-// authResolver contiene los resolvers del módulo auth
+// authResolver contains auth module resolvers
 type authResolver struct {
     authClient pb.AuthServiceClient
     eventBus   *events.Bus
 }
 
-// Agregar al queryResolver en resolver.go:
+// Add to queryResolver in resolver.go:
 func (r *queryResolver) Me(ctx context.Context) (*generated.User, error) {
-    // Implementación aquí
+    // Implementation here
 }
 
 func (r *authResolver) RequestLogin(ctx context.Context, email *string, phone *string) (bool, error) {
