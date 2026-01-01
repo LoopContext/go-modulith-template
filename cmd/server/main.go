@@ -20,6 +20,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
 	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
+	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -117,13 +118,23 @@ func setupAndStartServers(ctx context.Context, cfg *config.AppConfig, db *sql.DB
 	ebus := events.NewBus()
 	initNotifier(ebus)
 
+	// Initialize WebSocket hub and subscriber
+	wsHub := websocket.NewHub(ctx)
+	wsSubscriber := websocket.NewSubscriber(wsHub, ebus)
+	wsSubscriber.Subscribe()
+
+	// Start WebSocket hub in background
+	go wsHub.Run()
+
+	slog.Info("WebSocket hub initialized")
+
 	grpcServer, lis, err := setupGRPC(cfg, db, ebus)
 	if err != nil {
 		slog.Error("Failed to setup gRPC server", "error", err)
 		return nil, nil, nil
 	}
 
-	mux, gatewayConn, err := setupGateway(ctx, cfg, db)
+	mux, gatewayConn, err := setupGateway(ctx, cfg, db, wsHub)
 	if err != nil {
 		_ = lis.Close()
 
@@ -135,7 +146,7 @@ func setupAndStartServers(ctx context.Context, cfg *config.AppConfig, db *sql.DB
 	httpServer = startHTTPServer(cfg, mux)
 	startGRPCServer(cfg, grpcServer, lis, stop)
 
-	return
+	return grpcServer, httpServer, gatewayConn
 }
 
 func closeGatewayConn(conn *grpc.ClientConn) {
@@ -272,7 +283,7 @@ func setupGRPC(cfg *config.AppConfig, db *sql.DB, ebus *events.Bus) (*grpc.Serve
 	return grpcServer, lis, nil
 }
 
-func setupGateway(ctx context.Context, cfg *config.AppConfig, db *sql.DB) (*http.ServeMux, *grpc.ClientConn, error) {
+func setupGateway(ctx context.Context, cfg *config.AppConfig, db *sql.DB, wsHub *websocket.Hub) (*http.ServeMux, *grpc.ClientConn, error) {
 	rmux := runtime.NewServeMux(
 		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
 			MarshalOptions: protojson.MarshalOptions{
@@ -298,8 +309,13 @@ func setupGateway(ctx context.Context, cfg *config.AppConfig, db *sql.DB) (*http
 	}
 
 	mux := http.NewServeMux()
-	setupHealthChecks(mux, db)
+	setupHealthChecks(mux, db, wsHub)
 	mux.Handle("/", rmux)
+
+	// Setup WebSocket endpoint
+	wsHandler := websocket.NewHandler(wsHub)
+	mux.Handle("/ws", wsHandler)
+	slog.Info("WebSocket endpoint registered", "path", "/ws")
 
 	if h := getMetricsHandler(); h != nil {
 		mux.Handle("/metrics", h)
@@ -312,7 +328,7 @@ func setupGateway(ctx context.Context, cfg *config.AppConfig, db *sql.DB) (*http
 	return mux, conn, nil
 }
 
-func setupHealthChecks(mux *http.ServeMux, db *sql.DB) {
+func setupHealthChecks(mux *http.ServeMux, db *sql.DB, wsHub *websocket.Hub) {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 
@@ -331,6 +347,18 @@ func setupHealthChecks(mux *http.ServeMux, db *sql.DB) {
 		w.WriteHeader(http.StatusOK)
 
 		_, _ = w.Write([]byte("Ready"))
+	})
+
+	// WebSocket connections health check
+	mux.HandleFunc("/healthz/ws", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		response := fmt.Sprintf(`{"status":"ok","connections":%d,"users":%d}`,
+			wsHub.GetTotalConnections(),
+			wsHub.GetConnectedUsers())
+
+		_, _ = w.Write([]byte(response))
 	})
 }
 

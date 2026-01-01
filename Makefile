@@ -1,4 +1,4 @@
-.PHONY: sqlc proto install-deps
+.PHONY: sqlc proto install-deps graphql-init graphql-generate graphql-validate add-graphql
 
 install-deps: ## Install developer tools
 	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
@@ -6,6 +6,7 @@ install-deps: ## Install developer tools
 	go install github.com/bufbuild/buf/cmd/buf@latest
 	go install github.com/air-verse/air@latest
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install github.com/99designs/gqlgen@latest
 
 sqlc:
 	sqlc generate
@@ -22,6 +23,23 @@ test: ## Run tests
 test-coverage: ## Run tests with coverage report
 	go test -v -race -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out
+
+coverage-report: ## Generate detailed coverage report
+	@echo "=== 📊 Coverage Total del Proyecto ==="
+	@echo ""
+	@go test ./... -coverprofile=coverage.out -covermode=atomic 2>&1 | grep "coverage:" | grep -v "0.0%" | grep -v "no test"
+	@echo ""
+	@echo "=== 📈 Resumen por Componente ==="
+	@go tool cover -func=coverage.out | grep -v "\.pb\.go" | grep -v "\.pb\.gw\.go" | grep -v "generated" | tail -20
+	@echo ""
+	@echo "=== 🎯 Coverage Total (sin código generado) ==="
+	@go tool cover -func=coverage.out | grep -v "\.pb\.go" | grep -v "\.pb\.gw\.go" | grep -v "generated" | grep -v "cmd/" | tail -1
+	@echo ""
+	@echo "💡 Para ver el reporte HTML completo: make test-coverage"
+
+coverage-html: ## Open coverage report in browser
+	@go test ./... -coverprofile=coverage.out -covermode=atomic > /dev/null 2>&1
+	@go tool cover -html=coverage.out
 
 lint: ## Run linter
 	golangci-lint run
@@ -129,3 +147,32 @@ docker-build-module: ## Build docker image for a specific module (usage: make do
 new-module:
 	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make new-module NAME"; exit 1; fi
 	./scripts/scaffold-module.sh $(MODULE_NAME)
+
+##### GraphQL (Optional)
+add-graphql: ## Add optional GraphQL support using gqlgen
+	./scripts/add-graphql.sh
+
+graphql-init: ## Initialize GraphQL (alias for add-graphql)
+	$(MAKE) add-graphql
+
+graphql-generate: ## Generate GraphQL code from schema
+	@if ! command -v gqlgen > /dev/null; then \
+		echo "gqlgen not found. Install with: go install github.com/99designs/gqlgen@latest"; \
+		exit 1; \
+	fi
+	@if [ ! -f "gqlgen.yml" ]; then \
+		echo "GraphQL not initialized. Run: make add-graphql"; \
+		exit 1; \
+	fi
+	gqlgen generate
+
+graphql-validate: ## Validate GraphQL schema
+	@if ! command -v gqlgen > /dev/null; then \
+		echo "gqlgen not found. Install with: go install github.com/99designs/gqlgen@latest"; \
+		exit 1; \
+	fi
+	@if [ ! -f "gqlgen.yml" ]; then \
+		echo "GraphQL not initialized. Run: make add-graphql"; \
+		exit 1; \
+	fi
+	gqlgen generate --verbose

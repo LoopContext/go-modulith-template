@@ -1,5 +1,10 @@
 # Go Modulith Template 🚀
 
+![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-33.8%25-yellow)
+![Go](https://img.shields.io/badge/go-1.21+-blue)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 Este es un template profesional para construir aplicaciones en Go siguiendo el patrón **Modulith**. Está diseñado para ser escalable, sostenible y fácil de mantener, permitiendo evolucionar de un monolito a microservicios sin fricción.
 
 ## ✨ Características Principales
@@ -9,6 +14,8 @@ Este es un template profesional para construir aplicaciones en Go siguiendo el p
 -   🗄️ **SQLC & Migraciones**: Acceso a datos Type-safe y gestión de esquemas con `golang-migrate`.
 -   ⚙️ **Configuración Flexible**: Sistema de configuración con jerarquía de precedencia (YAML > .env > system ENV vars > defaults) y logging de fuentes.
 -   🔄 **Hot Reload**: Desarrollo fluido con **Air** que monitorea cambios en código, configuración (`.env`, YAML) y recursos.
+-   🔌 **WebSocket Real-Time**: Comunicación bidireccional integrada con el event bus para notificaciones en tiempo real.
+-   📊 **GraphQL Opcional**: Soporte opcional con gqlgen para APIs flexibles y frontend-friendly (subscriptions incluidas).
 -   🛡️ **Observabilidad**: Integración nativa con OpenTelemetry (Tracing & Metrics), Prometheus y Health Checks con manejo de contextos.
 -   ⛴️ **Cloud Ready**: Dockerfile multi-stage y Helm Charts flexibles para Kubernetes (soporta monolito y módulos independientes).
 -   🌍 **IaC con OpenTofu**: Infraestructura base reproducible (VPC, EKS, RDS) gestionada con OpenTofu y Terragrunt.
@@ -67,34 +74,49 @@ make dev-module auth
 ## 📖 Documentación
 
 -   **[Guía de Arquitectura](docs/MODULITH_ARCHITECTURE.md)** - Comprensión profunda de la arquitectura y flujos de trabajo
+-   **[WebSocket Guide](docs/WEBSOCKET_GUIDE.md)** - Comunicación en tiempo real con clientes
+-   **[GraphQL Integration](docs/GRAPHQL_INTEGRATION.md)** - Agregar GraphQL opcional con gqlgen
 -   **[Deployment Guide](deployment/README.md)** - Guía completa de despliegue en Kubernetes con IaC
 -   **[Helm Chart Documentation](deployment/helm/modulith/README.md)** - Documentación detallada del Helm chart
 
 ## 🛠️ Comandos Útiles (Makefile)
 
 ### Generación de Código
+
 -   `make proto`: Genera código gRPC desde archivos `.proto`.
 -   `make sqlc`: Genera código Type-safe para queries SQL.
 
 ### Build
+
 -   `make build`: Compila el binario del monolito en `bin/server`.
 -   `make build-module MODULE_NAME`: Compila el binario de un módulo específico (ej: `make build-module auth`).
 -   `make build-all`: Compila todos los binarios (servidor + todos los módulos).
 -   `make clean`: Elimina todos los artefactos de build (directorio `bin/`).
 
 ### Docker
+
 -   `make docker-build`: Construye la imagen Docker del servidor (`modulith-server:latest`).
 -   `make docker-build-module MODULE_NAME`: Construye la imagen Docker de un módulo específico (ej: `make docker-build-module auth`).
 
 ### Calidad de Código
+
 -   `make lint`: Ejecuta el linter estricto (**OBLIGATORIO** después de cambios en `.go`).
 -   `make test`: Ejecuta todas las pruebas unitarias.
--   `make test-coverage`: Ejecuta pruebas y genera reporte de cobertura.
+-   `make test-coverage`: Ejecuta pruebas y genera reporte HTML de cobertura.
+-   `make coverage-report`: Muestra reporte detallado de cobertura en terminal.
+-   `make coverage-html`: Abre reporte de cobertura en el navegador.
 
 ### Desarrollo
+
 -   `make dev`: Ejecuta el servidor monolito con hot reload.
 -   `make dev-module MODULE_NAME`: Ejecuta un módulo específico con hot reload (ej: `make dev-module auth`).
 -   `make new-module MODULE_NAME`: Crea el boilerplate para un nuevo módulo funcional con configuración automática (genera estructura + `.air.{MODULE_NAME}.toml`).
+
+### GraphQL (Opcional)
+
+-   `make add-graphql`: Agrega soporte GraphQL opcional usando gqlgen (solo si lo necesitas).
+-   `make graphql-generate`: Genera código GraphQL desde el schema.
+-   `make graphql-validate`: Valida el schema GraphQL.
 
 ### ⚠️ Workflow de Calidad
 
