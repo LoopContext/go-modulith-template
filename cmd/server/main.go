@@ -23,6 +23,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/authn"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/i18n"
 	"github.com/cmelgarejo/go-modulith-template/internal/middleware"
 	"github.com/cmelgarejo/go-modulith-template/internal/migration"
 	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
@@ -171,6 +172,12 @@ func loadConfig() *config.AppConfig {
 
 	initLogger(cfg.Env, cfg.LogLevel)
 
+	// Initialize i18n
+	if err := i18n.Init(cfg.DefaultLocale); err != nil {
+		slog.Error("Failed to initialize i18n", "error", err)
+		return nil
+	}
+
 	slog.Info("Starting application", "version", version.Info())
 
 	return cfg
@@ -207,8 +214,8 @@ func createRegistry(cfg *config.AppConfig, db *sql.DB) *registry.Registry {
 	wsSubscriber := websocket.NewSubscriber(wsHub, ebus)
 	wsSubscriber.Subscribe()
 
-	// Initialize notification subscriber
-	ns := notifier.NewSubscriber(ntf)
+	// Initialize notification subscriber with default locale
+	ns := notifier.NewSubscriber(ntf, cfg.DefaultLocale)
 	ns.SubscribeToEvents(ebus)
 
 	// Start WebSocket hub in background
@@ -505,7 +512,8 @@ func setupGRPC(cfg *config.AppConfig, reg *registry.Registry) (*grpc.Server, net
 	grpcServer := grpc.NewServer(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.ChainUnaryInterceptor(
-			validation.UnaryServerInterceptor(), // Validate requests first
+			i18n.UnaryServerInterceptor(cfg.DefaultLocale), // Detect locale first
+			validation.UnaryServerInterceptor(),            // Validate requests
 			authn.UnaryServerInterceptor(authn.InterceptorConfig{
 				Verifier:      verifier,
 				PublicMethods: public,

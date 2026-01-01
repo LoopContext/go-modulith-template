@@ -18,6 +18,7 @@ import (
 	authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
 	"github.com/cmelgarejo/go-modulith-template/internal/authn"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/i18n"
 	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/db/store"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository"
@@ -70,12 +71,20 @@ func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLogin
 	}
 
 	// Emit event for notification (decoupled/async)
+	// Include locale in payload for i18n support in notification subscriber
+	locale := i18n.LocaleFromContext(ctx)
+	if locale == "" {
+		// Detect locale if not already in context
+		locale = i18n.DetectLocale(ctx, "en")
+	}
+
 	s.bus.Publish(ctx, events.Event{
 		Name: notifier.EventMagicCodeRequested,
-		Payload: map[string]string{
-			"email": req.Email,
-			"phone": req.Phone,
-			"code":  code,
+		Payload: map[string]interface{}{
+			"email":  req.Email,
+			"phone":  req.Phone,
+			"code":   code,
+			"locale": locale,
 		},
 	})
 

@@ -1,0 +1,152 @@
+---
+description: When writing go code that needs internationalization (i18n)
+alwaysApply: false
+---
+# Internationalization (i18n)
+
+### When to Use i18n
+
+**Always use i18n for:**
+- User-facing error messages returned via gRPC/HTTP
+- Notification messages (emails, SMS)
+- Any text displayed to end users
+
+**Do NOT use i18n for:**
+- Log messages (logs are for developers, use English)
+- Internal error messages (use English for debugging)
+- Code comments and documentation
+
+### Error Messages with i18n
+
+Use domain errors with i18n support:
+
+```go
+import (
+    "github.com/cmelgarejo/go-modulith-template/internal/errors"
+    "github.com/cmelgarejo/go-modulith-template/internal/i18n"
+)
+
+// In service layer - use domain errors with translation keys
+func (s *Service) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.GetUserResponse, error) {
+    user, err := s.repo.GetUser(ctx, req.Id)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            // Use domain error - it will be translated automatically
+            return nil, errors.ToGRPCWithContext(ctx, cfg.DefaultLocale, errors.NotFound("errors.user_not_found"))
+        }
+        return nil, errors.ToGRPCWithContext(ctx, cfg.DefaultLocale, errors.Internal("errors.internal_error", err))
+    }
+    return &pb.GetUserResponse{User: user}, nil
+}
+```
+
+**Translation keys format:**
+- Error messages: `errors.{error_code_snake_case}`
+- Notifications: `notifications.{notification_type}_{field}`
+
+**Available error translation keys:**
+- `errors.user_not_found`
+- `errors.invalid_email`
+- `errors.magic_code_expired`
+- `errors.magic_code_invalid`
+- `errors.auth_required`
+- `errors.token_expired`
+- `errors.forbidden`
+- `errors.validation_failed`
+- `errors.internal_error`
+- ... (see `internal/i18n/resources/en.json` for complete list)
+
+### Notification Messages with i18n
+
+When publishing events that trigger notifications, include locale in payload:
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/i18n"
+
+// Detect locale from context
+locale := i18n.LocaleFromContext(ctx)
+if locale == "" {
+    locale = i18n.DetectLocale(ctx, cfg.DefaultLocale)
+}
+
+// Publish event with locale
+s.bus.Publish(ctx, events.Event{
+    Name: "notifier.magic_code_requested",
+    Payload: map[string]interface{}{
+        "email":  req.Email,
+        "phone":  req.Phone,
+        "code":   code,
+        "locale": locale, // Include locale for notification translation
+    },
+})
+```
+
+The notification subscriber will automatically translate messages using the locale from the event payload.
+
+### Direct Translation
+
+For custom messages or when you need direct translation:
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/i18n"
+
+// Simple translation
+message := i18n.T(ctx, cfg.DefaultLocale, "errors.user_not_found", nil)
+
+// Translation with template data
+message := i18n.T(ctx, cfg.DefaultLocale, "notifications.magic_code_body", map[string]interface{}{
+    "Code": "123456",
+})
+```
+
+### Adding New Translations
+
+1. **Add translation key** to `internal/i18n/resources/en.json`:
+```json
+{
+  "id": "errors.custom_error",
+  "translation": "Custom error message"
+}
+```
+
+2. **Add Spanish translation** to `internal/i18n/resources/es.json`:
+```json
+{
+  "id": "errors.custom_error",
+  "translation": "Mensaje de error personalizado"
+}
+```
+
+3. **Use the key** in your code:
+```go
+return nil, errors.ToGRPCWithContext(ctx, cfg.DefaultLocale,
+    errors.Validation("errors.custom_error"))
+```
+
+### Locale Detection
+
+Locale is automatically detected from:
+1. Context (if set by interceptor or manually)
+2. `Accept-Language` HTTP header (via gRPC metadata)
+3. Default locale from config
+
+The gRPC interceptor automatically injects locale into context, so you typically don't need to manually detect it in service methods.
+
+### Best Practices
+
+- **Use translation keys, not hardcoded strings** for user-facing messages
+- **Include locale in event payloads** when publishing events that trigger notifications
+- **Use domain errors** (`internal/errors`) instead of `status.Error` for automatic i18n support
+- **Keep log messages in English** - they're for developers, not end users
+- **Test with multiple locales** to ensure translations work correctly
+- **Add translations for all supported languages** when adding new keys
+
+### Template Variables
+
+When using template variables in translations (e.g., `{{.Code}}`), always provide the data:
+
+```go
+i18n.T(ctx, cfg.DefaultLocale, "notifications.magic_code_body", map[string]interface{}{
+    "Code": code, // Must match template variable name
+})
+```

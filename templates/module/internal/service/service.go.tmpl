@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	{{.MODULE_NAME}}v1 "{{.PROJECT_NAME}}/gen/go/proto/{{.MODULE_NAME}}/v1"
+	"{{.PROJECT_NAME}}/internal/errors"
 	"{{.PROJECT_NAME}}/internal/events"
 	"{{.PROJECT_NAME}}/modules/{{.MODULE_NAME}}/internal/repository"
 	"go.jetify.com/typeid"
@@ -35,6 +36,8 @@ func (s *{{.MODULE_NAME_CAPITALIZED}}Service) Create{{.MODULE_NAME_CAPITALIZED}}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to generate typeid", "error", err)
 
+		// Note: For i18n support, use errors.ToGRPCWithContext(ctx, cfg.DefaultLocale, errors.Internal("errors.internal_error", err))
+		// For now, using status.Error for template simplicity - replace with domain errors in actual implementation
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
@@ -44,6 +47,8 @@ func (s *{{.MODULE_NAME_CAPITALIZED}}Service) Create{{.MODULE_NAME_CAPITALIZED}}
 	if err := s.repo.Create{{.MODULE_NAME_CAPITALIZED}}(ctx, id, req.Name); err != nil {
 		slog.ErrorContext(ctx, "failed to create {{.MODULE_NAME}}", "error", err, "id", id)
 
+		// Note: For i18n support, use errors.ToGRPCWithContext(ctx, cfg.DefaultLocale, errors.Internal("errors.internal_error", err))
+		// For now, using status.Error for template simplicity - replace with domain errors in actual implementation
 		return nil, status.Error(codes.Internal, "failed to create {{.MODULE_NAME}}")
 	}
 

@@ -6,25 +6,31 @@ alwaysApply: false
 
 ### Domain Errors (internal/errors)
 
-Use domain error types instead of raw errors for better gRPC mapping:
+Use domain error types instead of raw errors for better gRPC mapping and automatic i18n support:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/errors"
+import (
+    "github.com/cmelgarejo/go-modulith-template/internal/errors"
+)
 
 // Instead of:
 return nil, status.Error(codes.NotFound, "user not found")
 
-// Use:
-return nil, errors.ToGRPC(errors.NotFound("user not found"))
+// Use (with i18n support):
+return nil, errors.ToGRPCWithContext(ctx, cfg.DefaultLocale, errors.NotFound("errors.user_not_found"))
 
-// Or with formatting:
-return nil, errors.ToGRPC(errors.NotFoundf("user %s not found", userID))
+// Or with formatting (for dynamic messages, use translation keys with template data):
+return nil, errors.ToGRPCWithContext(ctx, cfg.DefaultLocale, errors.NotFoundf("errors.user_not_found"))
 
 // Wrap repository errors:
 if err := repo.CreateUser(ctx, id, email); err != nil {
-    return nil, errors.ToGRPC(errors.Internal("failed to create user", err))
+    return nil, errors.ToGRPCWithContext(ctx, cfg.DefaultLocale, errors.Internal("errors.internal_error", err))
 }
 ```
+
+**Note:** `ToGRPCWithContext` automatically translates error messages based on the locale in context. For backward compatibility, `ToGRPC` still works but doesn't translate.
+
+**See `90-i18n.mdc` for complete i18n guidelines.**
 
 **Available error types:**
 - `errors.NotFound()` → codes.NotFound

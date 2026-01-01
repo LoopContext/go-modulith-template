@@ -131,8 +131,8 @@ func createRegistry(cfg *config.AppConfig, db *sql.DB) *registry.Registry {
 	ebus := events.NewBus()
 	ntf := notifier.NewLogNotifier()
 
-	// Initialize notification subscriber
-	ns := notifier.NewSubscriber(ntf)
+	// Initialize notification subscriber with default locale
+	ns := notifier.NewSubscriber(ntf, cfg.DefaultLocale)
 	ns.SubscribeToEvents(ebus)
 
 	// Create registry with all dependencies

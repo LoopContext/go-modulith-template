@@ -4,9 +4,11 @@
 package errors
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
+	"github.com/cmelgarejo/go-modulith-template/internal/i18n"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -330,9 +332,20 @@ func Wrap(err error, message string) error {
 
 // ToGRPC converts a domain error to a gRPC status error.
 // The error code is included in the message format: "[CODE] message"
+// This function is backward compatible and does not use i18n.
+// For i18n support, use ToGRPCWithContext instead.
 //
 //nolint:wrapcheck // This function intentionally returns unwrapped gRPC status errors
 func ToGRPC(err error) error {
+	return ToGRPCWithContext(context.Background(), "", err)
+}
+
+// ToGRPCWithContext converts a domain error to a gRPC status error with i18n support.
+// If ctx contains locale information, error messages will be translated.
+// The error code is included in the message format: "[CODE] message"
+//
+//nolint:wrapcheck // This function intentionally returns unwrapped gRPC status errors
+func ToGRPCWithContext(ctx context.Context, defaultLocale string, err error) error {
 	if err == nil {
 		return nil
 	}
@@ -340,16 +353,72 @@ func ToGRPC(err error) error {
 	var domainErr *DomainError
 	if !errors.As(err, &domainErr) {
 		// Not a domain error, return as internal error
-		return status.Error(codes.Internal, "[INTERNAL_ERROR] internal server error")
+		message := "internal server error"
+
+		if ctx != nil && defaultLocale != "" {
+			translated := i18n.T(ctx, defaultLocale, "errors.internal_error", nil)
+			if translated != "errors.internal_error" {
+				message = translated
+			}
+		}
+
+		return status.Error(codes.Internal, fmt.Sprintf("[INTERNAL_ERROR] %s", message))
 	}
 
 	grpcCode := mapErrorTypeToGRPCCode(domainErr.Type)
 	errorCode := domainErr.GetCode()
 
-	// Format: [ERROR_CODE] message
-	message := fmt.Sprintf("[%s] %s", errorCode, domainErr.Message)
+	// Try to translate the message if context and default locale are provided
+	message := domainErr.Message
 
-	return status.Error(grpcCode, message)
+	if ctx != nil && defaultLocale != "" {
+		translationKey := mapErrorCodeToTranslationKey(errorCode)
+		if translationKey != "" {
+			translated := i18n.T(ctx, defaultLocale, translationKey, nil)
+			if translated != translationKey {
+				message = translated
+			}
+		}
+	}
+
+	// Format: [ERROR_CODE] message
+	formattedMessage := fmt.Sprintf("[%s] %s", errorCode, message)
+
+	return status.Error(grpcCode, formattedMessage)
+}
+
+// mapErrorCodeToTranslationKey maps error codes to translation keys.
+var errorCodeToTranslationKey = map[ErrorCode]string{
+	CodeUserNotFound:         "errors.user_not_found",
+	CodeAuthInvalidCreds:     "errors.invalid_credentials",
+	CodeAuthMagicCodeExpired: "errors.magic_code_expired",
+	CodeAuthMagicCodeInvalid: "errors.magic_code_invalid",
+	CodeAuthRequired:         "errors.auth_required",
+	CodeAuthTokenExpired:     "errors.token_expired",
+	CodeAuthInvalidToken:     "errors.token_invalid",
+	CodeAuthSessionExpired:   "errors.session_expired",
+	CodeAuthSessionRevoked:   "errors.session_revoked",
+	CodeForbidden:            "errors.forbidden",
+	CodeInsufficientPermission: "errors.insufficient_permission",
+	CodeNotOwner:             "errors.not_resource_owner",
+	CodeUserAlreadyExist:     "errors.user_already_exists",
+	CodeUserSuspended:        "errors.user_suspended",
+	CodeValidationFailed:     "errors.validation_failed",
+	CodeAlreadyExists:       "errors.already_exists",
+	CodeConflict:             "errors.conflict",
+	CodeUnavailable:          "errors.service_unavailable",
+	CodeRateLimited:           "errors.rate_limited",
+	CodeQuotaExceed:           "errors.quota_exceeded",
+	CodeInternalError:         "errors.internal_error",
+	CodeUnknown:               "errors.unknown",
+}
+
+func mapErrorCodeToTranslationKey(code ErrorCode) string {
+	if key, ok := errorCodeToTranslationKey[code]; ok {
+		return key
+	}
+
+	return ""
 }
 
 // ToGRPCWithDetails converts a domain error to a gRPC status error with details.
@@ -357,9 +426,17 @@ func ToGRPC(err error) error {
 //
 //nolint:wrapcheck // This function intentionally returns unwrapped gRPC status errors
 func ToGRPCWithDetails(err error) error {
-	// For now, use the same as ToGRPC
+	return ToGRPCWithContext(context.Background(), "", err)
+}
+
+// ToGRPCWithDetailsAndContext converts a domain error to a gRPC status error with details and i18n support.
+// Use this when you need to include additional error information and i18n translation.
+//
+//nolint:wrapcheck // This function intentionally returns unwrapped gRPC status errors
+func ToGRPCWithDetailsAndContext(ctx context.Context, defaultLocale string, err error) error {
+	// For now, use the same as ToGRPCWithContext
 	// In the future, we can add google.rpc.ErrorInfo or other details
-	return ToGRPC(err)
+	return ToGRPCWithContext(ctx, defaultLocale, err)
 }
 
 // GetErrorCode extracts the error code from an error, or returns CodeUnknown.

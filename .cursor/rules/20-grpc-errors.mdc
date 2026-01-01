@@ -7,8 +7,10 @@
   - That breaks gRPC code and ends up returning `codes.Unknown`.
 - Pattern:
   - **Input validation**: Automatic via protovalidate interceptor (see `25-protobuf-validation.mdc`)
-  - **Business logic validation** → `return nil, status.Error(codes.InvalidArgument, "...")`
-  - **Internal error** (repo/DB) → `slog.ErrorContext(ctx, "...", "error", err)` and `return nil, status.Error(codes.Internal, "internal server error")`
+  - **Business logic validation** → Use `errors.ToGRPCWithContext(ctx, cfg.DefaultLocale, errors.Validation("errors.validation_failed"))`
+  - **Internal error** (repo/DB) → `slog.ErrorContext(ctx, "...", "error", err)` and `return nil, errors.ToGRPCWithContext(ctx, cfg.DefaultLocale, errors.Internal("errors.internal_error", err))`
+
+**Note:** Always use domain errors (`internal/errors`) with `ToGRPCWithContext` for automatic i18n translation. See `60-errors-telemetry.mdc` and `90-i18n.mdc` for details.
 
 ## DTOs (Protobuf)
 

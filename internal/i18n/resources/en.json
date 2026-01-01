@@ -1,0 +1,103 @@
+[
+  {
+    "id": "errors.user_not_found",
+    "translation": "User not found"
+  },
+  {
+    "id": "errors.invalid_email",
+    "translation": "Invalid email format"
+  },
+  {
+    "id": "errors.magic_code_expired",
+    "translation": "Magic code has expired"
+  },
+  {
+    "id": "errors.magic_code_invalid",
+    "translation": "Invalid magic code"
+  },
+  {
+    "id": "errors.auth_required",
+    "translation": "Authentication required"
+  },
+  {
+    "id": "errors.token_expired",
+    "translation": "Token has expired"
+  },
+  {
+    "id": "errors.token_invalid",
+    "translation": "Invalid or expired token"
+  },
+  {
+    "id": "errors.invalid_credentials",
+    "translation": "Invalid credentials"
+  },
+  {
+    "id": "errors.session_expired",
+    "translation": "Session has expired"
+  },
+  {
+    "id": "errors.session_revoked",
+    "translation": "Session has been revoked"
+  },
+  {
+    "id": "errors.forbidden",
+    "translation": "Access forbidden"
+  },
+  {
+    "id": "errors.insufficient_permission",
+    "translation": "Insufficient permissions"
+  },
+  {
+    "id": "errors.not_resource_owner",
+    "translation": "You are not the owner of this resource"
+  },
+  {
+    "id": "errors.user_already_exists",
+    "translation": "User already exists"
+  },
+  {
+    "id": "errors.user_suspended",
+    "translation": "User account is suspended"
+  },
+  {
+    "id": "errors.validation_failed",
+    "translation": "Validation failed"
+  },
+  {
+    "id": "errors.already_exists",
+    "translation": "Resource already exists"
+  },
+  {
+    "id": "errors.conflict",
+    "translation": "Resource conflict"
+  },
+  {
+    "id": "errors.service_unavailable",
+    "translation": "Service temporarily unavailable"
+  },
+  {
+    "id": "errors.rate_limited",
+    "translation": "Rate limit exceeded"
+  },
+  {
+    "id": "errors.quota_exceeded",
+    "translation": "Quota exceeded"
+  },
+  {
+    "id": "errors.internal_error",
+    "translation": "Internal server error"
+  },
+  {
+    "id": "errors.unknown",
+    "translation": "An unknown error occurred"
+  },
+  {
+    "id": "notifications.magic_code_subject",
+    "translation": "Your Access Code"
+  },
+  {
+    "id": "notifications.magic_code_body",
+    "translation": "Your magic code is: {{.Code}}"
+  }
+]
+

@@ -52,6 +52,9 @@ type AppConfig struct {
 	RequestTimeout  string `yaml:"request_timeout" env:"REQUEST_TIMEOUT"`   // Request handler timeout (e.g., "30s")
 	ShutdownTimeout string `yaml:"shutdown_timeout" env:"SHUTDOWN_TIMEOUT"` // Graceful shutdown timeout (e.g., "30s")
 
+	// Internationalization
+	DefaultLocale string `yaml:"default_locale" env:"DEFAULT_LOCALE"` // Default locale for i18n (e.g., "en", "es")
+
 	// Module specific configs
 	Auth AuthConfig `yaml:"auth"`
 }
@@ -81,6 +84,7 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 		WriteTimeout:      "10s",
 		RequestTimeout:    "30s",
 		ShutdownTimeout:   "30s",
+		DefaultLocale:     "en",
 	}
 
 	// Track sources for each config value
@@ -133,7 +137,7 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 // Updates the sources map to track where each value came from.
 // In a production app, consider using a library like cleanenv or envconfig.
 //
-//nolint:cyclop,funlen // Configuration parsing requires many sequential environment variable checks
+//nolint:cyclop,funlen,gocognit // Configuration parsing requires many sequential environment variable checks
 func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string) {
 	if env := os.Getenv("ENV"); env != "" {
 		c.Env = env
@@ -247,6 +251,12 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 			c.RateLimitBurst = val
 			sources["RATE_LIMIT_BURST"] = sourceName
 		}
+	}
+
+	// Internationalization
+	if locale := os.Getenv("DEFAULT_LOCALE"); locale != "" {
+		c.DefaultLocale = locale
+		sources["DEFAULT_LOCALE"] = sourceName
 	}
 
 	// OAuth configuration
@@ -409,6 +419,9 @@ func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]
 			c.RateLimitBurst = v
 		}
 	}, sources, systemEnvVars, sourceName)
+
+	// Internationalization from .env
+	c.overrideEnvVar("DEFAULT_LOCALE", func(val string) { c.DefaultLocale = val }, sources, systemEnvVars, sourceName)
 
 	// OAuth configuration from .env
 	c.overrideOAuthEnvFromDotenv(sources, systemEnvVars, sourceName)

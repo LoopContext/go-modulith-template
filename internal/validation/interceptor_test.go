@@ -10,6 +10,8 @@ import (
 	authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
 )
 
+const testSuccessResponse = "success"
+
 // mockRequestWithoutProto is a request that is not a proto message
 type mockRequestWithoutProto struct {
 	value string
@@ -21,8 +23,8 @@ func TestUnaryServerInterceptor_ValidRequest(t *testing.T) {
 	// Use a real proto message that should pass validation
 	// Note: This test requires proto files to be generated first
 	req := &authv1.GetProfileRequest{} // Empty request, should pass validation
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return "success", nil
+	handler := func(_ context.Context, _ interface{}) (interface{}, error) {
+		return testSuccessResponse, nil
 	}
 
 	info := &grpc.UnaryServerInfo{
@@ -34,7 +36,7 @@ func TestUnaryServerInterceptor_ValidRequest(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if resp != "success" {
+	if resp != testSuccessResponse {
 		t.Errorf("expected response 'success', got %v", resp)
 	}
 }
@@ -47,7 +49,7 @@ func TestUnaryServerInterceptor_InvalidRequest(t *testing.T) {
 	req := &authv1.ChangeEmailRequest{
 		NewEmail: "invalid-email", // Invalid email format
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(_ context.Context, _ interface{}) (interface{}, error) {
 		return "should not reach here", nil
 	}
 
@@ -83,8 +85,8 @@ func TestUnaryServerInterceptor_RequestWithoutProto(t *testing.T) {
 	interceptor := UnaryServerInterceptor()
 
 	req := &mockRequestWithoutProto{value: "test"}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return "success", nil
+	handler := func(_ context.Context, _ interface{}) (interface{}, error) {
+		return testSuccessResponse, nil
 	}
 
 	info := &grpc.UnaryServerInfo{
@@ -96,7 +98,7 @@ func TestUnaryServerInterceptor_RequestWithoutProto(t *testing.T) {
 		t.Fatalf("expected no error for non-proto request, got %v", err)
 	}
 
-	if resp != "success" {
+	if resp != testSuccessResponse {
 		t.Errorf("expected response 'success', got %v", resp)
 	}
 }

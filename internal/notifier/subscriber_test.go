@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/i18n"
 )
 
 type mockNotifier struct {
@@ -43,9 +44,14 @@ func (m *mockNotifier) getEmailCallsCount() int {
 	return len(m.emailCalls)
 }
 
+func init() {
+	// Initialize i18n for tests
+	_ = i18n.Init("en")
+}
+
 func TestNewSubscriber(t *testing.T) {
 	notifier := &mockNotifier{}
-	subscriber := NewSubscriber(notifier)
+	subscriber := NewSubscriber(notifier, "en")
 
 	if subscriber == nil {
 		t.Fatal("expected subscriber to not be nil")
@@ -58,7 +64,7 @@ func TestNewSubscriber(t *testing.T) {
 
 func TestSubscriber_SubscribeToEvents(t *testing.T) {
 	notifier := &mockNotifier{}
-	subscriber := NewSubscriber(notifier)
+	subscriber := NewSubscriber(notifier, "en")
 	bus := events.NewBus()
 
 	subscriber.SubscribeToEvents(bus)
@@ -66,7 +72,7 @@ func TestSubscriber_SubscribeToEvents(t *testing.T) {
 	// Verify that the event handler is registered by publishing an event
 	ctx := context.Background()
 
-	payload := map[string]string{
+	payload := map[string]interface{}{
 		"email": "test@example.com",
 		"code":  "123456",
 	}
@@ -86,9 +92,9 @@ func TestSubscriber_SubscribeToEvents(t *testing.T) {
 
 func TestSubscriber_HandleMagicCodeRequested_Email(t *testing.T) {
 	notifier := &mockNotifier{}
-	subscriber := NewSubscriber(notifier)
+	subscriber := NewSubscriber(notifier, "en")
 
-	payload := map[string]string{
+	payload := map[string]interface{}{
 		"email": "user@example.com",
 		"code":  "654321",
 	}
@@ -131,9 +137,9 @@ func TestSubscriber_HandleMagicCodeRequested_Email(t *testing.T) {
 
 func TestSubscriber_HandleMagicCodeRequested_Phone(t *testing.T) {
 	notifier := &mockNotifier{}
-	subscriber := NewSubscriber(notifier)
+	subscriber := NewSubscriber(notifier, "en")
 
-	payload := map[string]string{
+	payload := map[string]interface{}{
 		"phone": "+1234567890",
 		"code":  "999888",
 	}
@@ -172,10 +178,10 @@ func TestSubscriber_HandleMagicCodeRequested_Phone(t *testing.T) {
 
 func TestSubscriber_HandleMagicCodeRequested_EmailPriority(t *testing.T) {
 	notifier := &mockNotifier{}
-	subscriber := NewSubscriber(notifier)
+	subscriber := NewSubscriber(notifier, "en")
 
 	// When both email and phone are present, email takes priority
-	payload := map[string]string{
+	payload := map[string]interface{}{
 		"email": "user@example.com",
 		"phone": "+1234567890",
 		"code":  "111222",
@@ -205,7 +211,7 @@ func TestSubscriber_HandleMagicCodeRequested_EmailPriority(t *testing.T) {
 
 func TestSubscriber_HandleMagicCodeRequested_InvalidPayload(t *testing.T) {
 	notifier := &mockNotifier{}
-	subscriber := NewSubscriber(notifier)
+	subscriber := NewSubscriber(notifier, "en")
 
 	// Invalid payload type
 	event := events.Event{
@@ -232,9 +238,9 @@ func TestSubscriber_HandleMagicCodeRequested_InvalidPayload(t *testing.T) {
 
 func TestSubscriber_HandleMagicCodeRequested_NoEmailOrPhone(t *testing.T) {
 	notifier := &mockNotifier{}
-	subscriber := NewSubscriber(notifier)
+	subscriber := NewSubscriber(notifier, "en")
 
-	payload := map[string]string{
+	payload := map[string]interface{}{
 		"code": "123456",
 	}
 
@@ -265,9 +271,9 @@ func TestSubscriber_HandleMagicCodeRequested_EmailError(t *testing.T) {
 	notifier := &mockNotifier{
 		emailErr: errors.New("email send failed"),
 	}
-	subscriber := NewSubscriber(notifier)
+	subscriber := NewSubscriber(notifier, "en")
 
-	payload := map[string]string{
+	payload := map[string]interface{}{
 		"email": "user@example.com",
 		"code":  "123456",
 	}
@@ -287,9 +293,9 @@ func TestSubscriber_HandleMagicCodeRequested_SMSError(t *testing.T) {
 	notifier := &mockNotifier{
 		smsErr: errors.New("SMS send failed"),
 	}
-	subscriber := NewSubscriber(notifier)
+	subscriber := NewSubscriber(notifier, "en")
 
-	payload := map[string]string{
+	payload := map[string]interface{}{
 		"phone": "+1234567890",
 		"code":  "123456",
 	}

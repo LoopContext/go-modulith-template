@@ -183,7 +183,7 @@ func setupGRPCServerAuth(cfg *config.AppConfig, db *sql.DB, _ net.Listener) *grp
 
 	ebus := events.NewBus()
 	ntf := notifier.NewLogNotifier()
-	ns := notifier.NewSubscriber(ntf)
+	ns := notifier.NewSubscriber(ntf, cfg.DefaultLocale)
 	ns.SubscribeToEvents(ebus)
 
 	// Create registry with dependencies

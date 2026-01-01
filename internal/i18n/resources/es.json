@@ -1,0 +1,103 @@
+[
+  {
+    "id": "errors.user_not_found",
+    "translation": "Usuario no encontrado"
+  },
+  {
+    "id": "errors.invalid_email",
+    "translation": "Formato de email inválido"
+  },
+  {
+    "id": "errors.magic_code_expired",
+    "translation": "El código mágico ha expirado"
+  },
+  {
+    "id": "errors.magic_code_invalid",
+    "translation": "Código mágico inválido"
+  },
+  {
+    "id": "errors.auth_required",
+    "translation": "Autenticación requerida"
+  },
+  {
+    "id": "errors.token_expired",
+    "translation": "El token ha expirado"
+  },
+  {
+    "id": "errors.token_invalid",
+    "translation": "Token inválido o expirado"
+  },
+  {
+    "id": "errors.invalid_credentials",
+    "translation": "Credenciales inválidas"
+  },
+  {
+    "id": "errors.session_expired",
+    "translation": "La sesión ha expirado"
+  },
+  {
+    "id": "errors.session_revoked",
+    "translation": "La sesión ha sido revocada"
+  },
+  {
+    "id": "errors.forbidden",
+    "translation": "Acceso prohibido"
+  },
+  {
+    "id": "errors.insufficient_permission",
+    "translation": "Permisos insuficientes"
+  },
+  {
+    "id": "errors.not_resource_owner",
+    "translation": "No eres el propietario de este recurso"
+  },
+  {
+    "id": "errors.user_already_exists",
+    "translation": "El usuario ya existe"
+  },
+  {
+    "id": "errors.user_suspended",
+    "translation": "La cuenta de usuario está suspendida"
+  },
+  {
+    "id": "errors.validation_failed",
+    "translation": "Validación fallida"
+  },
+  {
+    "id": "errors.already_exists",
+    "translation": "El recurso ya existe"
+  },
+  {
+    "id": "errors.conflict",
+    "translation": "Conflicto de recurso"
+  },
+  {
+    "id": "errors.service_unavailable",
+    "translation": "Servicio temporalmente no disponible"
+  },
+  {
+    "id": "errors.rate_limited",
+    "translation": "Límite de velocidad excedido"
+  },
+  {
+    "id": "errors.quota_exceeded",
+    "translation": "Cuota excedida"
+  },
+  {
+    "id": "errors.internal_error",
+    "translation": "Error interno del servidor"
+  },
+  {
+    "id": "errors.unknown",
+    "translation": "Ocurrió un error desconocido"
+  },
+  {
+    "id": "notifications.magic_code_subject",
+    "translation": "Tu Código de Acceso"
+  },
+  {
+    "id": "notifications.magic_code_body",
+    "translation": "Tu código mágico es: {{.Code}}"
+  }
+]
+

@@ -29,6 +29,9 @@ write_timeout: 10s     # HTTP server write timeout
 request_timeout: 30s   # Request handler timeout (middleware)
 shutdown_timeout: 30s  # Graceful shutdown timeout
 
+# Internationalization
+default_locale: en     # Default locale for i18n (en, es)
+
 auth:
   jwt_secret: monolith-secret-key-at-least-32-bytes-long
   oauth:
