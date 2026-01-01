@@ -21,6 +21,11 @@ rate_limit_enabled: false
 rate_limit_rps: 100    # requests per second per IP
 rate_limit_burst: 50   # burst size
 
+# Timeouts
+read_timeout: 5s       # HTTP server read timeout
+write_timeout: 10s     # HTTP server write timeout
+shutdown_timeout: 30s  # Graceful shutdown timeout
+
 auth:
   jwt_secret: monolith-secret-key-at-least-32-bytes-long
   oauth:

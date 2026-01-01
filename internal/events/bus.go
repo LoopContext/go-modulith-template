@@ -43,6 +43,7 @@ func NewBus() *Bus {
 func (b *Bus) SetErrorHandler(handler ErrorHandler) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	b.errorHandler = handler
 }
 

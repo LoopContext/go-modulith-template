@@ -1,7 +1,7 @@
 ---
+description: When writing go code that needs telemetry and error handling
 alwaysApply: false
 ---
-
 ## Error Handling & Telemetry
 
 ### Domain Errors (internal/errors)

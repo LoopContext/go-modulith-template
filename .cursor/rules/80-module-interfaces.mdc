@@ -1,3 +1,7 @@
+---
+description: When writing go code related to the module functionality
+alwaysApply: false
+---
 ## Module Interfaces
 
 All modules must implement `registry.Module`:

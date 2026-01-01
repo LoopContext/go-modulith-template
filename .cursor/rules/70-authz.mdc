@@ -1,3 +1,7 @@
+---
+description: When writing go code that involves authorization and authentication
+alwaysApply: false
+---
 ## Authorization (internal/authz)
 
 ### Permission Checking

@@ -29,6 +29,7 @@ func Short() string {
 	if Version == "dev" {
 		return fmt.Sprintf("dev-%s", Commit[:7])
 	}
+
 	return Version
 }
 

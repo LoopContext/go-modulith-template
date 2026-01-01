@@ -79,6 +79,11 @@ func (m *Module) MigrationPath() string {
 	return "modules/auth/resources/db/migration"
 }
 
+// SeedPath returns the path to the auth module's seed data directory.
+func (m *Module) SeedPath() string {
+	return "modules/auth/resources/db/seed"
+}
+
 // PublicEndpoints returns the list of public endpoints that don't require authentication.
 func (m *Module) PublicEndpoints() []string {
 	return []string{

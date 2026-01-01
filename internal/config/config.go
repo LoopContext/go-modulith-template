@@ -43,6 +43,11 @@ type AppConfig struct {
 	RateLimitRPS     int  `yaml:"rate_limit_rps" env:"RATE_LIMIT_RPS"`
 	RateLimitBurst   int  `yaml:"rate_limit_burst" env:"RATE_LIMIT_BURST"`
 
+	// Timeouts
+	ReadTimeout     string `yaml:"read_timeout" env:"READ_TIMEOUT"`           // HTTP server read timeout (e.g., "5s")
+	WriteTimeout    string `yaml:"write_timeout" env:"WRITE_TIMEOUT"`         // HTTP server write timeout (e.g., "10s")
+	ShutdownTimeout string `yaml:"shutdown_timeout" env:"SHUTDOWN_TIMEOUT"`   // Graceful shutdown timeout (e.g., "30s")
+
 	// Module specific configs
 	Auth AuthConfig `yaml:"auth"`
 }
@@ -66,6 +71,9 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 		RateLimitEnabled:  false,
 		RateLimitRPS:      100,
 		RateLimitBurst:    50,
+		ReadTimeout:       "5s",
+		WriteTimeout:      "10s",
+		ShutdownTimeout:   "30s",
 	}
 
 	// Track sources for each config value
@@ -106,6 +114,7 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 // Only overrides if the environment variable is set and non-empty.
 // Updates the sources map to track where each value came from.
 // In a production app, consider using a library like cleanenv or envconfig.
+//nolint:cyclop,funlen // Configuration parsing requires many sequential environment variable checks
 func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string) {
 	if env := os.Getenv("ENV"); env != "" {
 		c.Env = env
@@ -159,6 +168,21 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 	if secret := os.Getenv("JWT_SECRET"); secret != "" {
 		c.Auth.JWTSecret = secret
 		sources["JWT_SECRET"] = sourceName
+	}
+
+	if timeout := os.Getenv("READ_TIMEOUT"); timeout != "" {
+		c.ReadTimeout = timeout
+		sources["READ_TIMEOUT"] = sourceName
+	}
+
+	if timeout := os.Getenv("WRITE_TIMEOUT"); timeout != "" {
+		c.WriteTimeout = timeout
+		sources["WRITE_TIMEOUT"] = sourceName
+	}
+
+	if timeout := os.Getenv("SHUTDOWN_TIMEOUT"); timeout != "" {
+		c.ShutdownTimeout = timeout
+		sources["SHUTDOWN_TIMEOUT"] = sourceName
 	}
 
 	// OAuth configuration
@@ -294,6 +318,9 @@ func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]
 	c.overrideEnvVar("DB_CONN_MAX_LIFETIME", func(val string) { c.DBConnMaxLifetime = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("OTLP_ENDPOINT", func(val string) { c.OTLPEndpoint = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("JWT_SECRET", func(val string) { c.Auth.JWTSecret = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("READ_TIMEOUT", func(val string) { c.ReadTimeout = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("WRITE_TIMEOUT", func(val string) { c.WriteTimeout = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("SHUTDOWN_TIMEOUT", func(val string) { c.ShutdownTimeout = val }, sources, systemEnvVars, sourceName)
 
 	// OAuth configuration from .env
 	c.overrideOAuthEnvFromDotenv(sources, systemEnvVars, sourceName)
@@ -452,6 +479,8 @@ func loadYAMLConfig(yamlPath string, cfg *AppConfig, sources map[string]string) 
 }
 
 // applyYAMLConfig applies YAML configuration values to the config struct
+//
+//nolint:cyclop,funlen // Configuration parsing requires many sequential YAML value checks
 func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 	if yamlOnly.Env != "" {
 		cfg.Env = yamlOnly.Env
@@ -501,6 +530,21 @@ func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 	if yamlOnly.Auth.JWTSecret != "" {
 		cfg.Auth.JWTSecret = yamlOnly.Auth.JWTSecret
 		sources["JWT_SECRET"] = sourceYAML
+	}
+
+	if yamlOnly.ReadTimeout != "" {
+		cfg.ReadTimeout = yamlOnly.ReadTimeout
+		sources["READ_TIMEOUT"] = sourceYAML
+	}
+
+	if yamlOnly.WriteTimeout != "" {
+		cfg.WriteTimeout = yamlOnly.WriteTimeout
+		sources["WRITE_TIMEOUT"] = sourceYAML
+	}
+
+	if yamlOnly.ShutdownTimeout != "" {
+		cfg.ShutdownTimeout = yamlOnly.ShutdownTimeout
+		sources["SHUTDOWN_TIMEOUT"] = sourceYAML
 	}
 
 	// Apply OAuth configuration from YAML

@@ -70,15 +70,16 @@ func (rl *RateLimiter) Middleware() func(http.Handler) http.Handler {
 
 // CleanupExpired removes limiters that haven't been used recently.
 // Should be called periodically in a goroutine.
+// Note: This is a no-op implementation. In production, you would track
+// last access time and remove old entries to prevent memory leaks.
 func (rl *RateLimiter) CleanupExpired(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		rl.mu.Lock()
-		// In a production system, you'd track last access time and remove old entries
-		// For simplicity, we're not implementing that here
-		rl.mu.Unlock()
+		// TODO: Implement cleanup logic to remove old limiters
+		// Example: track last access time and remove entries older than threshold
+		continue
 	}
 }
 

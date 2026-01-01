@@ -38,6 +38,12 @@ test: ## Run tests
 test-unit: generate-mocks ## Run unit tests with fresh mocks
 	go test -v -short ./...
 
+test-integration: ## Run integration tests (requires Docker)
+	@echo "Running integration tests with testcontainers..."
+	go test -v -run Integration ./...
+
+test-all: test-unit test-integration ## Run all tests (unit + integration)
+
 test-coverage: ## Run tests with coverage report
 	go test -v -race -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out
@@ -79,6 +85,15 @@ migrate-up: ## Run all module migrations (uses modulith's migration system)
 	go run cmd/server/main.go -migrate
 
 migrate: migrate-up ## Alias for migrate-up
+
+seed: ## Run seed data for all modules
+	@echo "🌱 Running seed data for all modules..."
+	go run cmd/server/main.go seed
+
+admin: ## Run admin task (usage: make admin TASK=task_name)
+	@if [ -z "$(TASK)" ]; then echo "Usage: make admin TASK=task_name"; exit 1; fi
+	@echo "🔧 Running admin task: $(TASK)"
+	go run cmd/server/main.go admin $(TASK)
 
 migrate-down: ## Rollback last migration for a specific module (usage: make migrate-down MODULE=auth)
 	@if [ -z "$(MODULE)" ]; then echo "Usage: make migrate-down MODULE=module_name"; exit 1; fi

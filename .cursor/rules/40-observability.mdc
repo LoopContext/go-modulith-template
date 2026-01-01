@@ -1,5 +1,5 @@
 ---
-globs: *.go
+description: When writing go code that needs visibility and o
 alwaysApply: false
 ---
 ## Observability (Logs + Metrics + Tracing)

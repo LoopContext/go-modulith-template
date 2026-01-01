@@ -1,0 +1,143 @@
+# Staging environment configuration
+# This file demonstrates how to configure the modulith for a staging environment
+# Usage: helm install modulith-staging ./deployment/helm/modulith -f values-staging.yaml
+
+# Deployment type: monolith or module
+deploymentType: monolith
+
+# Application configuration
+app:
+  name: modulith-server
+  env: staging
+  logLevel: info
+
+# Image configuration
+image:
+  repository: ghcr.io/your-org/modulith-server
+  tag: latest
+  pullPolicy: Always
+
+# Resource limits (staging has moderate resources)
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget (ensure availability during updates)
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Service configuration
+service:
+  type: ClusterIP
+  httpPort: 8080
+  grpcPort: 9050
+
+# Ingress configuration (example with nginx)
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: staging-api.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: staging-api-tls
+      hosts:
+        - staging-api.example.com
+
+# Environment variables
+env:
+  - name: ENV
+    value: "staging"
+  - name: LOG_LEVEL
+    value: "info"
+  - name: HTTP_PORT
+    value: "8080"
+  - name: GRPC_PORT
+    value: "9050"
+  - name: READ_TIMEOUT
+    value: "5s"
+  - name: WRITE_TIMEOUT
+    value: "10s"
+  - name: SHUTDOWN_TIMEOUT
+    value: "30s"
+  - name: RATE_LIMIT_ENABLED
+    value: "true"
+  - name: RATE_LIMIT_RPS
+    value: "100"
+  - name: RATE_LIMIT_BURST
+    value: "50"
+
+# Secrets (use external secrets operator or sealed secrets in production)
+secrets:
+  - name: DB_DSN
+    value: "postgres://user:pass@staging-db:5432/modulith?sslmode=require"
+  - name: JWT_SECRET
+    value: "your-staging-jwt-secret-at-least-32-bytes-long"
+  - name: OTLP_ENDPOINT
+    value: "otel-collector:4317"
+
+# Health check configuration
+healthCheck:
+  liveness:
+    enabled: true
+    path: /healthz
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    path: /readyz
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+# Node affinity (prefer nodes in specific zones)
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - modulith-server
+          topologyKey: kubernetes.io/hostname
+
+# Tolerations (if using tainted nodes)
+tolerations: []
+
+# Node selector (if using labeled nodes)
+nodeSelector: {}
+

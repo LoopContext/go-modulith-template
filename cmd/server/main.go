@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/cmelgarejo/go-modulith-template/internal/admin"
 	"github.com/cmelgarejo/go-modulith-template/internal/authn"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
@@ -47,10 +48,18 @@ import (
 
 var (
 	migrateOnly = flag.Bool("migrate", false, "Run migrations only and exit")
+	seedOnly    = flag.Bool("seed", false, "Run seed data only and exit")
 )
 
 func main() {
 	flag.Parse()
+
+	// Check for subcommands (non-flag arguments)
+	args := flag.Args()
+	if len(args) > 0 {
+		handleSubcommand(args)
+		return
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -86,9 +95,41 @@ func main() {
 		return
 	}
 
+	// Handle special flags (migrate-only, seed-only)
+	if handleSpecialFlags(cfg.DBDSN, reg) {
+		return
+	}
+
+	// Start and run the server
+	runServer(ctx, cfg, reg, stop)
+}
+
+func handleSpecialFlags(dbDSN string, reg *registry.Registry) bool {
 	// If migrate-only flag is set, exit after migrations
 	if *migrateOnly {
 		slog.Info("✅ Migrations completed successfully")
+		return true
+	}
+
+	// If seed-only flag is set, run seed data and exit
+	if *seedOnly {
+		if err := runSeedData(dbDSN, reg); err != nil {
+			slog.Error("Failed to run seed data", "error", err)
+			return true
+		}
+
+		slog.Info("✅ Seed data completed successfully")
+
+		return true
+	}
+
+	return false
+}
+
+func runServer(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry, stop context.CancelFunc) {
+	// Call module lifecycle OnStart hooks
+	if err := reg.OnStartAll(ctx); err != nil {
+		slog.Error("Failed to start modules", "error", err)
 		return
 	}
 
@@ -99,8 +140,18 @@ func main() {
 
 	defer closeGatewayConn(gatewayConn)
 
+	// Ensure OnStopAll is called during shutdown
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := reg.OnStopAll(shutdownCtx); err != nil {
+			slog.Error("Failed to stop modules gracefully", "error", err)
+		}
+	}()
+
 	<-ctx.Done()
-	shutdownServers(ctx, httpServer, grpcServer)
+	shutdownServers(cfg, httpServer, grpcServer)
 }
 
 func loadConfig() *config.AppConfig {
@@ -221,12 +272,14 @@ func startHTTPServer(cfg *config.AppConfig, mux *http.ServeMux) *http.Server {
 	if len(cfg.CORSAllowedOrigins) > 0 {
 		corsConfig.AllowedOrigins = cfg.CORSAllowedOrigins
 	}
+
 	handler = middleware.CORS(corsConfig)(handler)
 
 	// Apply rate limiting middleware if enabled
 	if cfg.RateLimitEnabled {
 		rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
 		handler = rateLimiter.Middleware()(handler)
+
 		slog.Info("Rate limiting enabled",
 			"rps", cfg.RateLimitRPS,
 			"burst", cfg.RateLimitBurst,
@@ -236,13 +289,34 @@ func startHTTPServer(cfg *config.AppConfig, mux *http.ServeMux) *http.Server {
 	// Apply request ID middleware (outermost)
 	handler = middleware.RequestID(handler)
 
+	// Parse timeout configurations
+	readTimeout, err := time.ParseDuration(cfg.ReadTimeout)
+	if err != nil {
+		slog.Warn("Invalid READ_TIMEOUT, using default 5s", "value", cfg.ReadTimeout, "error", err)
+
+		readTimeout = 5 * time.Second
+	}
+
+	writeTimeout, err := time.ParseDuration(cfg.WriteTimeout)
+	if err != nil {
+		slog.Warn("Invalid WRITE_TIMEOUT, using default 10s", "value", cfg.WriteTimeout, "error", err)
+
+		writeTimeout = 10 * time.Second
+	}
+
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.HTTPPort),
 		Handler:           handler,
+		ReadTimeout:       readTimeout,
+		WriteTimeout:      writeTimeout,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	slog.Info("Starting HTTP Gateway", "port", cfg.HTTPPort)
+	slog.Info("Starting HTTP Gateway",
+		"port", cfg.HTTPPort,
+		"read_timeout", readTimeout,
+		"write_timeout", writeTimeout,
+	)
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -264,10 +338,18 @@ func startGRPCServer(cfg *config.AppConfig, grpcServer *grpc.Server, lis net.Lis
 	}()
 }
 
-func shutdownServers(_ context.Context, httpServer *http.Server, grpcServer *grpc.Server) {
+func shutdownServers(cfg *config.AppConfig, httpServer *http.Server, grpcServer *grpc.Server) {
 	slog.Info("Shutting down server")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Parse shutdown timeout
+	shutdownTimeout, err := time.ParseDuration(cfg.ShutdownTimeout)
+	if err != nil {
+		slog.Warn("Invalid SHUTDOWN_TIMEOUT, using default 30s", "value", cfg.ShutdownTimeout, "error", err)
+
+		shutdownTimeout = 30 * time.Second
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
@@ -394,7 +476,7 @@ func setupGateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Regi
 	}
 
 	mux := http.NewServeMux()
-	setupHealthChecks(mux, reg.DB(), wsHub)
+	setupHealthChecks(mux, reg.DB(), wsHub, reg)
 	mux.Handle("/", rmux)
 
 	// Setup WebSocket endpoint
@@ -413,7 +495,7 @@ func setupGateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Regi
 	return mux, conn, nil
 }
 
-func setupHealthChecks(mux *http.ServeMux, db *sql.DB, wsHub *websocket.Hub) {
+func setupHealthChecks(mux *http.ServeMux, db *sql.DB, wsHub *websocket.Hub, reg *registry.Registry) {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 
@@ -421,10 +503,21 @@ func setupHealthChecks(mux *http.ServeMux, db *sql.DB, wsHub *websocket.Hub) {
 	})
 
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		// Check module health first
+		if err := reg.HealthCheckAll(r.Context()); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+
+			msg := fmt.Sprintf("Module health check failed: %v", err)
+			_, _ = fmt.Fprintf(w, "%s", msg)
+
+			return
+		}
+
+		// Check database connectivity
 		if err := db.PingContext(r.Context()); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
 
-			_, _ = w.Write([]byte("Disconnected"))
+			_, _ = w.Write([]byte("Database disconnected"))
 
 			return
 		}
@@ -493,6 +586,205 @@ func runMigrations(dbDSN string, reg *registry.Registry) error {
 	return nil
 }
 
+func runSeedData(dbDSN string, reg *registry.Registry) error {
+	// Create adapter for the registry to match migration.ModuleRegistry interface
+	adapter := &registryAdapter{reg: reg}
+
+	seeder, err := migration.NewSeeder(dbDSN, adapter)
+	if err != nil {
+		return fmt.Errorf("failed to create seeder: %w", err)
+	}
+
+	defer func() {
+		if err := seeder.Close(); err != nil {
+			slog.Error("Failed to close seeder connection", "error", err)
+		}
+	}()
+
+	if err := seeder.SeedAll(context.Background()); err != nil {
+		return fmt.Errorf("failed to run seed data: %w", err)
+	}
+
+	return nil
+}
+
+// registryAdapter adapts registry.Registry to migration.ModuleRegistry.
+type registryAdapter struct {
+	reg *registry.Registry
+}
+
+func (r *registryAdapter) Modules() []interface{} {
+	modules := r.reg.Modules()
+	result := make([]interface{}, len(modules))
+
+	for i, mod := range modules {
+		result[i] = mod
+	}
+
+	return result
+}
+
+func handleSubcommand(args []string) {
+	command := args[0]
+
+	switch command {
+	case "migrate":
+		runMigrateCommand()
+	case "seed":
+		runSeedCommand()
+	case "admin":
+		if len(args) < 2 {
+			fmt.Fprintf(os.Stderr, "Usage: %s admin <task_name>\n", os.Args[0])
+			os.Exit(1)
+		}
+
+		runAdminCommand(args[1])
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
+		fmt.Fprintf(os.Stderr, "Available commands: migrate, seed, admin\n")
+		os.Exit(1)
+	}
+}
+
+func runMigrateCommand() {
+	initLoggerEarly()
+
+	systemEnvVars := captureSystemEnvVars()
+	_ = godotenv.Load()
+
+	cfg, err := config.Load("configs/server.yaml", systemEnvVars)
+	if err != nil {
+		slog.Error("Failed to load config", "error", err)
+		os.Exit(1)
+	}
+
+	initLogger(cfg.Env, cfg.LogLevel)
+
+	db, err := initDB(cfg)
+	if err != nil {
+		slog.Error("Failed to initialize database", "error", err)
+		os.Exit(1)
+	}
+
+	reg := createRegistry(cfg, db)
+	registerModules(reg)
+
+	if err := reg.InitializeAll(); err != nil {
+		closeDB(db)
+		slog.Error("Failed to initialize modules", "error", err)
+		os.Exit(1)
+	}
+
+	if err := runMigrations(cfg.DBDSN, reg); err != nil {
+		closeDB(db)
+		slog.Error("Failed to run migrations", "error", err)
+		os.Exit(1)
+	}
+
+	closeDB(db)
+	slog.Info("✅ Migrations completed successfully")
+}
+
+func runSeedCommand() {
+	initLoggerEarly()
+
+	systemEnvVars := captureSystemEnvVars()
+	_ = godotenv.Load()
+
+	cfg, err := config.Load("configs/server.yaml", systemEnvVars)
+	if err != nil {
+		slog.Error("Failed to load config", "error", err)
+		os.Exit(1)
+	}
+
+	initLogger(cfg.Env, cfg.LogLevel)
+
+	db, err := initDB(cfg)
+	if err != nil {
+		slog.Error("Failed to initialize database", "error", err)
+		os.Exit(1)
+	}
+
+	reg := createRegistry(cfg, db)
+	registerModules(reg)
+
+	if err := reg.InitializeAll(); err != nil {
+		closeDB(db)
+		slog.Error("Failed to initialize modules", "error", err)
+		os.Exit(1)
+	}
+
+	if err := runSeedData(cfg.DBDSN, reg); err != nil {
+		closeDB(db)
+		slog.Error("Failed to run seed data", "error", err)
+		os.Exit(1)
+	}
+
+	closeDB(db)
+	slog.Info("✅ Seed data completed successfully")
+}
+
+func runAdminCommand(taskName string) {
+	initLoggerEarly()
+
+	systemEnvVars := captureSystemEnvVars()
+	_ = godotenv.Load()
+
+	cfg, err := config.Load("configs/server.yaml", systemEnvVars)
+	if err != nil {
+		slog.Error("Failed to load config", "error", err)
+		os.Exit(1)
+	}
+
+	initLogger(cfg.Env, cfg.LogLevel)
+
+	db, err := initDB(cfg)
+	if err != nil {
+		slog.Error("Failed to initialize database", "error", err)
+		os.Exit(1)
+	}
+
+	reg := createRegistry(cfg, db)
+	registerModules(reg)
+
+	if err := reg.InitializeAll(); err != nil {
+		closeDB(db)
+		slog.Error("Failed to initialize modules", "error", err)
+		os.Exit(1)
+	}
+
+	runner := admin.NewRunner()
+
+	// TODO: Modules can register admin tasks here via an interface
+	// For now, show available tasks
+	if !runner.Has(taskName) {
+		closeDB(db)
+		slog.Error("Unknown admin task", "task", taskName)
+
+		tasks := runner.List()
+		if len(tasks) == 0 {
+			slog.Info("No admin tasks registered")
+		} else {
+			slog.Info("Available admin tasks:")
+
+			for _, t := range tasks {
+				slog.Info("  " + t.Name() + " - " + t.Description())
+			}
+		}
+
+		os.Exit(1)
+	}
+
+	if err := runner.Run(context.Background(), taskName); err != nil {
+		closeDB(db)
+		slog.Error("Admin task failed", "task", taskName, "error", err)
+		os.Exit(1)
+	}
+
+	closeDB(db)
+	slog.Info("✅ Admin task completed successfully", "task", taskName)
+}
+
 // initLoggerEarly initializes a basic logger with debug enabled before config is loaded
 func initLoggerEarly() {
 	opts := &slog.HandlerOptions{
@@ -508,6 +800,7 @@ func initLogger(env string, logLevel string) {
 
 	// Parse log level
 	var level slog.Level
+
 	switch logLevel {
 	case "debug":
 		level = slog.LevelDebug
