@@ -16,6 +16,7 @@ Este es un template profesional para construir aplicaciones en Go siguiendo el p
 -   🔄 **Hot Reload**: Desarrollo fluido con **Air** que monitorea cambios en código, configuración (`.env`, YAML) y recursos.
 -   🔌 **WebSocket Real-Time**: Comunicación bidireccional integrada con el event bus para notificaciones en tiempo real.
 -   📊 **GraphQL Opcional**: Soporte opcional con gqlgen para APIs flexibles y frontend-friendly (subscriptions incluidas).
+-   🧪 **Mocking con gomock**: Generación automática de mocks type-safe para testing unitario eficiente.
 -   🛡️ **Observabilidad**: Integración nativa con OpenTelemetry (Tracing & Metrics), Prometheus y Health Checks con manejo de contextos.
 -   ⛴️ **Cloud Ready**: Dockerfile multi-stage y Helm Charts flexibles para Kubernetes (soporta monolito y módulos independientes).
 -   🌍 **IaC con OpenTofu**: Infraestructura base reproducible (VPC, EKS, RDS) gestionada con OpenTofu y Terragrunt.
@@ -71,12 +72,14 @@ make dev-module auth
 
 > 💡 **Tip**: Air monitorea automáticamente cambios en `.go`, `.yaml`, `.env`, `.proto`, `.sql` y archivos de configuración, reiniciando el servidor instantáneamente.
 
-## 📖 Documentación
+## 📖 Documentación Completa
 
--   **[Guía de Arquitectura](docs/MODULITH_ARCHITECTURE.md)** - Comprensión profunda de la arquitectura y flujos de trabajo
--   **[WebSocket Guide](docs/WEBSOCKET_GUIDE.md)** - Comunicación en tiempo real con clientes
--   **[GraphQL Integration](docs/GRAPHQL_INTEGRATION.md)** - Agregar GraphQL opcional con gqlgen
--   **[Deployment Guide](deployment/README.md)** - Guía completa de despliegue en Kubernetes con IaC
+-   **[Guía de Arquitectura](docs/MODULITH_ARCHITECTURE.md)** - Arquitectura, testing con gomock, coverage reporting y comandos genéricos
+-   **[WebSocket en Tiempo Real](docs/WEBSOCKET_GUIDE.md)** - Comunicación bidireccional, event bus y autenticación JWT
+-   **[Integración GraphQL](docs/GRAPHQL_INTEGRATION.md)** - Setup opcional con gqlgen, schema por módulo y subscriptions
+-   **[Deployment & IaC](docs/DEPLOYMENT_SYNC.md)** - OpenTofu, Helm Charts, estrategias de despliegue y testing
+-   **[Propuesta de Frontend](docs/FRONTEND_PROPOSAL.md)** - Go Templates + HTMX con WebSocket/GraphQL
+-   **[Deployment Guide](deployment/README.md)** - Guía completa de despliegue en Kubernetes
 -   **[Helm Chart Documentation](deployment/helm/modulith/README.md)** - Documentación detallada del Helm chart
 
 ## 🛠️ Comandos Útiles (Makefile)
@@ -102,9 +105,12 @@ make dev-module auth
 
 -   `make lint`: Ejecuta el linter estricto (**OBLIGATORIO** después de cambios en `.go`).
 -   `make test`: Ejecuta todas las pruebas unitarias.
+-   `make test-unit`: Ejecuta tests unitarios con mocks (rápidos, sin DB).
 -   `make test-coverage`: Ejecuta pruebas y genera reporte HTML de cobertura.
 -   `make coverage-report`: Muestra reporte detallado de cobertura en terminal.
 -   `make coverage-html`: Abre reporte de cobertura en el navegador.
+-   `make generate-mocks`: Genera mocks de interfaces para testing.
+-   `make install-mocks`: Instala gomock para generación de mocks.
 
 ### Desarrollo
 

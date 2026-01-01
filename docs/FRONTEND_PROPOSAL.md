@@ -27,6 +27,26 @@ Esta propuesta documenta la decisión arquitectónica de incluir el frontend web
    - No hay sincronización entre repositorios
    - Testing más simple (todo en un proceso)
 
+### Comunicación en Tiempo Real
+
+El backend ya incluye **WebSocket** integrado (`/ws`) para comunicación bidireccional en tiempo real:
+
+- **Autenticación JWT**: Las conexiones WebSocket están protegidas
+- **Integración con Event Bus**: Los eventos del backend se propagan automáticamente a los clientes
+- **Broadcast y Mensajes Dirigidos**: Soporte para notificaciones globales y específicas por usuario
+
+**Ver documentación completa:** `docs/WEBSOCKET_GUIDE.md`
+
+### API Flexible (Opcional)
+
+Si necesitas una API más flexible que REST, el backend soporta **GraphQL** opcional:
+
+- **Schema por Módulo**: Cada módulo define su propio schema GraphQL
+- **Subscriptions**: Subscripciones en tiempo real vía WebSocket
+- **Integración con Event Bus**: Las subscriptions pueden escuchar eventos internos
+
+**Ver documentación completa:** `docs/GRAPHQL_INTEGRATION.md`
+
 ### Casos de Uso Ideales
 
 - **Dashboards administrativos**: Interfaces de gestión internas

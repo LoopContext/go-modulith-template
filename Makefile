@@ -1,4 +1,4 @@
-.PHONY: sqlc proto install-deps graphql-init graphql-generate graphql-validate add-graphql
+.PHONY: sqlc proto install-deps install-mocks generate-mocks test-unit graphql-init graphql-generate graphql-validate add-graphql
 
 install-deps: ## Install developer tools
 	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
@@ -7,6 +7,10 @@ install-deps: ## Install developer tools
 	go install github.com/air-verse/air@latest
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install github.com/99designs/gqlgen@latest
+	go install go.uber.org/mock/mockgen@latest
+
+install-mocks: ## Install gomock for test mocking
+	go install go.uber.org/mock/mockgen@latest
 
 sqlc:
 	sqlc generate
@@ -14,11 +18,19 @@ sqlc:
 proto:
 	buf generate
 
+generate-mocks: ## Generate all mocks from interfaces
+	@echo "Generating mocks..."
+	@go generate ./modules/...
+	@echo "Mocks generated successfully"
+
 docker-up: ## Run docker-compose
 	docker-compose up -d
 
 test: ## Run tests
 	go test -v -race -cover ./...
+
+test-unit: generate-mocks ## Run unit tests with fresh mocks
+	go test -v -short ./...
 
 test-coverage: ## Run tests with coverage report
 	go test -v -race -coverprofile=coverage.out ./...

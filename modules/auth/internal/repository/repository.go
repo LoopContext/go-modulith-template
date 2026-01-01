@@ -1,3 +1,5 @@
+//go:generate mockgen -source=repository.go -destination=mocks/repository_mock.go -package=mocks
+
 // Package repository provides the data access layer for the authentication module.
 package repository
 

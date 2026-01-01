@@ -4,8 +4,50 @@ Este documento resume la sincronización completa entre el código, build system
 
 ## ✅ Estado de Sincronización
 
-**Fecha:** Diciembre 2025
+**Fecha:** Enero 2026
 **Estado:** ✅ Totalmente Sincronizado
+
+---
+
+## 🧪 Testing y Calidad
+
+### Mocking con gomock
+
+El proyecto utiliza **gomock** para generación automática de mocks:
+
+```bash
+# Generar mocks de todas las interfaces
+make generate-mocks
+
+# Ejecutar tests unitarios (con mocks, sin DB)
+make test-unit
+
+# Tests completos (incluyendo integración)
+make test
+```
+
+**Características:**
+- ✅ Type-safe: Los mocks fallan en compilación si la interfaz cambia
+- ✅ Automático: Regeneración mediante `go generate`
+- ✅ Alineado: Misma filosofía que sqlc y buf
+
+**Ver documentación:** `docs/MODULITH_ARCHITECTURE.md` (Sección: Mocking)
+
+### Coverage Reporting
+
+```bash
+# Reporte visual en terminal con estadísticas
+make coverage-report
+
+# Reporte HTML interactivo
+make coverage-html
+```
+
+**El reporte muestra:**
+- 📦 Cobertura por paquete con indicadores visuales
+- 📈 Estadísticas generales (excelente/buena/media)
+- 🎯 Top 10 archivos con mejor cobertura
+- ⚠️ Áreas que necesitan más tests
 
 ---
 

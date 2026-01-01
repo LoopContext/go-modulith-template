@@ -13,3 +13,6 @@ bin/
 # Test coverage
 coverage.out
 *.out
+
+# Mock files (generated)
+**/mocks/*_mock.go

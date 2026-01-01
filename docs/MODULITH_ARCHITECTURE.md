@@ -12,6 +12,8 @@ Todas las implementaciones deben adherirse estrictamente a las siguientes tecnol
 -   **API Externa:**
     -   **gRPC:** Protocolo principal de comunicación backend-backend.
     -   **REST/HTTP:** Expuesto automáticamente vía `grpc-gateway` (Proxy inverso).
+    -   **WebSocket:** Comunicación bidireccional en tiempo real (`/ws`).
+    -   **GraphQL (Opcional):** API flexible con subscripciones vía WebSocket (`/graphql`).
     -   **Documentación:** Swagger UI (OpenAPIv2) disponible en `/swagger-ui/` (Solo Dev).
 -   **Persistencia:** SQLC (Type-safe SQL).
 -   **Base de Datos:** PostgreSQL (con migraciones versionadas).
@@ -257,6 +259,100 @@ eventBus.Subscribe("user.created", func(ctx context.Context, e events.Event) err
 })
 ```
 
+## 13.1. WebSocket: Comunicación en Tiempo Real
+
+El proyecto incluye soporte completo para **WebSocket** (`internal/websocket`), permitiendo comunicación bidireccional y en tiempo real con los clientes.
+
+### Características
+
+-   **Integración con Event Bus:** Los eventos publicados en el bus pueden ser enviados automáticamente a clientes WebSocket conectados.
+-   **Autenticación JWT:** Las conexiones WebSocket están protegidas mediante JWT extraído del query parameter (`?token=...`).
+-   **Mensajes Dirigidos:** Soporte para broadcast (todos los clientes) y mensajes específicos por `user_id`.
+-   **Gestión de Ciclo de Vida:** Manejo automático de conexiones, desconexiones, heartbeat (ping/pong).
+
+### Arquitectura
+
+```
+┌─────────────┐      ┌──────────────┐      ┌─────────────┐
+│   Client    │─────▶│  WebSocket   │─────▶│     Hub     │
+│  (Browser)  │      │   Handler    │      │  (Manager)  │
+└─────────────┘      └──────────────┘      └─────────────┘
+                                                   │
+                                                   ▼
+                                            ┌─────────────┐
+                                            │  Event Bus  │
+                                            │ Subscriber  │
+                                            └─────────────┘
+```
+
+### Ejemplo de Uso
+
+```go
+// Enviar evento desde un módulo (se propagará vía WebSocket)
+bus.Publish(ctx, events.Event{
+    Name: "notification.new",
+    Payload: map[string]any{
+        "user_id": "user_123",
+        "message": "Nueva notificación",
+    },
+})
+
+// El subscriber de WebSocket lo captura y envía al cliente conectado
+```
+
+**Endpoint:** `ws://localhost:8080/ws?token={jwt_token}`
+
+**Ver guía completa:** `docs/WEBSOCKET_GUIDE.md`
+
+## 13.2. GraphQL: API Flexible (Opcional)
+
+El proyecto soporta integración **opcional** de GraphQL usando `gqlgen`, proporcionando una alternativa flexible a gRPC/REST.
+
+### Características
+
+-   **Schema por Módulo:** Cada módulo define su propio schema GraphQL (`internal/graphql/schema/{module}.graphql`).
+-   **Subscriptions:** Soporte para subscripciones en tiempo real vía WebSocket.
+-   **Integración con Event Bus:** Las subscriptions pueden escuchar eventos del bus interno.
+-   **Setup Automatizado:** Script de instalación y configuración (`scripts/add-graphql.sh`).
+
+### Arquitectura
+
+```
+internal/graphql/
+├── schema/
+│   ├── schema.graphql      # Root schema (combina todos)
+│   ├── auth.graphql        # Schema del módulo auth
+│   └── order.graphql       # Schema del módulo order
+├── resolver/
+│   ├── resolver.go         # Root resolver
+│   ├── auth.go             # Resolvers de auth
+│   └── order.go            # Resolvers de order
+└── server.go               # Setup de GraphQL
+```
+
+### Instalación y Uso
+
+```bash
+# 1. Agregar GraphQL al proyecto
+make add-graphql
+
+# 2. Definir schemas por módulo en internal/graphql/schema/
+
+# 3. Generar código
+make graphql-generate
+
+# 4. Implementar resolvers en internal/graphql/resolver/
+
+# 5. Validar
+make graphql-validate
+```
+
+**Endpoints:**
+-   GraphQL API: `POST /graphql`
+-   Playground: `GET /graphql/playground` (solo dev)
+
+**Ver guía completa:** `docs/GRAPHQL_INTEGRATION.md`
+
 ## 14. Escalabilidad y Alta Disponibilidad
 
 El diseño modular y el empaquetado permiten escalar el sistema de forma eficiente:
@@ -487,15 +583,112 @@ func (s *UserService) CreateUser(ctx context.Context, req *usersv1.CreateUserReq
 
 Establecemos una disciplina de testing que garantice la calidad sin burocracia:
 
+### Mocking (gomock)
+
+Para facilitar el testing unitario, utilizamos **gomock** (`go.uber.org/mock`) para generar mocks automáticos de interfaces.
+
+**Filosofía:**
+-   **Type-safe:** Los mocks fallan en compilación si la interfaz cambia, garantizando que los tests estén siempre sincronizados.
+-   **Automático:** Generación mediante `//go:generate`, alineado con la filosofía del proyecto (sqlc, buf).
+-   **Validable:** Verificaciones de expectativas en tests para asegurar que el código llama a las dependencias correctamente.
+
+**Comandos:**
+
+```bash
+# Instalar herramienta
+make install-mocks
+
+# Generar todos los mocks
+make generate-mocks
+
+# Ejecutar tests unitarios (genera mocks automáticamente)
+make test-unit
+```
+
+**Agregar mocks a una nueva interfaz:**
+
+1.  Agregar anotación al inicio del archivo (antes del package doc):
+
+```go
+//go:generate mockgen -source=myinterface.go -destination=mocks/myinterface_mock.go -package=mocks
+
+// Package mypackage provides...
+package mypackage
+
+type MyInterface interface {
+    DoSomething(ctx context.Context, id string) error
+}
+```
+
+2.  Generar: `make generate-mocks`
+
+3.  Usar en tests:
+
+```go
+package service_test
+
+import (
+    "testing"
+    "go.uber.org/mock/gomock"
+    "yourproject/path/to/mocks"
+)
+
+func TestWithMock(t *testing.T) {
+    ctrl := gomock.NewController(t)
+    defer ctrl.Finish()
+
+    mock := mocks.NewMockMyInterface(ctrl)
+
+    // Setup expectations
+    mock.EXPECT().
+        DoSomething(gomock.Any(), "user_123").
+        Return(nil).
+        Times(1)
+
+    // Test code that uses the mock
+    // ...
+}
+```
+
+**Mocks vs Repository Real:**
+-   **Unit Tests:** Usar mocks (rápidos, aislados, no requieren DB).
+-   **Integration Tests:** Usar DB real con Testcontainers (validan queries SQL reales).
+
+**Ejemplo Real:**
+
+Ver `modules/auth/internal/service/service_mock_test.go` para ejemplos completos de cómo testear servicios usando mocks del repositorio.
+
 ### Hot Reload (Desarrollo Rápido)
 
 Para una experiencia de desarrollo fluida, utilizamos **Air** para recompilar automáticamente el código al guardar:
 
 1.  **Monolito:** `make dev`
-2.  **Microservicio Auth:** `make dev-auth`
+2.  **Cualquier Módulo:** `make dev-module {nombre}` (ej. `make dev-module auth`)
 
 > [!TIP]
-> Air vigila cambios en archivos `.go`, `.yaml`, `.yml`, `.proto`, `.sql`, `.env` y archivos de configuración específicos (`configs/server.yaml`, `configs/auth.yaml`), reiniciando el binario instantáneamente. Esto permite que los cambios en configuración se reflejen sin reiniciar manualmente.
+> Air vigila cambios en archivos `.go`, `.yaml`, `.yml`, `.proto`, `.sql`, `.env` y archivos de configuración específicos, reiniciando el binario instantáneamente. El generador de módulos (`make new-module`) crea automáticamente el archivo `.air.{module}.toml` necesario.
+
+### Comandos de Build Genéricos
+
+El proyecto proporciona comandos comodín para trabajar con cualquier módulo:
+
+```bash
+# Build
+make build-module auth      # Genera bin/auth
+make build-module payments  # Genera bin/payments
+make build-all              # Compila server + todos los módulos
+
+# Docker
+make docker-build-module auth      # Genera modulith-auth:latest
+make docker-build-module payments  # Genera modulith-payments:latest
+
+# Desarrollo con Hot Reload
+make dev-module auth      # Ejecuta auth con hot reload
+make dev-module payments  # Ejecuta payments con hot reload
+```
+
+> [!NOTE]
+> Todos los binarios se compilan en el directorio `bin/` centralizado, ignorado por Git.
 
 -   **Convención:** Archivos `*_test.go` al lado del código que prueban.
 -   **Unit Tests:**
@@ -510,18 +703,36 @@ Para una experiencia de desarrollo fluida, utilizamos **Air** para recompilar au
 
 Para acelerar el inicio de nuevos módulos y asegurar que sigan los estándares definidos, disponemos de una herramienta de scaffolding robusta.
 
--   **Comando:** `make new-module MODULE_NAME=[nombre]`
+-   **Comando:** `make new-module {nombre}` (ej. `make new-module payments`)
 -   **Automatización:**
-    - Genera la estructura de carpetas estándar.
+    -   Genera la estructura de carpetas estándar.
     -   Crea los archivos boilerplate (`module.go`, `service.go`, `repository.go`, `proto`).
     -   **Configura automáticamente `sqlc.yaml`** añadiendo la entrada para el nuevo módulo.
+    -   **Genera archivo `.air.{module}.toml`** para hot reload con Air.
+    -   **Crea `cmd/{module}/main.go`** para despliegue independiente como microservicio.
+    -   **Crea `configs/{module}.yaml`** con configuración específica del módulo.
     -   **Manejo de Plurales:** Detecta nombres en plural (ej. `products`) y ajusta el nombre del struct generado (ej. `Product`) en los templates para evitar errores de compilación.
 -   **Archivos Generados:**
+    -   `cmd/[name]/main.go`: Entrypoint para microservicio independiente.
+    -   `configs/[name].yaml`: Configuración específica del módulo.
+    -   `.air.[name].toml`: Configuración de hot reload.
     -   `modules/[name]/module.go`: Inicialización y registro del Gateway.
     -   `modules/[name]/internal/service/service.go`: Boilerplate del servicio con TypeID y mapeo de errores.
     -   `modules/[name]/internal/repository/repository.go`: Interfaz y adaptador SQL con soporte de transacciones (`WithTx`).
     -   `modules/[name]/resources/db/migration/`: Script inicial de base de datos.
     -   `proto/[name]/v1/`: Contrato inicial del servicio.
+
+**Después de generar un módulo:**
+```bash
+# Build
+make build-module payments
+
+# Docker
+make docker-build-module payments
+
+# Desarrollo
+make dev-module payments
+```
 
 ## 18. Despliegue Granular y Configuración (Microservices Path)
 
@@ -702,6 +913,27 @@ El proyecto impone un estándar de calidad de "Clase Mundial" a través de un li
     -   **Seguridad:** Análisis estático con `gosec` en cada commit.
 2.  **Validación de Configuración:** El cargador de configuración valida semánticamente las variables críticas antes de que la aplicación inicie (Fail-Fast).
 3.  **Tests con Race Detection:** No se permite código con condiciones de carrera (`-race`).
+
+### Cobertura de Tests
+
+El proyecto incluye un sistema de reporting de cobertura avanzado:
+
+```bash
+# Reporte visual en terminal con estadísticas
+make coverage-report
+
+# Reporte HTML interactivo
+make test-coverage
+make coverage-html
+```
+
+El reporte de cobertura muestra:
+-   📦 Cobertura por paquete con indicadores visuales (🟢 >95%, 🟡 80-95%, 🟠 60-80%)
+-   📈 Estadísticas generales (paquetes con excelente/buena/media cobertura)
+-   🎯 Top 10 archivos con mejor cobertura
+-   ⚠️ Áreas que necesitan más tests
+
+**Nota:** La cobertura total del proyecto excluye automáticamente código generado (`*.pb.go`, `sqlc`, etc.) para proporcionar métricas precisas del código escrito a mano.
 
 ### Estándares de Linting (Actualizado)
 
