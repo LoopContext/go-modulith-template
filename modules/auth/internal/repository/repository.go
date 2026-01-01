@@ -31,6 +31,7 @@ type Repository interface {
 	GetValidMagicCodeByEmail(ctx context.Context, email, code string) (*store.MagicCode, error)
 	GetValidMagicCodeByPhone(ctx context.Context, phone, code string) (*store.MagicCode, error)
 	InvalidateMagicCodes(ctx context.Context, email, phone string) error
+	CleanupExpiredMagicCodes(ctx context.Context) (int, error)
 
 	// Session management
 	CreateSession(ctx context.Context, session *Session) error
@@ -40,6 +41,7 @@ type Repository interface {
 	UpdateSessionActivity(ctx context.Context, id string) error
 	RevokeSession(ctx context.Context, id string) error
 	RevokeAllUserSessions(ctx context.Context, userID string, exceptSessionID string) (int, error)
+	CleanupExpiredSessions(ctx context.Context) (int, error)
 
 	// Token blacklist
 	BlacklistToken(ctx context.Context, tokenHash, userID, reason string, expiresAt time.Time) error
@@ -744,4 +746,36 @@ func (r *SQLRepository) CleanupExpiredOAuthStates(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// CleanupExpiredSessions removes expired sessions (older than 7 days past expiration).
+// Returns the number of sessions deleted.
+func (r *SQLRepository) CleanupExpiredSessions(ctx context.Context) (int, error) {
+	result, err := r.db.ExecContext(ctx, "DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '7 days'")
+	if err != nil {
+		return 0, fmt.Errorf("failed to cleanup expired sessions: %w", err)
+	}
+
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	return int(count), nil
+}
+
+// CleanupExpiredMagicCodes removes expired magic codes.
+// Returns the number of magic codes deleted.
+func (r *SQLRepository) CleanupExpiredMagicCodes(ctx context.Context) (int, error) {
+	result, err := r.db.ExecContext(ctx, "DELETE FROM magic_codes WHERE expires_at < CURRENT_TIMESTAMP")
+	if err != nil {
+		return 0, fmt.Errorf("failed to cleanup expired magic codes: %w", err)
+	}
+
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	return int(count), nil
 }

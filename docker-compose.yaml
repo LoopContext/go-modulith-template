@@ -13,6 +13,90 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - modulith-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: modulith_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - modulith-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.55
+    container_name: modulith_jaeger
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"  # UI
+      - "${JAEGER_OTLP_GRPC_PORT:-4317}:4317"  # OTLP gRPC
+      - "${JAEGER_OTLP_HTTP_PORT:-4318}:4318"  # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:16686/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - modulith-network
+
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: modulith_prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./deployment/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - modulith-network
+
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: modulith_grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=
+    volumes:
+      - grafana_data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - modulith-network
+    depends_on:
+      - prometheus
 
 volumes:
   postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  modulith-network:
+    driver: bridge

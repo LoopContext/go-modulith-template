@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -18,6 +19,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/cmelgarejo/go-modulith-template/internal/admin"
+	adminTasks "github.com/cmelgarejo/go-modulith-template/internal/admin/tasks"
 	"github.com/cmelgarejo/go-modulith-template/internal/authn"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
@@ -151,7 +153,7 @@ func runServer(ctx context.Context, cfg *config.AppConfig, reg *registry.Registr
 	}()
 
 	<-ctx.Done()
-	shutdownServers(cfg, httpServer, grpcServer)
+	shutdownServers(cfg, httpServer, grpcServer, reg.WebSocketHub())
 }
 
 func loadConfig() *config.AppConfig {
@@ -264,6 +266,14 @@ func closeGatewayConn(conn *grpc.ClientConn) {
 }
 
 func startHTTPServer(cfg *config.AppConfig, mux *http.ServeMux) *http.Server {
+	handler := buildHTTPHandler(cfg, mux)
+	server := createHTTPServer(cfg, handler)
+	startServerAsync(server)
+
+	return server
+}
+
+func buildHTTPHandler(cfg *config.AppConfig, mux *http.ServeMux) http.Handler {
 	// Wrap with middleware (innermost first)
 	var handler http.Handler = mux
 
@@ -286,12 +296,26 @@ func startHTTPServer(cfg *config.AppConfig, mux *http.ServeMux) *http.Server {
 		)
 	}
 
+	// Apply timeout middleware (enforces maximum request duration)
+	requestTimeout, err := time.ParseDuration(cfg.RequestTimeout)
+	if err != nil {
+		slog.Warn("Invalid REQUEST_TIMEOUT, using default 30s", "value", cfg.RequestTimeout, "error", err)
+
+		requestTimeout = 30 * time.Second
+	}
+
+	handler = middleware.Timeout(requestTimeout)(handler)
+
 	// Apply logging middleware (logs requests with method, path, status, duration)
 	handler = middleware.LoggingWithDefaults()(handler)
 
 	// Apply request ID middleware (outermost - ensures request_id is available for logging)
 	handler = middleware.RequestID(handler)
 
+	return handler
+}
+
+func createHTTPServer(cfg *config.AppConfig, handler http.Handler) *http.Server {
 	// Parse timeout configurations
 	readTimeout, err := time.ParseDuration(cfg.ReadTimeout)
 	if err != nil {
@@ -321,13 +345,15 @@ func startHTTPServer(cfg *config.AppConfig, mux *http.ServeMux) *http.Server {
 		"write_timeout", writeTimeout,
 	)
 
+	return server
+}
+
+func startServerAsync(server *http.Server) {
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("failed to serve HTTP", "error", err)
 		}
 	}()
-
-	return server
 }
 
 func startGRPCServer(cfg *config.AppConfig, grpcServer *grpc.Server, lis net.Listener, stop context.CancelFunc) {
@@ -341,7 +367,7 @@ func startGRPCServer(cfg *config.AppConfig, grpcServer *grpc.Server, lis net.Lis
 	}()
 }
 
-func shutdownServers(cfg *config.AppConfig, httpServer *http.Server, grpcServer *grpc.Server) {
+func shutdownServers(cfg *config.AppConfig, httpServer *http.Server, grpcServer *grpc.Server, wsHub *websocket.Hub) {
 	slog.Info("Shutting down server")
 
 	// Parse shutdown timeout
@@ -355,11 +381,34 @@ func shutdownServers(cfg *config.AppConfig, httpServer *http.Server, grpcServer 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		slog.Error("failed to shutdown http server", "error", err)
+	// Step 1: Stop accepting new connections
+	slog.Info("Stopping new connections")
+
+	// Step 2: Gracefully close WebSocket connections
+	if wsHub != nil {
+		slog.Info("Closing WebSocket connections", "active_connections", wsHub.GetTotalConnections())
+		wsHub.Stop()
+		// Give WebSocket hub time to close connections gracefully
+		time.Sleep(2 * time.Second)
 	}
 
+	// Step 3: Shutdown HTTP server (waits for in-flight requests)
+	slog.Info("Shutting down HTTP server", "timeout", shutdownTimeout)
+
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		slog.Error("Failed to shutdown HTTP server", "error", err)
+	} else {
+		slog.Info("HTTP server shutdown complete")
+	}
+
+	// Step 4: Shutdown gRPC server
+	slog.Info("Shutting down gRPC server")
 	grpcServer.GracefulStop()
+	slog.Info("gRPC server shutdown complete")
+
+	// Step 5: Flush telemetry data (if needed)
+	// OpenTelemetry SDK handles this automatically via shutdown hooks
+	slog.Info("Server shutdown complete")
 }
 
 func initObservability(ctx context.Context, cfg *config.AppConfig) (func(), error) {
@@ -371,7 +420,7 @@ func initObservability(ctx context.Context, cfg *config.AppConfig) (func(), erro
 
 	var tracerShutdown func()
 	if cfg.OTLPEndpoint != "" {
-		tracerShutdown = initTracer(ctx, cfg.OTLPEndpoint)
+		tracerShutdown = initTracer(ctx, cfg.OTLPEndpoint, cfg.ServiceName)
 	} else {
 		tracerShutdown = func() {}
 	}
@@ -513,38 +562,92 @@ func setupGateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Regi
 	return mux, conn, nil
 }
 
-func setupHealthChecks(mux *http.ServeMux, db *sql.DB, wsHub *websocket.Hub, reg *registry.Registry) {
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
+const healthStatusHealthy = "healthy"
 
+func setupHealthChecks(mux *http.ServeMux, db *sql.DB, wsHub *websocket.Hub, reg *registry.Registry) {
+	setupLivenessProbe(mux)
+	setupReadinessProbe(mux, db, wsHub, reg)
+	setupWebSocketHealthCheck(mux, wsHub)
+}
+
+func setupLivenessProbe(mux *http.ServeMux) {
+	// Liveness probe - always returns 200 if process is alive
+	mux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	})
 
-	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		// Check module health first
-		if err := reg.HealthCheckAll(r.Context()); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-
-			msg := fmt.Sprintf("Module health check failed: %v", err)
-			_, _ = fmt.Fprintf(w, "%s", msg)
-
-			return
-		}
-
-		// Check database connectivity
-		if err := db.PingContext(r.Context()); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-
-			_, _ = w.Write([]byte("Database disconnected"))
-
-			return
-		}
-
+	// Legacy healthz endpoint (same as livez for backward compatibility)
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-
-		_, _ = w.Write([]byte("Ready"))
+		_, _ = w.Write([]byte("OK"))
 	})
+}
 
+func setupReadinessProbe(mux *http.ServeMux, db *sql.DB, wsHub *websocket.Hub, reg *registry.Registry) {
+	// Readiness probe - checks all dependencies
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		status := map[string]interface{}{
+			"status": "ready",
+			"checks": make(map[string]string),
+		}
+
+		checks := status["checks"].(map[string]string)
+		allHealthy := checkReadinessDependencies(r.Context(), checks, db, wsHub, reg)
+
+		if !allHealthy {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+
+		// Write JSON response
+		jsonData, _ := json.Marshal(status)
+		_, _ = w.Write(jsonData)
+	})
+}
+
+func checkReadinessDependencies(ctx context.Context, checks map[string]string, db *sql.DB, wsHub *websocket.Hub, reg *registry.Registry) bool {
+	allHealthy := true
+
+	// Check module health
+	if err := reg.HealthCheckAll(ctx); err != nil {
+		checks["modules"] = fmt.Sprintf("unhealthy: %v", err)
+		allHealthy = false
+	} else {
+		checks["modules"] = healthStatusHealthy
+	}
+
+	// Check database connectivity
+	if err := db.PingContext(ctx); err != nil {
+		checks["database"] = fmt.Sprintf("unhealthy: %v", err)
+		allHealthy = false
+	} else {
+		checks["database"] = healthStatusHealthy
+	}
+
+	// Check event bus (basic check - if it exists, it's healthy)
+	if reg.EventBus() != nil {
+		checks["event_bus"] = healthStatusHealthy
+	} else {
+		checks["event_bus"] = "unhealthy: not initialized"
+		allHealthy = false
+	}
+
+	// Check WebSocket hub
+	if wsHub != nil {
+		checks["websocket"] = healthStatusHealthy
+	} else {
+		checks["websocket"] = "unhealthy: not initialized"
+		allHealthy = false
+	}
+
+	return allHealthy
+}
+
+func setupWebSocketHealthCheck(mux *http.ServeMux, wsHub *websocket.Hub) {
 	// WebSocket connections health check
 	mux.HandleFunc("/healthz/ws", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -773,6 +876,9 @@ func runAdminCommand(taskName string) {
 
 	runner := admin.NewRunner()
 
+	// Register example admin tasks
+	adminTasks.RegisterExampleTasks(runner, db)
+
 	// TODO: Modules can register admin tasks here via an interface
 	// For now, show available tasks
 	if !runner.Has(taskName) {
@@ -942,7 +1048,7 @@ func initMetrics() (http.Handler, func(), error) {
 	}, nil
 }
 
-func initTracer(ctx context.Context, endpoint string) func() {
+func initTracer(ctx context.Context, endpoint, serviceName string) func() {
 	exporter, err := otlptracegrpc.New(ctx,
 		otlptracegrpc.WithInsecure(),
 		otlptracegrpc.WithEndpoint(endpoint),
@@ -956,7 +1062,7 @@ func initTracer(ctx context.Context, endpoint string) func() {
 		resource.Default(),
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceName("modulith-server"),
+			semconv.ServiceName(serviceName),
 		),
 	)
 	if err != nil {

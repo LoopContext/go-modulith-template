@@ -1635,6 +1635,282 @@ handler := middleware.Logging(config)(yourHandler)
 
 ---
 
-## 29. Futuras Mejoras y Nota Final
+## 29. Health Checks y Monitoreo
+
+El template incluye endpoints de health checks diseñados para integración con orquestadores (Kubernetes, Docker Swarm, etc.).
+
+### Endpoints Disponibles
+
+- **`/livez`**: Liveness probe - siempre retorna 200 si el proceso está vivo
+- **`/readyz`**: Readiness probe - verifica todas las dependencias críticas
+- **`/healthz`**: Endpoint legacy (compatibilidad hacia atrás, mismo que `/livez`)
+- **`/healthz/ws`**: Estado de conexiones WebSocket (conexiones activas y usuarios conectados)
+
+### Readiness Probe Detallado
+
+El endpoint `/readyz` retorna un JSON con el estado de cada dependencia:
+
+```json
+{
+  "status": "ready",
+  "checks": {
+    "modules": "healthy",
+    "database": "healthy",
+    "event_bus": "healthy",
+    "websocket": "healthy"
+  }
+}
+```
+
+**Códigos de respuesta:**
+- `200 OK`: Todas las dependencias están saludables
+- `503 Service Unavailable`: Una o más dependencias no están disponibles
+
+**Verificaciones realizadas:**
+- **Módulos**: Ejecuta `HealthCheckAll()` en todos los módulos registrados
+- **Base de datos**: Verifica conectividad con `db.PingContext()`
+- **Event Bus**: Verifica que el bus de eventos esté inicializado
+- **WebSocket Hub**: Verifica que el hub de WebSocket esté inicializado
+
+### Integración con Kubernetes
+
+El Helm chart configura automáticamente los probes:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /livez
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+startupProbe:
+  httpGet:
+    path: /livez
+    port: http
+  failureThreshold: 30
+  periodSeconds: 2
+```
+
+---
+
+## 30. Admin Tasks (Tareas Administrativas)
+
+Sistema de tareas administrativas para operaciones de mantenimiento y limpieza.
+
+### Tareas Disponibles
+
+- **`cleanup-sessions`**: Limpia sesiones de usuario expiradas
+- **`cleanup-magic-codes`**: Limpia códigos mágicos expirados
+
+### Uso
+
+```bash
+# Ejecutar una tarea administrativa
+make admin TASK=cleanup-sessions
+
+# O directamente con el binario
+./bin/server admin cleanup-sessions
+./bin/server admin cleanup-magic-codes
+
+# Listar tareas disponibles
+./bin/server admin
+```
+
+### Crear Nuevas Tareas
+
+Las tareas administrativas implementan la interfaz `admin.Task`:
+
+```go
+package tasks
+
+import (
+    "context"
+    "database/sql"
+    "fmt"
+    "log/slog"
+
+    "github.com/cmelgarejo/go-modulith-template/internal/admin"
+)
+
+type MyTask struct {
+    db *sql.DB
+}
+
+func (t *MyTask) Name() string {
+    return "my-task"
+}
+
+func (t *MyTask) Description() string {
+    return "Description of what this task does"
+}
+
+func (t *MyTask) Execute(ctx context.Context) error {
+    // Implementación de la tarea
+    slog.Info("Running my task")
+    return nil
+}
+
+// Registrar en internal/admin/tasks/register.go
+func RegisterAllTasks(runner *admin.Runner, db *sql.DB) {
+    runner.Register(NewCleanupSessionsTask(db))
+    runner.Register(NewCleanupMagicCodesTask(db))
+    runner.Register(NewMyTask(db))  // Nueva tarea
+}
+```
+
+### Ejecución en Producción
+
+Las tareas administrativas se ejecutan como comandos independientes y son útiles para:
+- Limpieza periódica de datos expirados (cron jobs)
+- Mantenimiento de la base de datos
+- Operaciones de migración de datos
+- Tareas de auditoría
+
+**Ejemplo con Kubernetes CronJob:**
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cleanup-sessions
+spec:
+  schedule: "0 2 * * *"  # Diario a las 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cleanup
+            image: modulith-server:latest
+            command: ["./service", "admin", "cleanup-sessions"]
+          restartPolicy: OnFailure
+```
+
+---
+
+## 31. Request Timeout Middleware
+
+Middleware para limitar la duración máxima de las peticiones HTTP.
+
+### Configuración
+
+```yaml
+# configs/server.yaml
+request_timeout: 30s  # Duración máxima de una petición
+```
+
+O mediante variable de entorno:
+
+```bash
+REQUEST_TIMEOUT=30s
+```
+
+### Comportamiento
+
+- Si una petición excede el timeout, el middleware retorna `504 Gateway Timeout`
+- El timeout se propaga al contexto de la petición, permitiendo que los handlers cancelen operaciones largas
+- El timeout se aplica después de otros middlewares (CORS, rate limiting, etc.)
+
+### Uso en Handlers
+
+Los handlers pueden verificar el contexto para cancelar operaciones:
+
+```go
+func (s *Service) LongRunningOperation(ctx context.Context) error {
+    // Verificar si el contexto fue cancelado
+    select {
+    case <-ctx.Done():
+        return ctx.Err()  // context.DeadlineExceeded
+    default:
+        // Continuar con la operación
+    }
+
+    // Operación larga...
+    return nil
+}
+```
+
+---
+
+## 32. Secrets Management
+
+Sistema de abstracción para gestión de secretos que permite usar diferentes proveedores sin cambiar el código de negocio.
+
+### Interfaz
+
+```go
+package secrets
+
+type Provider interface {
+    GetSecret(ctx context.Context, key string) (string, error)
+    GetSecretJSON(ctx context.Context, key string, v interface{}) error
+}
+```
+
+### Implementaciones
+
+#### EnvProvider (Desarrollo)
+
+Lee secretos desde variables de entorno:
+
+```go
+provider := secrets.NewEnvProvider()
+secret, err := provider.GetSecret(ctx, "DB_PASSWORD")
+```
+
+#### Implementaciones Futuras
+
+- **VaultProvider**: HashiCorp Vault
+- **AWSSecretsProvider**: AWS Secrets Manager
+- **K8sSecretsProvider**: Kubernetes Secrets
+
+### Uso
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/secrets"
+
+// Inicializar provider (desde configuración)
+var secretProvider secrets.Provider
+if cfg.Env == "prod" {
+    secretProvider = secrets.NewVaultProvider(cfg.VaultAddr)
+} else {
+    secretProvider = secrets.NewEnvProvider()
+}
+
+// Obtener secreto
+dbPassword, err := secretProvider.GetSecret(ctx, "DB_PASSWORD")
+if err != nil {
+    return fmt.Errorf("failed to get DB password: %w", err)
+}
+
+// Obtener secreto JSON
+var dbConfig struct {
+    Host     string `json:"host"`
+    Port     int    `json:"port"`
+    Database string `json:"database"`
+}
+if err := secretProvider.GetSecretJSON(ctx, "DB_CONFIG", &dbConfig); err != nil {
+    return fmt.Errorf("failed to get DB config: %w", err)
+}
+```
+
+### Helpers
+
+```go
+// Obtener secreto con valor por defecto
+value, err := secrets.GetSecretOrDefault(ctx, provider, "API_KEY", "default-key")
+```
+
+---
+
+## 33. Futuras Mejoras y Nota Final
 
 Esta arquitectura favorece la seguridad en tiempo de compilación y la disciplina operativa. Go 1.24+ se elige por el soporte nativo de `slog`, mejoras en el `toolchain` y optimizaciones de performance que permiten un código más limpio y eficiente.

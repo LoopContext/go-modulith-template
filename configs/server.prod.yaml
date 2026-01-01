@@ -1,0 +1,62 @@
+# Production configuration example for the modulith server
+# This file demonstrates production-optimized settings
+#
+# Usage:
+#   - Copy this file and customize for your environment
+#   - Override with environment variables or secrets manager in production
+#   - Never commit actual secrets to version control
+
+env: prod
+log_level: info  # Use 'info' in production, 'debug' only for troubleshooting
+http_port: "8080"
+grpc_port: "9050"
+service_name: modulith-server  # Service name for OpenTelemetry resource
+
+# Database connection
+# In production, use secrets manager or environment variables for DB_DSN
+# Example: postgres://user:pass@db-host:5432/dbname?sslmode=require
+db_dsn: "${DB_DSN}"  # Should be provided via secrets manager or environment
+
+# Database connection pool settings (tuned for production)
+db_max_open_conns: 50      # Increase for high-traffic applications
+db_max_idle_conns: 25      # Keep some connections warm
+db_conn_max_lifetime: 15m  # Rotate connections periodically
+db_connect_timeout: 10s     # Fail fast if DB is unreachable
+
+# Observability
+# Configure OTLP endpoint for distributed tracing
+# Example: otlp-collector:4317
+otlp_endpoint: "${OTLP_ENDPOINT}"  # Should be provided via environment
+
+# CORS configuration (restrict in production!)
+cors_allowed_origins:
+  - https://yourdomain.com
+  - https://app.yourdomain.com
+  # Never use "*" in production
+
+# Rate limiting (enabled in production)
+rate_limit_enabled: true
+rate_limit_rps: 1000        # Requests per second per IP
+rate_limit_burst: 100       # Burst size
+
+# Timeouts (stricter in production)
+read_timeout: 10s           # HTTP server read timeout
+write_timeout: 30s          # HTTP server write timeout
+request_timeout: 30s        # Request handler timeout (middleware)
+shutdown_timeout: 60s       # Graceful shutdown timeout (allow more time for in-flight requests)
+
+# Authentication
+auth:
+  jwt_secret: "${JWT_SECRET}"  # Must be at least 32 bytes, use secrets manager
+  oauth:
+    enabled: false  # Enable if using OAuth
+    auto_link_by_email: true
+    base_url: https://yourdomain.com
+    token_encryption_key: "${OAUTH_TOKEN_ENCRYPTION_KEY}"  # 32 bytes, use secrets manager
+    providers:
+      google:
+        enabled: false
+        client_id: "${GOOGLE_CLIENT_ID}"
+        client_secret: "${GOOGLE_CLIENT_SECRET}"
+      # Configure other providers as needed
+

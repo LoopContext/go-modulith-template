@@ -40,6 +40,9 @@ DELETE FROM magic_codes WHERE user_email = $1;
 -- name: DeleteMagicCodesByPhone :exec
 DELETE FROM magic_codes WHERE user_phone = $1;
 
+-- name: CleanupExpiredMagicCodes :exec
+DELETE FROM magic_codes WHERE expires_at < CURRENT_TIMESTAMP;
+
 -- ========================
 -- Sessions
 -- ========================

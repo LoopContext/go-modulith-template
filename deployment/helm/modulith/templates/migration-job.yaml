@@ -1,0 +1,59 @@
+{{- if .Values.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "modulith.fullname" . }}-migrations
+  labels:
+    {{- include "modulith.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrations
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      labels:
+        {{- include "modulith.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrations
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrations
+          {{- if eq .Values.deploymentType "module" }}
+          image: "{{ .Values.image.repository }}-{{ .Values.moduleName }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          {{- else }}
+          image: "{{ .Values.image.repository }}-server:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["./service", "-migrate"]
+          env:
+            - name: ENV
+              value: {{ .Values.config.env }}
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "modulith.fullname" . }}-secrets
+                  key: db-dsn
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "modulith.fullname" . }}-secrets
+                  key: jwt-secret
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+      {{- with .Values.migrations.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.migrations.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.migrations.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  backoffLimit: {{ .Values.migrations.backoffLimit }}
+{{- end }}
+

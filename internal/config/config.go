@@ -35,6 +35,7 @@ type AppConfig struct {
 
 	// Observability
 	OTLPEndpoint string `yaml:"otlp_endpoint" env:"OTLP_ENDPOINT"`
+	ServiceName  string `yaml:"service_name" env:"SERVICE_NAME"` // Service name for OpenTelemetry resource
 
 	// CORS configuration
 	CORSAllowedOrigins []string `yaml:"cors_allowed_origins" env:"CORS_ALLOWED_ORIGINS"`
@@ -46,8 +47,9 @@ type AppConfig struct {
 
 	// Timeouts
 	ReadTimeout     string `yaml:"read_timeout" env:"READ_TIMEOUT"`           // HTTP server read timeout (e.g., "5s")
-	WriteTimeout    string `yaml:"write_timeout" env:"WRITE_TIMEOUT"`         // HTTP server write timeout (e.g., "10s")
-	ShutdownTimeout string `yaml:"shutdown_timeout" env:"SHUTDOWN_TIMEOUT"`   // Graceful shutdown timeout (e.g., "30s")
+	WriteTimeout    string `yaml:"write_timeout" env:"WRITE_TIMEOUT"`       // HTTP server write timeout (e.g., "10s")
+	RequestTimeout  string `yaml:"request_timeout" env:"REQUEST_TIMEOUT"`   // Request handler timeout (e.g., "30s")
+	ShutdownTimeout string `yaml:"shutdown_timeout" env:"SHUTDOWN_TIMEOUT"` // Graceful shutdown timeout (e.g., "30s")
 
 	// Module specific configs
 	Auth AuthConfig `yaml:"auth"`
@@ -66,6 +68,7 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 		LogLevel:          "debug",
 		HTTPPort:          "8080",
 		GRPCPort:          "9050",
+		ServiceName:       "modulith-server",
 		DBMaxOpenConns:    25,
 		DBMaxIdleConns:    25,
 		DBConnMaxLifetime: "5m",
@@ -75,6 +78,7 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 		RateLimitBurst:    50,
 		ReadTimeout:       "5s",
 		WriteTimeout:      "10s",
+		RequestTimeout:    "30s",
 		ShutdownTimeout:   "30s",
 	}
 
@@ -101,6 +105,7 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 		"GRPC_PORT", fmt.Sprintf("%s = %s", cfg.GRPCPort, getSource(sources, "GRPC_PORT")),
 		"DB_DSN", fmt.Sprintf("%s = %s", cfg.DBDSN, getSource(sources, "DB_DSN")),
 		"OTLP_ENDPOINT", fmt.Sprintf("%s = %s", cfg.OTLPEndpoint, getSource(sources, "OTLP_ENDPOINT")),
+		"SERVICE_NAME", fmt.Sprintf("%s = %s", cfg.ServiceName, getSource(sources, "SERVICE_NAME")),
 		"JWT_SECRET", fmt.Sprintf("[%d bytes] = %s", len(cfg.Auth.JWTSecret), getSource(sources, "JWT_SECRET")),
 	)
 
@@ -172,6 +177,11 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 		sources["OTLP_ENDPOINT"] = sourceName
 	}
 
+	if serviceName := os.Getenv("SERVICE_NAME"); serviceName != "" {
+		c.ServiceName = serviceName
+		sources["SERVICE_NAME"] = sourceName
+	}
+
 	if secret := os.Getenv("JWT_SECRET"); secret != "" {
 		c.Auth.JWTSecret = secret
 		sources["JWT_SECRET"] = sourceName
@@ -185,6 +195,11 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 	if timeout := os.Getenv("WRITE_TIMEOUT"); timeout != "" {
 		c.WriteTimeout = timeout
 		sources["WRITE_TIMEOUT"] = sourceName
+	}
+
+	if timeout := os.Getenv("REQUEST_TIMEOUT"); timeout != "" {
+		c.RequestTimeout = timeout
+		sources["REQUEST_TIMEOUT"] = sourceName
 	}
 
 	if timeout := os.Getenv("SHUTDOWN_TIMEOUT"); timeout != "" {
@@ -325,9 +340,11 @@ func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]
 	c.overrideEnvVar("DB_CONN_MAX_LIFETIME", func(val string) { c.DBConnMaxLifetime = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("DB_CONNECT_TIMEOUT", func(val string) { c.DBConnectTimeout = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("OTLP_ENDPOINT", func(val string) { c.OTLPEndpoint = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("SERVICE_NAME", func(val string) { c.ServiceName = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("JWT_SECRET", func(val string) { c.Auth.JWTSecret = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("READ_TIMEOUT", func(val string) { c.ReadTimeout = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("WRITE_TIMEOUT", func(val string) { c.WriteTimeout = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("REQUEST_TIMEOUT", func(val string) { c.RequestTimeout = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("SHUTDOWN_TIMEOUT", func(val string) { c.ShutdownTimeout = val }, sources, systemEnvVars, sourceName)
 
 	// OAuth configuration from .env
@@ -540,6 +557,11 @@ func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 		sources["OTLP_ENDPOINT"] = sourceYAML
 	}
 
+	if yamlOnly.ServiceName != "" {
+		cfg.ServiceName = yamlOnly.ServiceName
+		sources["SERVICE_NAME"] = sourceYAML
+	}
+
 	if yamlOnly.Auth.JWTSecret != "" {
 		cfg.Auth.JWTSecret = yamlOnly.Auth.JWTSecret
 		sources["JWT_SECRET"] = sourceYAML
@@ -553,6 +575,11 @@ func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 	if yamlOnly.WriteTimeout != "" {
 		cfg.WriteTimeout = yamlOnly.WriteTimeout
 		sources["WRITE_TIMEOUT"] = sourceYAML
+	}
+
+	if yamlOnly.RequestTimeout != "" {
+		cfg.RequestTimeout = yamlOnly.RequestTimeout
+		sources["REQUEST_TIMEOUT"] = sourceYAML
 	}
 
 	if yamlOnly.ShutdownTimeout != "" {

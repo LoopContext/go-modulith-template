@@ -49,6 +49,15 @@ func (q *Queries) CleanupExpiredBlacklistEntries(ctx context.Context) error {
 	return err
 }
 
+const cleanupExpiredMagicCodes = `-- name: CleanupExpiredMagicCodes :exec
+DELETE FROM magic_codes WHERE expires_at < CURRENT_TIMESTAMP
+`
+
+func (q *Queries) CleanupExpiredMagicCodes(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, cleanupExpiredMagicCodes)
+	return err
+}
+
 const cleanupExpiredOAuthStates = `-- name: CleanupExpiredOAuthStates :exec
 DELETE FROM oauth_states WHERE expires_at < CURRENT_TIMESTAMP
 `

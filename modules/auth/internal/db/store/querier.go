@@ -15,6 +15,7 @@ type Querier interface {
 	// ========================
 	BlacklistToken(ctx context.Context, arg BlacklistTokenParams) error
 	CleanupExpiredBlacklistEntries(ctx context.Context) error
+	CleanupExpiredMagicCodes(ctx context.Context) error
 	CleanupExpiredOAuthStates(ctx context.Context) error
 	CleanupExpiredSessions(ctx context.Context) error
 	CountExternalAccountsByUserID(ctx context.Context, userID string) (int64, error)

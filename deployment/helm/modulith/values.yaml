@@ -64,3 +64,33 @@ config:
   env: prod
   dbDsn: "postgres://user:pass@postgresql:5432/db"
   jwtSecret: "change-me-in-production"
+
+# Database migrations configuration
+migrations:
+  enabled: true
+  backoffLimit: 3
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Health check configuration
+healthChecks:
+  startup:
+    path: /healthz
+    failureThreshold: 30
+    periodSeconds: 2
+    initialDelaySeconds: 0
+  liveness:
+    path: /healthz
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+  readiness:
+    path: /readyz
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3

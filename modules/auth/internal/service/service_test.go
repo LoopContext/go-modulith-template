@@ -756,3 +756,11 @@ func (m *mockRepository) DeleteOAuthState(_ context.Context, _ string) error {
 func (m *mockRepository) CleanupExpiredOAuthStates(_ context.Context) error {
 	return nil
 }
+
+func (m *mockRepository) CleanupExpiredSessions(_ context.Context) (int, error) {
+	return 0, nil
+}
+
+func (m *mockRepository) CleanupExpiredMagicCodes(_ context.Context) (int, error) {
+	return 0, nil
+}

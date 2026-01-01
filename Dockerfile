@@ -42,6 +42,14 @@ COPY --from=builder /app/bin/service ./service
 # Copy configurations
 COPY configs/ ./configs/
 
+# Create non-root user for security
+RUN addgroup -g 1001 appgroup && \
+    adduser -u 1001 -G appgroup -s /bin/sh -D appuser && \
+    chown -R appuser:appgroup /app
+
+# Switch to non-root user
+USER appuser
+
 # Expose ports (standard defaults, can be overridden)
 EXPOSE 8080 9050
 

@@ -141,11 +141,15 @@ build-module: ## Build a specific module binary (usage: make build-module MODULE
 	@echo "Building module: $(MODULE_NAME)"
 	go build -ldflags "$(LDFLAGS)" -o bin/$(MODULE_NAME) ./cmd/$(MODULE_NAME)/main.go
 
-build-all: build ## Build all binaries (server + all modules)
+build-worker: ## Build the worker binary
+	@mkdir -p bin
+	go build -ldflags "$(LDFLAGS)" -o bin/worker ./cmd/worker/main.go
+
+build-all: build build-worker ## Build all binaries (server + worker + all modules)
 	@mkdir -p bin
 	@for dir in cmd/*/; do \
 		module=$$(basename $$dir); \
-		if [ "$$module" != "server" ]; then \
+		if [ "$$module" != "server" ] && [ "$$module" != "worker" ]; then \
 			echo "Building module: $$module"; \
 			go build -ldflags "$(LDFLAGS)" -o bin/$$module ./cmd/$$module/main.go; \
 		fi \
@@ -160,6 +164,13 @@ run: ## Run the monolith server (without hot reload)
 dev: ## Run the monolith with live reload (requires Air)
 	@if command -v air > /dev/null; then \
 		air -c .air.toml; \
+	else \
+		echo "Air is not installed. Please install it with: go install github.com/air-verse/air@latest"; \
+	fi
+
+dev-worker: ## Run the worker with live reload (requires Air)
+	@if command -v air > /dev/null; then \
+		air -c .air.worker.toml; \
 	else \
 		echo "Air is not installed. Please install it with: go install github.com/air-verse/air@latest"; \
 	fi

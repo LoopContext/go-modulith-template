@@ -31,22 +31,25 @@ spec:
               protocol: TCP
           startupProbe:
             httpGet:
-              path: /healthz
+              path: {{ .Values.healthChecks.startup.path }}
               port: http
-            failureThreshold: 30
-            periodSeconds: 10
+            failureThreshold: {{ .Values.healthChecks.startup.failureThreshold }}
+            periodSeconds: {{ .Values.healthChecks.startup.periodSeconds }}
+            initialDelaySeconds: {{ .Values.healthChecks.startup.initialDelaySeconds }}
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: {{ .Values.healthChecks.liveness.path }}
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: {{ .Values.healthChecks.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthChecks.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthChecks.liveness.timeoutSeconds }}
           readinessProbe:
             httpGet:
-              path: /readyz
+              path: {{ .Values.healthChecks.readiness.path }}
               port: http
-            initialDelaySeconds: 10
-            periodSeconds: 5
+            initialDelaySeconds: {{ .Values.healthChecks.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthChecks.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthChecks.readiness.timeoutSeconds }}
           env:
             - name: ENV
               value: {{ .Values.config.env }}

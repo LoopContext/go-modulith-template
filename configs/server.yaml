@@ -2,6 +2,7 @@ env: dev
 log_level: debug  # debug, info, warn, error
 http_port: 8000
 grpc_port: 9000
+service_name: modulith-server  # Service name for OpenTelemetry resource
 db_dsn: postgres://postgres:postgres@localhost:5432/modulith_demo?sslmode=disable
 
 # Database connection pool settings
@@ -25,6 +26,7 @@ rate_limit_burst: 50   # burst size
 # Timeouts
 read_timeout: 5s       # HTTP server read timeout
 write_timeout: 10s     # HTTP server write timeout
+request_timeout: 30s   # Request handler timeout (middleware)
 shutdown_timeout: 30s  # Graceful shutdown timeout
 
 auth:

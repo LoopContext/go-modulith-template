@@ -71,6 +71,21 @@ func (mr *MockRepositoryMockRecorder) CleanupExpiredBlacklistEntries(ctx any) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanupExpiredBlacklistEntries", reflect.TypeOf((*MockRepository)(nil).CleanupExpiredBlacklistEntries), ctx)
 }
 
+// CleanupExpiredMagicCodes mocks base method.
+func (m *MockRepository) CleanupExpiredMagicCodes(ctx context.Context) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CleanupExpiredMagicCodes", ctx)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CleanupExpiredMagicCodes indicates an expected call of CleanupExpiredMagicCodes.
+func (mr *MockRepositoryMockRecorder) CleanupExpiredMagicCodes(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanupExpiredMagicCodes", reflect.TypeOf((*MockRepository)(nil).CleanupExpiredMagicCodes), ctx)
+}
+
 // CleanupExpiredOAuthStates mocks base method.
 func (m *MockRepository) CleanupExpiredOAuthStates(ctx context.Context) error {
 	m.ctrl.T.Helper()
@@ -83,6 +98,21 @@ func (m *MockRepository) CleanupExpiredOAuthStates(ctx context.Context) error {
 func (mr *MockRepositoryMockRecorder) CleanupExpiredOAuthStates(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanupExpiredOAuthStates", reflect.TypeOf((*MockRepository)(nil).CleanupExpiredOAuthStates), ctx)
+}
+
+// CleanupExpiredSessions mocks base method.
+func (m *MockRepository) CleanupExpiredSessions(ctx context.Context) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CleanupExpiredSessions", ctx)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CleanupExpiredSessions indicates an expected call of CleanupExpiredSessions.
+func (mr *MockRepositoryMockRecorder) CleanupExpiredSessions(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanupExpiredSessions", reflect.TypeOf((*MockRepository)(nil).CleanupExpiredSessions), ctx)
 }
 
 // CountExternalAccountsByUserID mocks base method.

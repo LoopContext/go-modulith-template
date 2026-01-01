@@ -16,6 +16,9 @@ Este es un template profesional para construir aplicaciones en Go siguiendo el p
 -   ⚙️ **Configuración Flexible**: Sistema de configuración con jerarquía de precedencia (YAML > .env > system ENV vars > defaults) y logging de fuentes.
 -   🔄 **Hot Reload**: Desarrollo fluido con **Air** que monitorea cambios en código, configuración (`.env`, YAML) y recursos.
 -   🔌 **WebSocket Real-Time**: Comunicación bidireccional integrada con el event bus para notificaciones en tiempo real.
+-   👷 **Worker Process**: Proceso de background para tareas asíncronas, event consumers y jobs programados.
+-   🔐 **Secrets Management**: Abstracción para gestión de secretos (env vars, Vault, AWS Secrets Manager).
+-   📊 **Observabilidad Completa**: Stack local con Jaeger, Prometheus y Grafana para desarrollo y debugging.
 -   📊 **GraphQL Opcional**: Soporte opcional con gqlgen para APIs flexibles y frontend-friendly (subscriptions incluidas).
 -   📧 **Sistema de Notificaciones**: Templates + providers extensibles (SendGrid, Twilio, AWS SES/SNS).
 -   🔑 **Auth Completo**: Login passwordless, sesiones, refresh tokens, revocación y gestión de perfil.
@@ -50,11 +53,22 @@ Este es un template profesional para construir aplicaciones en Go siguiendo el p
 make install-deps
 ```
 
-### 2. Levantar Infraestructura (DB)
+### 2. Levantar Infraestructura Completa
+
+El template incluye un stack completo de observabilidad para desarrollo local:
 
 ```bash
 make docker-up
 ```
+
+Esto levanta:
+- **PostgreSQL**: Base de datos principal
+- **Redis**: Caché y session storage
+- **Jaeger**: Distributed tracing (UI en http://localhost:16686)
+- **Prometheus**: Métricas y alertas (UI en http://localhost:9090)
+- **Grafana**: Dashboards de visualización (UI en http://localhost:3000, usuario: `admin`, password: `admin`)
+
+> 💡 **Tip**: Para solo levantar la base de datos, usa `docker-compose up db`.
 
 ### 3. Configurar (Opcional)
 
@@ -89,7 +103,76 @@ Para ejecutar un módulo específico con hot reload:
 make dev-module auth
 ```
 
+Para ejecutar el worker process (tareas en background):
+
+```bash
+make dev-worker
+# o
+make build-worker && ./bin/worker
+```
+
 > 💡 **Tip**: Air monitorea automáticamente cambios en `.go`, `.yaml`, `.env`, `.proto`, `.sql` y archivos de configuración, reiniciando el servidor instantáneamente.
+
+### 5. Gestión de Secretos
+
+El template incluye una abstracción para gestión de secretos que permite usar diferentes proveedores:
+
+- **Desarrollo**: Variables de entorno (implementación `EnvProvider`)
+- **Producción**: HashiCorp Vault, AWS Secrets Manager, etc. (extensible)
+
+Ver [documentación de variables de entorno](docs/ENVIRONMENT.md) para más detalles.
+
+### 6. Health Checks y Monitoreo
+
+El servidor expone endpoints de health checks para integración con orquestadores (Kubernetes, Docker Swarm, etc.):
+
+- **`/livez`**: Liveness probe - siempre retorna 200 si el proceso está vivo
+- **`/readyz`**: Readiness probe - verifica dependencias (DB, módulos, event bus, WebSocket)
+- **`/healthz`**: Endpoint legacy (compatibilidad hacia atrás, mismo que `/livez`)
+- **`/healthz/ws`**: Estado de conexiones WebSocket (conexiones activas y usuarios conectados)
+
+El endpoint `/readyz` retorna un JSON detallado con el estado de cada dependencia:
+
+```json
+{
+  "status": "ready",
+  "checks": {
+    "modules": "healthy",
+    "database": "healthy",
+    "event_bus": "healthy",
+    "websocket": "healthy"
+  }
+}
+```
+
+Si alguna dependencia no está saludable, el endpoint retorna `503 Service Unavailable`.
+
+### 7. Tareas Administrativas
+
+El template incluye un sistema de tareas administrativas para operaciones de mantenimiento:
+
+**Tareas disponibles:**
+- `cleanup-sessions`: Limpia sesiones de usuario expiradas
+- `cleanup-magic-codes`: Limpia códigos mágicos expirados
+
+**Uso:**
+```bash
+# Ejecutar una tarea administrativa
+make admin TASK=cleanup-sessions
+
+# O directamente con el binario
+./bin/server admin cleanup-sessions
+./bin/server admin cleanup-magic-codes
+
+# Listar tareas disponibles
+./bin/server admin
+```
+
+Las tareas administrativas se ejecutan como comandos independientes y son útiles para:
+- Limpieza periódica de datos expirados
+- Mantenimiento de la base de datos
+- Operaciones de migración de datos
+- Tareas de auditoría
 
 ## 📖 Documentación Completa
 
@@ -167,6 +250,14 @@ open gen/openapiv2/proto/auth/v1/auth.swagger.json
 -   `make db-reset`: ⚠️ Borra todo y ejecuta todas las migraciones (equivalente a `db-down` + `migrate-up`).
 
 **Nota:** Las migraciones se ejecutan automáticamente cuando inicias el servidor. El modulith descubre y aplica las migraciones de todos los módulos registrados.
+
+### Tareas Administrativas
+
+-   `make admin TASK=cleanup-sessions`: Ejecuta tarea administrativa para limpiar sesiones expiradas.
+-   `make admin TASK=cleanup-magic-codes`: Ejecuta tarea administrativa para limpiar códigos mágicos expirados.
+-   `./bin/server admin <task_name>`: Ejecuta una tarea administrativa directamente.
+
+**Nota:** Las tareas administrativas se ejecutan como comandos independientes. Puedes listar las tareas disponibles ejecutando `./bin/server admin` sin argumentos.
 
 ### GraphQL (Opcional)
 
