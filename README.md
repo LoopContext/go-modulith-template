@@ -2,7 +2,7 @@
 
 ![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-33.8%25-yellow)
-![Go](https://img.shields.io/badge/go-1.21+-blue)
+![Go](https://img.shields.io/badge/go-1.24+-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 Este es un template profesional para construir aplicaciones en Go siguiendo el patrón **Modulith**. Está diseñado para ser escalable, sostenible y fácil de mantener, permitiendo evolucionar de un monolito a microservicios sin fricción.
@@ -28,7 +28,7 @@ Este es un template profesional para construir aplicaciones en Go siguiendo el p
 
 ## 🛠️ Requisitos Previos
 
--   Go 1.23+
+-   Go 1.24+
 -   Docker & Docker Compose
 -   Herramientas de desarrollo:
     -   `sqlc`
@@ -98,11 +98,28 @@ make dev-module auth
 -   **[Deployment Guide](deployment/README.md)** - Guía completa de despliegue en Kubernetes
 -   **[Helm Chart Documentation](deployment/helm/modulith/README.md)** - Documentación detallada del Helm chart
 
+## 📋 API Documentation
+
+El proyecto genera automáticamente documentación OpenAPI/Swagger:
+
+-   **Ubicación**: `gen/openapiv2/proto/` (generada con `make proto`)
+-   **Formato**: JSON compatible con Swagger UI
+-   **Uso**: Importa los archivos `.swagger.json` en [Swagger Editor](https://editor.swagger.io/) o cualquier herramienta compatible
+
+Ejemplo para el módulo de auth:
+```bash
+# Genera la documentación
+make proto
+
+# Visualiza la API
+open gen/openapiv2/proto/auth/v1/auth.swagger.json
+```
+
 ## 🛠️ Comandos Útiles (Makefile)
 
 ### Generación de Código
 
--   `make proto`: Genera código gRPC desde archivos `.proto`.
+-   `make proto`: Genera código gRPC desde archivos `.proto` (incluye OpenAPI/Swagger en `gen/openapiv2/`).
 -   `make sqlc`: Genera código Type-safe para queries SQL.
 
 ### Build

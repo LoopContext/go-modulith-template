@@ -1,7 +1,7 @@
 ---
+globs: *.go
 alwaysApply: false
 ---
-
 ## Observability (Logs + Metrics + Tracing)
 
 ## Logs (`log/slog`)
@@ -25,4 +25,3 @@ alwaysApply: false
 - Expose:
   - `/healthz` liveness (200 OK)
   - `/readyz` readiness (validates DB)
-

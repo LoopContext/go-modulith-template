@@ -1,7 +1,7 @@
 ---
+globs: *.go
 alwaysApply: false
 ---
-
 ## Persistence: SQLC + migrations
 
 - Each module defines:

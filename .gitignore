@@ -4,6 +4,7 @@ bin/
 # Env
 .env
 !.env.example
+!.env.docker.example
 
 # Air configs (keep main ones)
 .air.*.toml

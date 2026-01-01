@@ -54,6 +54,7 @@ process_template "templates/module/internal/service/service.go.tmpl" "${MODULE_D
 process_template "templates/module/internal/repository/repository.go.tmpl" "${MODULE_DIR}/internal/repository/repository.go"
 process_template "templates/module/internal/db/query/queries.sql.tmpl" "${MODULE_DIR}/internal/db/query/${MODULE_NAME}.sql"
 process_template "templates/module/resources/db/migration/000001_initial.up.sql.tmpl" "${MODULE_DIR}/resources/db/migration/000001_initial_schema.up.sql"
+process_template "templates/module/resources/db/migration/000001_initial.down.sql.tmpl" "${MODULE_DIR}/resources/db/migration/000001_initial_schema.down.sql"
 process_template "templates/module/proto/module.proto.tmpl" "${PROTO_DIR}/${MODULE_NAME}.proto"
 process_template "templates/module/air.toml.tmpl" ".air.${MODULE_NAME}.toml"
 

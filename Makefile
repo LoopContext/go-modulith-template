@@ -1,4 +1,10 @@
-.PHONY: sqlc proto install-deps install-mocks generate-mocks test-unit graphql-init graphql-generate graphql-validate add-graphql
+.PHONY: help sqlc proto install-deps install-mocks generate-mocks test-unit graphql-init graphql-generate graphql-validate add-graphql
+.DEFAULT_GOAL := help
+
+help: ## Show available commands
+	@echo "Available commands:"
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' Makefile | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 install-deps: ## Install developer tools
 	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
@@ -12,10 +18,10 @@ install-deps: ## Install developer tools
 install-mocks: ## Install gomock for test mocking
 	go install go.uber.org/mock/mockgen@latest
 
-sqlc:
+sqlc: ## Generate type-safe Go code from SQL
 	sqlc generate
 
-proto:
+proto: ## Generate gRPC code from protobuf definitions
 	buf generate
 
 generate-mocks: ## Generate all mocks from interfaces
@@ -56,7 +62,7 @@ coverage-html: ## Open coverage report in browser
 lint: ## Run linter
 	golangci-lint run
 
-docker-down:
+docker-down: ## Stop docker-compose services
 	docker-compose down
 
 # Load .env file
@@ -67,13 +73,13 @@ endif
 
 MIGRATIONS_DIR=modules/auth/resources/db/migration
 
-migrate-up:
+migrate-up: ## Apply all pending database migrations
 	migrate -path $(MIGRATIONS_DIR) -database "$(DB_DSN)" up
 
-migrate-down:
+migrate-down: ## Rollback the last database migration
 	migrate -path $(MIGRATIONS_DIR) -database "$(DB_DSN)" down
 
-migrate-create:
+migrate-create: ## Create a new migration file (prompts for name)
 	@read -p "Migration name: " name; \
 	migrate create -ext sql -dir $(MIGRATIONS_DIR) -seq $$name
 
@@ -109,7 +115,7 @@ build-all: build ## Build all binaries (server + all modules)
 clean: ## Clean build artifacts
 	rm -rf bin/
 
-run: ## Run the monolith
+run: ## Run the monolith server (without hot reload)
 	go run cmd/server/main.go
 
 dev: ## Run the monolith with live reload (requires Air)
@@ -164,7 +170,7 @@ docker-build-module: ## Build docker image for a specific module (usage: make do
 	docker build --build-arg TARGET=$(MODULE_NAME) -t modulith-$(MODULE_NAME):latest .
 
 ##### Modules
-new-module:
+new-module: ## Scaffold a new module (usage: make new-module MODULE_NAME)
 	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make new-module NAME"; exit 1; fi
 	./scripts/scaffold-module.sh $(MODULE_NAME)
 
