@@ -3,6 +3,7 @@ package events
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 )
 
@@ -15,17 +16,34 @@ type Event struct {
 // Handler defines a function that processes an event
 type Handler func(ctx context.Context, event Event) error
 
+// ErrorHandler defines a function that handles errors from event handlers
+type ErrorHandler func(ctx context.Context, event Event, err error)
+
 // Bus is a simple in-process event distributor
 type Bus struct {
-	mu       sync.RWMutex
-	handlers map[string][]Handler
+	mu           sync.RWMutex
+	handlers     map[string][]Handler
+	errorHandler ErrorHandler
 }
 
 // NewBus creates a new internal event bus
 func NewBus() *Bus {
 	return &Bus{
 		handlers: make(map[string][]Handler),
+		errorHandler: func(ctx context.Context, event Event, err error) {
+			slog.ErrorContext(ctx, "Event handler error",
+				"event", event.Name,
+				"error", err,
+			)
+		},
 	}
+}
+
+// SetErrorHandler sets a custom error handler for the event bus.
+func (b *Bus) SetErrorHandler(handler ErrorHandler) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.errorHandler = handler
 }
 
 // Subscribe registers a handler for a specific event name
@@ -40,6 +58,7 @@ func (b *Bus) Subscribe(eventName string, handler Handler) {
 func (b *Bus) Publish(ctx context.Context, event Event) {
 	b.mu.RLock()
 	handlers, ok := b.handlers[event.Name]
+	errorHandler := b.errorHandler
 	b.mu.RUnlock()
 
 	if !ok {
@@ -49,9 +68,9 @@ func (b *Bus) Publish(ctx context.Context, event Event) {
 	for _, handler := range handlers {
 		// Run in goroutine for non-blocking decoupling
 		go func(h Handler) {
-			// We ignore the error here because it's an async handler.
-			// In a more robust system, we would have a dead-letter queue or retry logic.
-			_ = h(ctx, event)
+			if err := h(ctx, event); err != nil && errorHandler != nil {
+				errorHandler(ctx, event, err)
+			}
 		}(handler)
 	}
 }

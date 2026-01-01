@@ -20,9 +20,11 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/authn"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/middleware"
 	"github.com/cmelgarejo/go-modulith-template/internal/migration"
 	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/cmelgarejo/go-modulith-template/internal/version"
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -113,7 +115,9 @@ func loadConfig() *config.AppConfig {
 		return nil
 	}
 
-	initLogger(cfg.Env)
+	initLogger(cfg.Env, cfg.LogLevel)
+
+	slog.Info("Starting application", "version", version.Info())
 
 	return cfg
 }
@@ -125,7 +129,7 @@ func initializeServices(ctx context.Context, cfg *config.AppConfig) (func(), *sq
 		return func() {}, nil
 	}
 
-	db, err := initDB(cfg.DBDSN)
+	db, err := initDB(cfg)
 	if err != nil {
 		return shutdownObs, nil
 	}
@@ -209,9 +213,32 @@ func closeGatewayConn(conn *grpc.ClientConn) {
 }
 
 func startHTTPServer(cfg *config.AppConfig, mux *http.ServeMux) *http.Server {
+	// Wrap with middleware (innermost first)
+	var handler http.Handler = mux
+
+	// Apply CORS middleware
+	corsConfig := middleware.DefaultCORSConfig()
+	if len(cfg.CORSAllowedOrigins) > 0 {
+		corsConfig.AllowedOrigins = cfg.CORSAllowedOrigins
+	}
+	handler = middleware.CORS(corsConfig)(handler)
+
+	// Apply rate limiting middleware if enabled
+	if cfg.RateLimitEnabled {
+		rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
+		handler = rateLimiter.Middleware()(handler)
+		slog.Info("Rate limiting enabled",
+			"rps", cfg.RateLimitRPS,
+			"burst", cfg.RateLimitBurst,
+		)
+	}
+
+	// Apply request ID middleware (outermost)
+	handler = middleware.RequestID(handler)
+
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.HTTPPort),
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -273,12 +300,26 @@ func initObservability(ctx context.Context, cfg *config.AppConfig) (func(), erro
 	}, nil
 }
 
-func initDB(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("pgx", dsn)
+func initDB(cfg *config.AppConfig) (*sql.DB, error) {
+	db, err := sql.Open("pgx", cfg.DBDSN)
 	if err != nil {
 		slog.Error("Failed to open DB", "error", err)
 
 		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	// Configure connection pool
+	db.SetMaxOpenConns(cfg.DBMaxOpenConns)
+	db.SetMaxIdleConns(cfg.DBMaxIdleConns)
+
+	// Parse lifetime duration
+	if cfg.DBConnMaxLifetime != "" {
+		lifetime, err := time.ParseDuration(cfg.DBConnMaxLifetime)
+		if err != nil {
+			slog.Warn("Invalid DB_CONN_MAX_LIFETIME, using default", "value", cfg.DBConnMaxLifetime, "error", err)
+		} else {
+			db.SetConnMaxLifetime(lifetime)
+		}
 	}
 
 	if err := db.Ping(); err != nil {
@@ -287,7 +328,11 @@ func initDB(dsn string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	slog.Info("Connected to Database")
+	slog.Info("Connected to Database",
+		"max_open_conns", cfg.DBMaxOpenConns,
+		"max_idle_conns", cfg.DBMaxIdleConns,
+		"conn_max_lifetime", cfg.DBConnMaxLifetime,
+	)
 
 	return db, nil
 }
@@ -458,11 +503,26 @@ func initLoggerEarly() {
 	slog.SetDefault(logger)
 }
 
-func initLogger(env string) {
+func initLogger(env string, logLevel string) {
 	var handler slog.Handler
 
+	// Parse log level
+	var level slog.Level
+	switch logLevel {
+	case "debug":
+		level = slog.LevelDebug
+	case "info":
+		level = slog.LevelInfo
+	case "warn", "warning":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+
 	opts := &slog.HandlerOptions{
-		Level: slog.LevelDebug, // Enable debug logs
+		Level: level,
 	}
 	if env == "prod" {
 		handler = slog.NewJSONHandler(os.Stdout, opts)
@@ -479,6 +539,10 @@ func captureSystemEnvVars() map[string]string {
 	systemEnvVars := make(map[string]string)
 	if env := os.Getenv("ENV"); env != "" {
 		systemEnvVars["ENV"] = env
+	}
+
+	if logLevel := os.Getenv("LOG_LEVEL"); logLevel != "" {
+		systemEnvVars["LOG_LEVEL"] = logLevel
 	}
 
 	if port := os.Getenv("HTTP_PORT"); port != "" {

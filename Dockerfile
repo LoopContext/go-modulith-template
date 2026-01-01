@@ -16,8 +16,17 @@ COPY . .
 # Build argument for target binary (default to server)
 ARG TARGET=server
 
+# Build arguments for version information
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_TIME=unknown
+
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/service ./cmd/${TARGET}/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags "-X github.com/cmelgarejo/go-modulith-template/internal/version.Version=${VERSION} \
+              -X github.com/cmelgarejo/go-modulith-template/internal/version.Commit=${COMMIT} \
+              -X github.com/cmelgarejo/go-modulith-template/internal/version.BuildTime=${BUILD_TIME}" \
+    -o /app/bin/service ./cmd/${TARGET}/main.go
 
 # Run stage
 FROM alpine:3.20

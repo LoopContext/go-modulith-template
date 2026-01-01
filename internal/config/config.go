@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
@@ -21,12 +22,26 @@ const (
 // AppConfig is the root configuration for the entire modulith
 type AppConfig struct {
 	Env      string `yaml:"env" env:"ENV"`
+	LogLevel string `yaml:"log_level" env:"LOG_LEVEL"`
 	HTTPPort string `yaml:"http_port" env:"HTTP_PORT"`
 	GRPCPort string `yaml:"grpc_port" env:"GRPC_PORT"`
 	DBDSN    string `yaml:"db_dsn" env:"DB_DSN"`
 
+	// Database connection pool settings
+	DBMaxOpenConns    int    `yaml:"db_max_open_conns" env:"DB_MAX_OPEN_CONNS"`
+	DBMaxIdleConns    int    `yaml:"db_max_idle_conns" env:"DB_MAX_IDLE_CONNS"`
+	DBConnMaxLifetime string `yaml:"db_conn_max_lifetime" env:"DB_CONN_MAX_LIFETIME"`
+
 	// Observability
 	OTLPEndpoint string `yaml:"otlp_endpoint" env:"OTLP_ENDPOINT"`
+
+	// CORS configuration
+	CORSAllowedOrigins []string `yaml:"cors_allowed_origins" env:"CORS_ALLOWED_ORIGINS"`
+
+	// Rate limiting
+	RateLimitEnabled bool `yaml:"rate_limit_enabled" env:"RATE_LIMIT_ENABLED"`
+	RateLimitRPS     int  `yaml:"rate_limit_rps" env:"RATE_LIMIT_RPS"`
+	RateLimitBurst   int  `yaml:"rate_limit_burst" env:"RATE_LIMIT_BURST"`
 
 	// Module specific configs
 	Auth AuthConfig `yaml:"auth"`
@@ -41,9 +56,16 @@ type AppConfig struct {
 // systemEnvVars should be captured BEFORE godotenv.Load() is called in main()
 func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) {
 	cfg := &AppConfig{
-		Env:      "dev",
-		HTTPPort: "8080",
-		GRPCPort: "9050",
+		Env:               "dev",
+		LogLevel:          "debug",
+		HTTPPort:          "8080",
+		GRPCPort:          "9050",
+		DBMaxOpenConns:    25,
+		DBMaxIdleConns:    25,
+		DBConnMaxLifetime: "5m",
+		RateLimitEnabled:  false,
+		RateLimitRPS:      100,
+		RateLimitBurst:    50,
 	}
 
 	// Track sources for each config value
@@ -64,6 +86,7 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 	// Log configuration sources in a readable format
 	slog.Info("Configuration sources",
 		"ENV", fmt.Sprintf("%s = %s", cfg.Env, getSource(sources, "ENV")),
+		"LOG_LEVEL", fmt.Sprintf("%s = %s", cfg.LogLevel, getSource(sources, "LOG_LEVEL")),
 		"HTTP_PORT", fmt.Sprintf("%s = %s", cfg.HTTPPort, getSource(sources, "HTTP_PORT")),
 		"GRPC_PORT", fmt.Sprintf("%s = %s", cfg.GRPCPort, getSource(sources, "GRPC_PORT")),
 		"DB_DSN", fmt.Sprintf("%s = %s", cfg.DBDSN, getSource(sources, "DB_DSN")),
@@ -89,6 +112,11 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 		sources["ENV"] = sourceName
 	}
 
+	if logLevel := os.Getenv("LOG_LEVEL"); logLevel != "" {
+		c.LogLevel = logLevel
+		sources["LOG_LEVEL"] = sourceName
+	}
+
 	if port := os.Getenv("HTTP_PORT"); port != "" {
 		c.HTTPPort = port
 		sources["HTTP_PORT"] = sourceName
@@ -102,6 +130,25 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 	if dsn := os.Getenv("DB_DSN"); dsn != "" {
 		c.DBDSN = dsn
 		sources["DB_DSN"] = sourceName
+	}
+
+	if maxOpen := os.Getenv("DB_MAX_OPEN_CONNS"); maxOpen != "" {
+		if val, err := strconv.Atoi(maxOpen); err == nil {
+			c.DBMaxOpenConns = val
+			sources["DB_MAX_OPEN_CONNS"] = sourceName
+		}
+	}
+
+	if maxIdle := os.Getenv("DB_MAX_IDLE_CONNS"); maxIdle != "" {
+		if val, err := strconv.Atoi(maxIdle); err == nil {
+			c.DBMaxIdleConns = val
+			sources["DB_MAX_IDLE_CONNS"] = sourceName
+		}
+	}
+
+	if maxLifetime := os.Getenv("DB_CONN_MAX_LIFETIME"); maxLifetime != "" {
+		c.DBConnMaxLifetime = maxLifetime
+		sources["DB_CONN_MAX_LIFETIME"] = sourceName
 	}
 
 	if endpoint := os.Getenv("OTLP_ENDPOINT"); endpoint != "" {
@@ -230,9 +277,21 @@ func (c *AppConfig) overrideOAuthEnv(sources map[string]string, sourceName strin
 // 2. The value changed from system ENV vars (overridden by .env)
 func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]string, sourceName string) {
 	c.overrideEnvVar("ENV", func(val string) { c.Env = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("LOG_LEVEL", func(val string) { c.LogLevel = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("HTTP_PORT", func(val string) { c.HTTPPort = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("GRPC_PORT", func(val string) { c.GRPCPort = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("DB_DSN", func(val string) { c.DBDSN = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("DB_MAX_OPEN_CONNS", func(val string) {
+		if v, err := strconv.Atoi(val); err == nil {
+			c.DBMaxOpenConns = v
+		}
+	}, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("DB_MAX_IDLE_CONNS", func(val string) {
+		if v, err := strconv.Atoi(val); err == nil {
+			c.DBMaxIdleConns = v
+		}
+	}, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("DB_CONN_MAX_LIFETIME", func(val string) { c.DBConnMaxLifetime = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("OTLP_ENDPOINT", func(val string) { c.OTLPEndpoint = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("JWT_SECRET", func(val string) { c.Auth.JWTSecret = val }, sources, systemEnvVars, sourceName)
 
@@ -399,6 +458,11 @@ func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 		sources["ENV"] = sourceYAML
 	}
 
+	if yamlOnly.LogLevel != "" {
+		cfg.LogLevel = yamlOnly.LogLevel
+		sources["LOG_LEVEL"] = sourceYAML
+	}
+
 	if yamlOnly.HTTPPort != "" {
 		cfg.HTTPPort = yamlOnly.HTTPPort
 		sources["HTTP_PORT"] = sourceYAML
@@ -412,6 +476,21 @@ func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 	if yamlOnly.DBDSN != "" {
 		cfg.DBDSN = yamlOnly.DBDSN
 		sources["DB_DSN"] = sourceYAML
+	}
+
+	if yamlOnly.DBMaxOpenConns > 0 {
+		cfg.DBMaxOpenConns = yamlOnly.DBMaxOpenConns
+		sources["DB_MAX_OPEN_CONNS"] = sourceYAML
+	}
+
+	if yamlOnly.DBMaxIdleConns > 0 {
+		cfg.DBMaxIdleConns = yamlOnly.DBMaxIdleConns
+		sources["DB_MAX_IDLE_CONNS"] = sourceYAML
+	}
+
+	if yamlOnly.DBConnMaxLifetime != "" {
+		cfg.DBConnMaxLifetime = yamlOnly.DBConnMaxLifetime
+		sources["DB_CONN_MAX_LIFETIME"] = sourceYAML
 	}
 
 	if yamlOnly.OTLPEndpoint != "" {

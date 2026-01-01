@@ -108,16 +108,23 @@ db-down: ## Drop all database tables (destructive, asks for confirmation)
 
 db-reset: db-down migrate-up ## Drop database and re-run all migrations (db-down + migrate-up)
 
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_TIME ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS := -X github.com/cmelgarejo/go-modulith-template/internal/version.Version=$(VERSION) \
+           -X github.com/cmelgarejo/go-modulith-template/internal/version.Commit=$(COMMIT) \
+           -X github.com/cmelgarejo/go-modulith-template/internal/version.BuildTime=$(BUILD_TIME)
+
 build: ## Build the monolith binary
 	@mkdir -p bin
-	go build -o bin/server ./cmd/server/main.go
+	go build -ldflags "$(LDFLAGS)" -o bin/server ./cmd/server/main.go
 
 build-module: ## Build a specific module binary (usage: make build-module MODULE_NAME)
 	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make build-module MODULE_NAME"; exit 1; fi
 	@if [ ! -d "cmd/$(MODULE_NAME)" ]; then echo "Error: Module '$(MODULE_NAME)' not found in cmd/"; exit 1; fi
 	@mkdir -p bin
 	@echo "Building module: $(MODULE_NAME)"
-	go build -o bin/$(MODULE_NAME) ./cmd/$(MODULE_NAME)/main.go
+	go build -ldflags "$(LDFLAGS)" -o bin/$(MODULE_NAME) ./cmd/$(MODULE_NAME)/main.go
 
 build-all: build ## Build all binaries (server + all modules)
 	@mkdir -p bin
@@ -125,7 +132,7 @@ build-all: build ## Build all binaries (server + all modules)
 		module=$$(basename $$dir); \
 		if [ "$$module" != "server" ]; then \
 			echo "Building module: $$module"; \
-			go build -o bin/$$module ./cmd/$$module/main.go; \
+			go build -ldflags "$(LDFLAGS)" -o bin/$$module ./cmd/$$module/main.go; \
 		fi \
 	done
 
@@ -178,13 +185,23 @@ endif
 
 ##### Docker
 docker-build: ## Build docker image for server
-	docker build --build-arg TARGET=server -t modulith-server:latest .
+	docker build \
+		--build-arg TARGET=server \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg BUILD_TIME=$(BUILD_TIME) \
+		-t modulith-server:latest .
 
 docker-build-module: ## Build docker image for a specific module (usage: make docker-build-module MODULE_NAME)
 	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make docker-build-module MODULE_NAME"; exit 1; fi
 	@if [ ! -d "cmd/$(MODULE_NAME)" ]; then echo "Error: Module '$(MODULE_NAME)' not found in cmd/"; exit 1; fi
 	@echo "Building Docker image for module: $(MODULE_NAME)"
-	docker build --build-arg TARGET=$(MODULE_NAME) -t modulith-$(MODULE_NAME):latest .
+	docker build \
+		--build-arg TARGET=$(MODULE_NAME) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg BUILD_TIME=$(BUILD_TIME) \
+		-t modulith-$(MODULE_NAME):latest .
 
 ##### Modules
 new-module: ## Scaffold a new module (usage: make new-module MODULE_NAME)
