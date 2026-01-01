@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -46,7 +47,7 @@ type AppConfig struct {
 	RateLimitBurst   int  `yaml:"rate_limit_burst" env:"RATE_LIMIT_BURST"`
 
 	// Timeouts
-	ReadTimeout     string `yaml:"read_timeout" env:"READ_TIMEOUT"`           // HTTP server read timeout (e.g., "5s")
+	ReadTimeout     string `yaml:"read_timeout" env:"READ_TIMEOUT"`         // HTTP server read timeout (e.g., "5s")
 	WriteTimeout    string `yaml:"write_timeout" env:"WRITE_TIMEOUT"`       // HTTP server write timeout (e.g., "10s")
 	RequestTimeout  string `yaml:"request_timeout" env:"REQUEST_TIMEOUT"`   // Request handler timeout (e.g., "30s")
 	ShutdownTimeout string `yaml:"shutdown_timeout" env:"SHUTDOWN_TIMEOUT"` // Graceful shutdown timeout (e.g., "30s")
@@ -97,6 +98,14 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 		return nil, err
 	}
 
+	// Step 4: Apply standard PORT env var (12-factor app compliance)
+	// PORT takes precedence over HTTP_PORT for compatibility with Heroku, Cloud Run, Railway, etc.
+	// Priority: PORT > HTTP_PORT > default
+	if port := os.Getenv("PORT"); port != "" {
+		cfg.HTTPPort = port
+		sources["HTTP_PORT"] = "PORT" // Track that it came from PORT
+	}
+
 	// Log configuration sources in a readable format
 	slog.Info("Configuration sources",
 		"ENV", fmt.Sprintf("%s = %s", cfg.Env, getSource(sources, "ENV")),
@@ -107,6 +116,8 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 		"OTLP_ENDPOINT", fmt.Sprintf("%s = %s", cfg.OTLPEndpoint, getSource(sources, "OTLP_ENDPOINT")),
 		"SERVICE_NAME", fmt.Sprintf("%s = %s", cfg.ServiceName, getSource(sources, "SERVICE_NAME")),
 		"JWT_SECRET", fmt.Sprintf("[%d bytes] = %s", len(cfg.Auth.JWTSecret), getSource(sources, "JWT_SECRET")),
+		"RATE_LIMIT_ENABLED", fmt.Sprintf("%v = %s", cfg.RateLimitEnabled, getSource(sources, "RATE_LIMIT_ENABLED")),
+		"CORS_ALLOWED_ORIGINS", fmt.Sprintf("%v = %s", cfg.CORSAllowedOrigins, getSource(sources, "CORS_ALLOWED_ORIGINS")),
 	)
 
 	// Validation
@@ -121,6 +132,7 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 // Only overrides if the environment variable is set and non-empty.
 // Updates the sources map to track where each value came from.
 // In a production app, consider using a library like cleanenv or envconfig.
+//
 //nolint:cyclop,funlen // Configuration parsing requires many sequential environment variable checks
 func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string) {
 	if env := os.Getenv("ENV"); env != "" {
@@ -205,6 +217,36 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 	if timeout := os.Getenv("SHUTDOWN_TIMEOUT"); timeout != "" {
 		c.ShutdownTimeout = timeout
 		sources["SHUTDOWN_TIMEOUT"] = sourceName
+	}
+
+	// CORS configuration
+	if corsOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); corsOrigins != "" {
+		// Parse comma-separated list
+		origins := parseCommaSeparated(corsOrigins)
+		if len(origins) > 0 {
+			c.CORSAllowedOrigins = origins
+			sources["CORS_ALLOWED_ORIGINS"] = sourceName
+		}
+	}
+
+	// Rate limiting
+	if enabled := os.Getenv("RATE_LIMIT_ENABLED"); enabled == envTrue {
+		c.RateLimitEnabled = true
+		sources["RATE_LIMIT_ENABLED"] = sourceName
+	}
+
+	if rps := os.Getenv("RATE_LIMIT_RPS"); rps != "" {
+		if val, err := strconv.Atoi(rps); err == nil {
+			c.RateLimitRPS = val
+			sources["RATE_LIMIT_RPS"] = sourceName
+		}
+	}
+
+	if burst := os.Getenv("RATE_LIMIT_BURST"); burst != "" {
+		if val, err := strconv.Atoi(burst); err == nil {
+			c.RateLimitBurst = val
+			sources["RATE_LIMIT_BURST"] = sourceName
+		}
 	}
 
 	// OAuth configuration
@@ -347,6 +389,27 @@ func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]
 	c.overrideEnvVar("REQUEST_TIMEOUT", func(val string) { c.RequestTimeout = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("SHUTDOWN_TIMEOUT", func(val string) { c.ShutdownTimeout = val }, sources, systemEnvVars, sourceName)
 
+	// CORS configuration from .env
+	c.overrideEnvVar("CORS_ALLOWED_ORIGINS", func(val string) {
+		origins := parseCommaSeparated(val)
+		if len(origins) > 0 {
+			c.CORSAllowedOrigins = origins
+		}
+	}, sources, systemEnvVars, sourceName)
+
+	// Rate limiting from .env
+	c.overrideEnvVar("RATE_LIMIT_ENABLED", func(val string) { c.RateLimitEnabled = val == envTrue }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("RATE_LIMIT_RPS", func(val string) {
+		if v, err := strconv.Atoi(val); err == nil {
+			c.RateLimitRPS = v
+		}
+	}, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("RATE_LIMIT_BURST", func(val string) {
+		if v, err := strconv.Atoi(val); err == nil {
+			c.RateLimitBurst = v
+		}
+	}, sources, systemEnvVars, sourceName)
+
 	// OAuth configuration from .env
 	c.overrideOAuthEnvFromDotenv(sources, systemEnvVars, sourceName)
 }
@@ -359,17 +422,35 @@ func (c *AppConfig) overrideOAuthEnvFromDotenv(sources, systemEnvVars map[string
 	c.overrideEnvVar("OAUTH_TOKEN_ENCRYPTION_KEY", func(val string) { c.Auth.OAuth.TokenEncryptionKey = val }, sources, systemEnvVars, sourceName)
 
 	// Provider-specific env vars
-	c.overrideEnvVar("GOOGLE_CLIENT_ID", func(val string) { c.Auth.OAuth.Providers.Google.ClientID = val; c.Auth.OAuth.Providers.Google.Enabled = val != "" }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("GOOGLE_CLIENT_ID", func(val string) {
+		c.Auth.OAuth.Providers.Google.ClientID = val
+		c.Auth.OAuth.Providers.Google.Enabled = val != ""
+	}, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("GOOGLE_CLIENT_SECRET", func(val string) { c.Auth.OAuth.Providers.Google.ClientSecret = val }, sources, systemEnvVars, sourceName)
-	c.overrideEnvVar("FACEBOOK_CLIENT_ID", func(val string) { c.Auth.OAuth.Providers.Facebook.ClientID = val; c.Auth.OAuth.Providers.Facebook.Enabled = val != "" }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("FACEBOOK_CLIENT_ID", func(val string) {
+		c.Auth.OAuth.Providers.Facebook.ClientID = val
+		c.Auth.OAuth.Providers.Facebook.Enabled = val != ""
+	}, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("FACEBOOK_CLIENT_SECRET", func(val string) { c.Auth.OAuth.Providers.Facebook.ClientSecret = val }, sources, systemEnvVars, sourceName)
-	c.overrideEnvVar("GITHUB_CLIENT_ID", func(val string) { c.Auth.OAuth.Providers.GitHub.ClientID = val; c.Auth.OAuth.Providers.GitHub.Enabled = val != "" }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("GITHUB_CLIENT_ID", func(val string) {
+		c.Auth.OAuth.Providers.GitHub.ClientID = val
+		c.Auth.OAuth.Providers.GitHub.Enabled = val != ""
+	}, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("GITHUB_CLIENT_SECRET", func(val string) { c.Auth.OAuth.Providers.GitHub.ClientSecret = val }, sources, systemEnvVars, sourceName)
-	c.overrideEnvVar("MICROSOFT_CLIENT_ID", func(val string) { c.Auth.OAuth.Providers.Microsoft.ClientID = val; c.Auth.OAuth.Providers.Microsoft.Enabled = val != "" }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("MICROSOFT_CLIENT_ID", func(val string) {
+		c.Auth.OAuth.Providers.Microsoft.ClientID = val
+		c.Auth.OAuth.Providers.Microsoft.Enabled = val != ""
+	}, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("MICROSOFT_CLIENT_SECRET", func(val string) { c.Auth.OAuth.Providers.Microsoft.ClientSecret = val }, sources, systemEnvVars, sourceName)
-	c.overrideEnvVar("TWITTER_CLIENT_ID", func(val string) { c.Auth.OAuth.Providers.Twitter.ClientID = val; c.Auth.OAuth.Providers.Twitter.Enabled = val != "" }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("TWITTER_CLIENT_ID", func(val string) {
+		c.Auth.OAuth.Providers.Twitter.ClientID = val
+		c.Auth.OAuth.Providers.Twitter.Enabled = val != ""
+	}, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("TWITTER_CLIENT_SECRET", func(val string) { c.Auth.OAuth.Providers.Twitter.ClientSecret = val }, sources, systemEnvVars, sourceName)
-	c.overrideEnvVar("APPLE_CLIENT_ID", func(val string) { c.Auth.OAuth.Providers.Apple.ClientID = val; c.Auth.OAuth.Providers.Apple.Enabled = val != "" }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("APPLE_CLIENT_ID", func(val string) {
+		c.Auth.OAuth.Providers.Apple.ClientID = val
+		c.Auth.OAuth.Providers.Apple.Enabled = val != ""
+	}, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("APPLE_TEAM_ID", func(val string) { c.Auth.OAuth.Providers.Apple.TeamID = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("APPLE_KEY_ID", func(val string) { c.Auth.OAuth.Providers.Apple.KeyID = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("APPLE_PRIVATE_KEY_PATH", func(val string) { c.Auth.OAuth.Providers.Apple.PrivateKeyPath = val }, sources, systemEnvVars, sourceName)
@@ -587,6 +668,28 @@ func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 		sources["SHUTDOWN_TIMEOUT"] = sourceYAML
 	}
 
+	// CORS configuration from YAML
+	if len(yamlOnly.CORSAllowedOrigins) > 0 {
+		cfg.CORSAllowedOrigins = yamlOnly.CORSAllowedOrigins
+		sources["CORS_ALLOWED_ORIGINS"] = sourceYAML
+	}
+
+	// Rate limiting from YAML
+	if yamlOnly.RateLimitEnabled {
+		cfg.RateLimitEnabled = true
+		sources["RATE_LIMIT_ENABLED"] = sourceYAML
+	}
+
+	if yamlOnly.RateLimitRPS > 0 {
+		cfg.RateLimitRPS = yamlOnly.RateLimitRPS
+		sources["RATE_LIMIT_RPS"] = sourceYAML
+	}
+
+	if yamlOnly.RateLimitBurst > 0 {
+		cfg.RateLimitBurst = yamlOnly.RateLimitBurst
+		sources["RATE_LIMIT_BURST"] = sourceYAML
+	}
+
 	// Apply OAuth configuration from YAML
 	applyYAMLOAuthConfig(cfg, yamlOnly, sources)
 }
@@ -667,4 +770,24 @@ func getSource(sources map[string]string, key string) string {
 	}
 
 	return sourceDefault
+}
+
+// parseCommaSeparated parses a comma-separated string into a slice of strings.
+// Trims whitespace from each element.
+func parseCommaSeparated(s string) []string {
+	if s == "" {
+		return nil
+	}
+
+	parts := strings.Split(s, ",")
+	result := make([]string, 0, len(parts))
+
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+
+	return result
 }

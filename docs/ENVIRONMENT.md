@@ -6,12 +6,15 @@ This document describes all environment variables used by the Go Modulith templa
 
 The application loads configuration in the following order (highest to lowest priority):
 
-1. **YAML Configuration** (`configs/server.yaml` or `configs/server.prod.yaml`) - Highest priority
-2. **`.env` file** - Overrides system environment variables
-3. **System Environment Variables** - Base values
-4. **Default Values** - Hardcoded in `internal/config/config.go`
+1. **`PORT` environment variable** - Standard 12-factor app port binding (takes precedence over HTTP_PORT)
+2. **YAML Configuration** (`configs/server.yaml` or `configs/server.prod.yaml`) - High priority
+3. **`.env` file** - Overrides system environment variables
+4. **System Environment Variables** - Base values
+5. **Default Values** - Hardcoded in `internal/config/config.go`
 
-**Priority:** `YAML > .env > system ENV vars > defaults`
+**Priority:** `PORT > YAML > .env > system ENV vars > defaults`
+
+**Note:** The `PORT` environment variable is a standard convention used by Heroku, Cloud Run, Railway, Render, and other platforms. If set, it will override `HTTP_PORT` to ensure compatibility with these platforms.
 
 ## Required Variables (Production)
 
@@ -30,7 +33,8 @@ These variables **must** be set in production environments:
 | -------------- | ----------------- | ------------------------------------------------ | ----------------- |
 | `ENV`          | `dev`             | Environment name (`dev`, `staging`, `prod`)      | `prod`            |
 | `LOG_LEVEL`    | `debug`           | Logging level (`debug`, `info`, `warn`, `error`) | `info`            |
-| `HTTP_PORT`    | `8080`            | HTTP server port                                 | `8080`            |
+| `PORT`         | (none)            | HTTP server port (12-factor standard)            | `8080`            |
+| `HTTP_PORT`    | `8080`            | HTTP server port (explicit)                      | `8080`            |
 | `GRPC_PORT`    | `9050`            | gRPC server port                                 | `9050`            |
 | `SERVICE_NAME` | `modulith-server` | Service name for OpenTelemetry resource          | `modulith-server` |
 
@@ -48,6 +52,14 @@ These variables **must** be set in production environments:
 | Variable        | Default | Description                      | Example       |
 | --------------- | ------- | -------------------------------- | ------------- |
 | `OTLP_ENDPOINT` | ``      | OpenTelemetry collector endpoint | `jaeger:4317` |
+
+### CORS Configuration
+
+| Variable               | Default | Description                             | Example                                       |
+| ---------------------- | ------- | --------------------------------------- | --------------------------------------------- |
+| `CORS_ALLOWED_ORIGINS` | `*`     | Comma-separated list of allowed origins | `https://example.com,https://app.example.com` |
+
+**Note:** In production, never use `*`. Specify exact origins separated by commas.
 
 ### Rate Limiting
 
@@ -151,7 +163,10 @@ This helps debug configuration issues and understand which source provided each 
 # Application
 ENV=dev
 LOG_LEVEL=debug
-HTTP_PORT=8080
+# Use PORT for 12-factor compliance (Heroku, Cloud Run, etc.)
+# or HTTP_PORT for explicit control
+PORT=8080
+# HTTP_PORT=8080  # Alternative to PORT
 GRPC_PORT=9050
 
 # Database
@@ -163,11 +178,117 @@ JWT_SECRET=your-secret-key-at-least-32-bytes-long-for-production
 # Observability (optional)
 OTLP_ENDPOINT=localhost:4317
 
+# CORS (optional)
+CORS_ALLOWED_ORIGINS=*
+
+# Rate limiting (optional)
+RATE_LIMIT_ENABLED=false
+RATE_LIMIT_RPS=100
+RATE_LIMIT_BURST=50
+
 # OAuth (optional)
 OAUTH_ENABLED=false
 GOOGLE_CLIENT_ID=your-client-id
 GOOGLE_CLIENT_SECRET=your-client-secret
 ```
+
+## Dev/Prod Parity (12-Factor App: Factor X)
+
+El template está diseñado para mantener **paridad entre desarrollo y producción**, siguiendo el principio 12-factor app.
+
+### Principios de Paridad
+
+**1. Mismas Dependencias:**
+
+-   ✅ **Base de datos:** PostgreSQL 18 (misma versión en dev y prod)
+-   ✅ **Redis:** Redis 7 (opcional, misma versión)
+-   ✅ **Go:** Go 1.24+ (misma versión de compilación)
+-   ✅ **Herramientas:** Versiones fijas en `go.mod` y `buf.lock`
+
+**2. Mismas Herramientas:**
+
+-   ✅ **Docker Compose:** Mismas imágenes que producción
+-   ✅ **Migraciones:** `golang-migrate` (misma herramienta)
+-   ✅ **SQLC:** Misma versión para generación de código
+-   ✅ **Buf:** Misma versión para generación de protobuf
+
+**3. Mínimas Diferencias de Tiempo:**
+
+-   ✅ **Deploy rápido:** Código en producción minutos después de desarrollo
+-   ✅ **CI/CD:** Pipelines automatizados para validación
+-   ✅ **Testing:** Tests ejecutados en ambiente similar a producción
+
+### Verificación de Paridad
+
+**Versiones en `docker-compose.yaml`:**
+
+```yaml
+db:
+    image: postgres:18-alpine # ✅ Misma versión que producción
+
+redis:
+    image: redis:7-alpine # ✅ Misma versión que producción
+```
+
+**Recomendación:** Usar las mismas versiones de imágenes en producción (Kubernetes/Helm).
+
+### Diferencias Aceptables
+
+Algunas diferencias son aceptables y necesarias:
+
+1. **Configuración:**
+
+    - Dev: `ENV=dev`, `LOG_LEVEL=debug`
+    - Prod: `ENV=prod`, `LOG_LEVEL=info`
+
+2. **Recursos:**
+
+    - Dev: Recursos limitados (CPU/memoria)
+    - Prod: Recursos escalables según demanda
+
+3. **Observabilidad:**
+
+    - Dev: Jaeger/Prometheus local (opcional)
+    - Prod: Observabilidad centralizada (requerido)
+
+4. **Secrets:**
+    - Dev: Variables de entorno o `.env`
+    - Prod: Secrets manager (Vault, AWS Secrets Manager, etc.)
+
+### Mejores Prácticas
+
+**1. Usar Mismas Versiones:**
+
+```bash
+# En desarrollo
+docker-compose up db  # postgres:18-alpine
+
+# En producción (Kubernetes)
+# Usar la misma versión en Helm values
+```
+
+**2. Testing en Ambiente Similar:**
+
+-   Ejecutar tests de integración con Docker Compose
+-   Usar `testcontainers` para tests automatizados
+-   Validar migraciones en ambiente de staging
+
+**3. Documentar Diferencias:**
+
+-   Mantener `configs/server.yaml` para dev
+-   Usar `configs/server.prod.yaml` para producción
+-   Documentar cualquier diferencia necesaria
+
+### Checklist de Paridad
+
+Antes de desplegar a producción:
+
+-   [ ] Verificar que las versiones de DB/Redis coinciden con producción
+-   [ ] Validar que las migraciones funcionan en staging
+-   [ ] Ejecutar tests de integración con Docker Compose
+-   [ ] Verificar que la configuración de producción está documentada
+-   [ ] Asegurar que los secrets se gestionan correctamente
+-   [ ] Validar que los timeouts y límites son apropiados para producción
 
 ## Production Checklist
 
@@ -183,3 +304,4 @@ Before deploying to production:
 -   [ ] Use secrets manager for sensitive values
 -   [ ] Review and adjust timeout values
 -   [ ] Test configuration loading and validation
+-   [ ] Verify dev/prod parity (same DB/Redis versions)

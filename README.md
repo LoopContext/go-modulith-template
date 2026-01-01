@@ -74,10 +74,13 @@ Esto levanta:
 
 El proyecto soporta múltiples fuentes de configuración con precedencia clara:
 
--   **YAML** (`configs/server.yaml`): Mayor prioridad, ideal para configuraciones por entorno
+-   **`PORT`** (variable estándar 12-factor): Mayor prioridad, compatible con Heroku, Cloud Run, Railway, etc.
+-   **YAML** (`configs/server.yaml`): Alta prioridad, ideal para configuraciones por entorno
 -   **`.env`**: Sobrescribe variables del sistema
 -   **Variables de entorno del sistema**: Valores base
 -   **Defaults**: Valores hardcodeados en `config.go`
+
+**Prioridad:** `PORT > YAML > .env > system ENV vars > defaults`
 
 ```bash
 # Copia el archivo de ejemplo para variables de entorno
@@ -122,7 +125,18 @@ El template incluye una abstracción para gestión de secretos que permite usar 
 
 Ver [documentación de variables de entorno](docs/ENVIRONMENT.md) para más detalles.
 
-### 6. Health Checks y Monitoreo
+### 6. Procesos Stateless (12-Factor App)
+
+El template sigue el principio de **procesos stateless**:
+
+- ✅ **Sin estado local:** No se escriben archivos temporales ni se almacena estado en disco
+- ✅ **Estado en servicios externos:** Sesiones en PostgreSQL, cache opcional en Redis
+- ✅ **Escalado horizontal:** Cualquier instancia puede manejar cualquier request
+- ⚠️ **WebSocket:** Requiere sticky sessions para escalado (ver documentación)
+
+**Ver documentación completa:** `docs/MODULITH_ARCHITECTURE.md` (sección 20: Stateless Processes)
+
+### 7. Health Checks y Monitoreo
 
 El servidor expone endpoints de health checks para integración con orquestadores (Kubernetes, Docker Swarm, etc.):
 
@@ -147,7 +161,7 @@ El endpoint `/readyz` retorna un JSON detallado con el estado de cada dependenci
 
 Si alguna dependencia no está saludable, el endpoint retorna `503 Service Unavailable`.
 
-### 7. Tareas Administrativas
+### 8. Tareas Administrativas
 
 El template incluye un sistema de tareas administrativas para operaciones de mantenimiento:
 
@@ -177,6 +191,8 @@ Las tareas administrativas se ejecutan como comandos independientes y son útile
 ## 📖 Documentación Completa
 
 -   **[Guía de Arquitectura](docs/MODULITH_ARCHITECTURE.md)** - ⭐ Arquitectura completa, patrones, manejo de errores, telemetría, eventos tipados, RBAC, testing y más
+-   **[Comunicación entre Módulos](docs/MODULE_COMMUNICATION.md)** - ⭐ Cómo funciona la comunicación en Modulith vs Microservicios, gRPC in-process vs network, event bus
+-   **[12-Factor App Compliance](docs/12_FACTOR_APP.md)** - Guía completa de cumplimiento con metodología 12-factor app
 -   **[OAuth/Social Login](docs/OAUTH_INTEGRATION.md)** - Integración con Google, Facebook, GitHub, Apple, Microsoft, Twitter
 -   **[Sistema de Notificaciones](docs/NOTIFICATION_SYSTEM.md)** - Templates, providers (SendGrid, Twilio, SES) y composite notifier
 -   **[WebSocket en Tiempo Real](docs/WEBSOCKET_GUIDE.md)** - Comunicación bidireccional, event bus y autenticación JWT

@@ -1914,3 +1914,324 @@ value, err := secrets.GetSecretOrDefault(ctx, provider, "API_KEY", "default-key"
 ## 33. Futuras Mejoras y Nota Final
 
 Esta arquitectura favorece la seguridad en tiempo de compilación y la disciplina operativa. Go 1.24+ se elige por el soporte nativo de `slog`, mejoras en el `toolchain` y optimizaciones de performance que permiten un código más limpio y eficiente.
+
+## 20. Stateless Processes (12-Factor App: Factor VI)
+
+El template está diseñado siguiendo el principio de **procesos stateless** de la metodología 12-factor app. Esto garantiza que la aplicación pueda escalar horizontalmente sin problemas.
+
+### Principios de Stateless
+
+**Todos los procesos de la aplicación son stateless:**
+
+1. **No hay estado local en el sistema de archivos:**
+   - ✅ No se escriben archivos temporales
+   - ✅ No se almacenan sesiones en disco
+   - ✅ No se guardan datos en `/tmp` o directorios locales
+   - ✅ Solo lectura de archivos de configuración y recursos estáticos (Swagger JSON)
+
+2. **Estado persistente en servicios externos:**
+   - ✅ **Sesiones:** Almacenadas en PostgreSQL (`sessions` table)
+   - ✅ **Datos de aplicación:** PostgreSQL
+   - ✅ **Cache (opcional):** Redis (si se configura)
+   - ✅ **Logs:** Enviados a stdout/stderr (capturados por el orquestador)
+
+3. **Estado efímero en memoria:**
+   - ⚠️ **WebSocket Hub:** Mantiene conexiones activas en memoria
+   - ⚠️ **Event Bus:** Estado de suscripciones en memoria
+   - ℹ️ **Nota:** Estos son aceptables para procesos stateless, pero tienen implicaciones para escalado horizontal (ver abajo)
+
+### Verificación de Stateless
+
+**Verificación realizada:**
+
+```bash
+# No hay escritura de archivos temporales
+grep -r "os.Create\|ioutil.WriteFile\|/tmp" cmd/ internal/ modules/ --exclude-dir=vendor
+
+# No hay estado en sistema de archivos
+grep -r "file.*state\|local.*state" cmd/ internal/ modules/
+```
+
+**Resultado:** ✅ No se encontraron escrituras de archivos temporales o almacenamiento de estado local.
+
+### Implicaciones para Escalado Horizontal
+
+#### ✅ Escalado Sin Problemas
+
+- **HTTP/gRPC requests:** Completamente stateless, cualquier instancia puede manejar cualquier request
+- **Sesiones:** Almacenadas en DB compartida, cualquier instancia puede validar sesiones
+- **JWT tokens:** Stateless, no requieren almacenamiento en servidor
+
+#### ⚠️ Consideraciones para WebSocket
+
+El **WebSocket Hub** mantiene conexiones activas en memoria. Esto significa:
+
+1. **Sticky Sessions (Recomendado):**
+   - Configurar load balancer con sticky sessions (session affinity)
+   - Asegura que un cliente siempre se conecte a la misma instancia
+   - Implementación: Configurar `sessionAffinity` en Kubernetes Service
+
+2. **Alternativa: Shared State (Avanzado):**
+   - Para escalado sin sticky sessions, considerar Redis Pub/Sub para WebSocket
+   - Implementar hub distribuido usando `internal/events/distributed.go` como referencia
+   - Requiere implementación adicional (no incluida en template base)
+
+**Recomendación para producción:**
+- Para la mayoría de casos, sticky sessions son suficientes
+- Para alta disponibilidad sin sticky sessions, implementar hub distribuido
+
+### Proceso de Inicio y Shutdown
+
+**Inicio (Startup):**
+1. Carga configuración desde environment/YAML
+2. Conecta a servicios externos (DB, Redis opcional)
+3. Ejecuta migraciones (si es necesario)
+4. Inicializa módulos
+5. Inicia servidores HTTP/gRPC
+6. Listo para recibir requests
+
+**Shutdown (Graceful):**
+1. Detiene aceptar nuevas conexiones
+2. Cierra conexiones WebSocket activas
+3. Espera que requests en vuelo terminen (timeout configurable)
+4. Cierra conexiones a servicios externos
+5. Flush de telemetría (tracing/metrics)
+6. Termina proceso
+
+**Tiempo de shutdown:** Configurable via `SHUTDOWN_TIMEOUT` (default: 30s)
+
+### Proceso Modelo
+
+El template soporta dos tipos de procesos:
+
+1. **Web Process (`cmd/server/main.go`):**
+   - Maneja requests HTTP/gRPC
+   - Gestiona conexiones WebSocket
+   - Escala horizontalmente (con consideraciones de WebSocket)
+
+2. **Worker Process (`cmd/worker/main.go`):**
+   - Procesa eventos asíncronos
+   - Ejecuta tareas programadas
+   - Consume del event bus
+   - Escala independientemente del web process
+
+**Procfile (Heroku/Railway compatible):**
+```
+web: go run cmd/server/main.go
+worker: go run cmd/worker/main.go
+```
+
+### Checklist de Stateless
+
+Antes de agregar nueva funcionalidad, verificar:
+
+- [ ] ¿Se escribe algún archivo temporal? → **NO**
+- [ ] ¿Se almacena estado en memoria que debe persistir entre reinicios? → **NO** (usar DB/Redis)
+- [ ] ¿Se depende de estado local del proceso? → **NO** (cualquier instancia debe funcionar)
+- [ ] ¿Las sesiones están en DB compartida? → **SÍ**
+- [ ] ¿Los logs van a stdout? → **SÍ**
+
+### Referencias
+
+- [12-Factor App: Processes](https://12factor.net/processes)
+- [12-Factor App: Disposability](https://12factor.net/disposability)
+- Ver también: `docs/12_FACTOR_APP.md` (guía completa de compliance)
+
+## 21. Concurrency (12-Factor App: Factor VIII)
+
+El template está diseñado para escalar horizontalmente mediante el **modelo de procesos** de la metodología 12-factor app.
+
+### Modelo de Procesos
+
+La aplicación se ejecuta como uno o más **procesos stateless** que comparten nada o comparten solo servicios externos (DB, Redis).
+
+**Tipos de Procesos:**
+
+1. **Web Process** (`cmd/server/main.go`):
+   - Maneja requests HTTP/gRPC
+   - Gestiona conexiones WebSocket
+   - Escala horizontalmente
+
+2. **Worker Process** (`cmd/worker/main.go`):
+   - Procesa eventos asíncronos
+   - Ejecuta tareas programadas
+   - Escala independientemente
+
+### Escalado Horizontal
+
+**HTTP/gRPC Requests:**
+- ✅ **Completamente stateless:** Cualquier instancia puede manejar cualquier request
+- ✅ **Sin sticky sessions requeridas:** Load balancer puede distribuir requests aleatoriamente
+- ✅ **Escalado automático:** HPA (Horizontal Pod Autoscaler) configurado en Helm chart
+
+**Ejemplo de escalado:**
+```yaml
+# deployment/helm/modulith/values-server.yaml
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+```
+
+**Worker Processes:**
+- ✅ **Escalado independiente:** Puede tener más workers que web processes
+- ✅ **Event-driven:** Escala según volumen de eventos
+- ✅ **Sin dependencias:** Cada worker es independiente
+
+### Consideraciones de Concurrencia
+
+#### 1. WebSocket Scaling
+
+**Limitación:**
+- El WebSocket Hub mantiene conexiones en memoria
+- Un cliente debe conectarse siempre a la misma instancia
+
+**Solución Recomendada: Sticky Sessions**
+```yaml
+# Kubernetes Service con session affinity
+apiVersion: v1
+kind: Service
+metadata:
+  name: modulith-server
+spec:
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 horas
+```
+
+**Alternativa: Hub Distribuido (Avanzado)**
+- Implementar hub distribuido usando Redis Pub/Sub
+- Requiere implementación adicional (no incluida en template base)
+- Ver `internal/events/distributed.go` como referencia
+
+#### 2. Database Connections
+
+**Connection Pooling:**
+```yaml
+# configs/server.yaml
+db_max_open_conns: 25      # Por instancia
+db_max_idle_conns: 25
+db_conn_max_lifetime: 5m
+```
+
+**Cálculo de conexiones:**
+- Si tienes 5 instancias: 5 × 25 = 125 conexiones máximas
+- Ajustar `DB_MAX_OPEN_CONNS` según número de instancias esperadas
+- PostgreSQL default: 100 conexiones (ajustar `max_connections` si es necesario)
+
+#### 3. Event Bus Concurrency
+
+**In-Process Bus:**
+- ✅ Thread-safe con `sync.RWMutex`
+- ✅ Múltiples goroutines pueden publicar/subscribir simultáneamente
+- ⚠️ Solo funciona dentro de un proceso
+
+**Distributed Bus (Futuro):**
+- Usar `internal/events/distributed.go` como base
+- Implementar con Kafka, RabbitMQ, o Redis Pub/Sub
+- Permite eventos entre instancias
+
+### Proceso de Escalado
+
+**1. Escalado Manual:**
+```bash
+# Kubernetes
+kubectl scale deployment modulith-server --replicas=5
+
+# Helm
+helm upgrade modulith-server ./deployment/helm/modulith \
+  --set replicaCount=5
+```
+
+**2. Escalado Automático (HPA):**
+```yaml
+# Ya configurado en Helm chart
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+```
+
+**3. Escalado Basado en Métricas:**
+```yaml
+# Ejemplo: Escalar basado en requests por segundo
+metrics:
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "100"
+```
+
+### Mejores Prácticas
+
+**1. Resource Limits:**
+```yaml
+resources:
+  requests:
+    cpu: 500m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+```
+
+**2. Readiness Probes:**
+- Asegurar que el pod está listo antes de recibir tráfico
+- Configurado en Helm chart: `/readyz`
+
+**3. Graceful Shutdown:**
+- Configurar `SHUTDOWN_TIMEOUT` apropiado
+- Permitir que requests en vuelo terminen
+- Default: 30 segundos
+
+**4. Health Checks:**
+- Liveness: `/livez` (proceso vivo)
+- Readiness: `/readyz` (listo para requests)
+- Startup: `/readyz` (primera vez)
+
+### Ejemplo: Arquitectura Escalada
+
+```
+                    ┌───────-──────┐
+                    │ Load Balancer│
+                    └──────┬───────┘
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+   ┌────▼────┐       ┌────▼────┐       ┌────▼────┐
+   │ Server  │       │ Server  │       │ Server  │
+   │  Pod 1  │       │  Pod 2  │       │  Pod 3  │
+   └────┬────┘       └────┬────┘       └────┬────┘
+        │                  │                  │
+        └──────────────────┼──────────────────┘
+                           │
+                    ┌──────▼──────┐
+                    │  PostgreSQL │
+                    │  (Shared)   │
+                    └─────────────┘
+
+   ┌─────────┐     ┌─────────┐     ┌─────────┐
+   │ Worker  │     │ Worker  │     │ Worker  │
+   │  Pod 1  │     │  Pod 2  │     │  Pod 3  │
+   └─────────┘     └─────────┘     └─────────┘
+```
+
+### Checklist de Concurrencia
+
+Antes de escalar a producción:
+
+- [ ] Configurar HPA con límites apropiados
+- [ ] Ajustar connection pool según número de instancias
+- [ ] Configurar sticky sessions para WebSocket (si aplica)
+- [ ] Validar que health checks funcionan correctamente
+- [ ] Configurar resource limits y requests
+- [ ] Probar escalado manual antes de habilitar automático
+- [ ] Monitorear métricas durante escalado
+- [ ] Documentar límites conocidos (WebSocket, etc.)

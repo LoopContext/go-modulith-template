@@ -155,6 +155,234 @@ deployment/terragrunt/envs/
 
 ---
 
+## 🔄 Build, Release, Run (12-Factor App: Factor V)
+
+El template sigue el principio de **separación de build, release y run** de la metodología 12-factor app.
+
+### Las Tres Etapas
+
+**1. Build Stage:**
+- Compila el código fuente en un ejecutable
+- Genera código desde protobuf (buf)
+- Genera código desde SQL (sqlc)
+- Crea la imagen Docker
+- **Resultado:** Artefacto ejecutable (binario o imagen)
+
+**2. Release Stage:**
+- Combina el build con la configuración del entorno
+- Aplica migraciones de base de datos (opcional)
+- Valida configuración
+- **Resultado:** Release listo para ejecutar
+
+**3. Run Stage:**
+- Ejecuta la aplicación en el entorno objetivo
+- Inicia los procesos (web, worker)
+- **Resultado:** Aplicación en ejecución
+
+### Implementación en el Template
+
+#### Build Stage
+
+```bash
+# Build binario local
+make build                    # → bin/server
+make build-module auth        # → bin/auth
+
+# Build imagen Docker
+make docker-build             # → modulith-server:latest
+make docker-build-module auth # → modulith-auth:latest
+```
+
+**Durante el build:**
+- ✅ Generación de código (proto, sqlc)
+- ✅ Compilación de binarios
+- ✅ Creación de imagen Docker multi-stage
+- ✅ Inclusión de version info (VERSION, COMMIT, BUILD_TIME)
+
+#### Release Stage
+
+**Opción 1: Migraciones en Startup (Recomendado para Modulith)**
+```bash
+# El servidor ejecuta migraciones automáticamente al iniciar
+./bin/server  # Ejecuta migraciones, luego inicia servidor
+```
+
+**Ventajas:**
+- ✅ Simple y directo
+- ✅ Asegura que las migraciones se ejecuten
+- ✅ Funciona bien para modulith (un solo proceso)
+
+**Opción 2: Migraciones como Job Separado (Producción)**
+```bash
+# Ejecutar migraciones como job de Kubernetes
+kubectl apply -f deployment/helm/modulith/templates/migration-job.yaml
+
+# Luego iniciar la aplicación
+helm install modulith-server ./deployment/helm/modulith
+```
+
+**Ventajas:**
+- ✅ Separación clara de build/release/run
+- ✅ Migraciones ejecutadas antes del deploy
+- ✅ Rollback más seguro
+
+**Recomendación:**
+- **Desarrollo/Staging:** Migraciones en startup (Opción 1)
+- **Producción:** Migraciones como job separado (Opción 2)
+
+#### Run Stage
+
+```bash
+# Ejecutar aplicación
+./bin/server
+
+# O con Docker
+docker run modulith-server:latest
+
+# O en Kubernetes
+helm install modulith-server ./deployment/helm/modulith
+```
+
+**Durante el run:**
+- ✅ Carga configuración (YAML > .env > ENV vars)
+- ✅ Conecta a servicios externos (DB, Redis)
+- ✅ Ejecuta migraciones (si no se ejecutaron en release)
+- ✅ Inicia servidores HTTP/gRPC
+- ✅ Listo para recibir requests
+
+### Separación de Responsabilidades
+
+**Build:**
+- ✅ Compilación de código
+- ✅ Generación de artefactos
+- ✅ Creación de imágenes
+- ❌ NO ejecuta migraciones
+- ❌ NO accede a base de datos
+- ❌ NO requiere configuración de entorno
+
+**Release:**
+- ✅ Aplicación de configuración
+- ✅ Ejecución de migraciones (opcional)
+- ✅ Validación de configuración
+- ❌ NO ejecuta la aplicación
+
+**Run:**
+- ✅ Ejecución de procesos
+- ✅ Manejo de requests
+- ✅ Gestión de ciclo de vida
+- ❌ NO compila código
+- ❌ NO aplica migraciones (si se hicieron en release)
+
+### Ejemplo Completo: CI/CD Pipeline
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Docker image
+        run: |
+          docker build \
+            --build-arg VERSION=${{ github.ref_name }} \
+            --build-arg COMMIT=${{ github.sha }} \
+            -t modulith-server:${{ github.sha }} .
+      - name: Push to registry
+        run: |
+          docker push modulith-server:${{ github.sha }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run migrations
+        run: |
+          # Ejecutar migraciones como job separado
+          kubectl create job migration-${{ github.sha }} \
+            --from=cronjob/migration-job \
+            --image=modulith-server:${{ github.sha }}
+
+  deploy:
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Kubernetes
+        run: |
+          helm upgrade --install modulith-server \
+            --set image.tag=${{ github.sha }} \
+            ./deployment/helm/modulith
+```
+
+### Migraciones: Estrategia Híbrida
+
+El template soporta ambas estrategias:
+
+**1. Migraciones en Startup (Default):**
+```go
+// cmd/server/main.go
+func main() {
+    // ...
+    runMigrations(cfg.DBDSN, reg)  // Ejecuta migraciones
+    runServer(ctx, cfg, reg, stop)  // Inicia servidor
+}
+```
+
+**2. Migraciones como Job (Kubernetes):**
+```yaml
+# deployment/helm/modulith/templates/migration-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "modulith.fullname" . }}-migration
+spec:
+  template:
+    spec:
+      containers:
+      - name: migration
+        image: "{{ .Values.image.repository }}-server:{{ .Values.image.tag }}"
+        command: ["./service", "-migrate"]  # Solo migraciones
+      restartPolicy: Never
+```
+
+**Uso:**
+```bash
+# Ejecutar migraciones antes del deploy
+kubectl apply -f migration-job.yaml
+
+# Esperar completación
+kubectl wait --for=condition=complete job/migration-job
+
+# Luego desplegar aplicación
+helm install modulith-server ./deployment/helm/modulith
+```
+
+### Checklist de Build/Release/Run
+
+**Build:**
+- [ ] Código compilado sin errores
+- [ ] Artefactos generados (proto, sqlc)
+- [ ] Imagen Docker creada
+- [ ] Version info incluida
+
+**Release:**
+- [ ] Configuración validada
+- [ ] Migraciones ejecutadas (si aplica)
+- [ ] Secrets configurados
+- [ ] Health checks configurados
+
+**Run:**
+- [ ] Proceso inicia correctamente
+- [ ] Conecta a servicios externos
+- [ ] Health checks responden
+- [ ] Logs estructurados funcionando
+
 ## 🔄 Flujo de Deployment Completo
 
 ### 1. Build Local
