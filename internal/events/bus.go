@@ -1,4 +1,6 @@
 // Package events provides a simple event bus for in-process communication.
+// It supports both synchronous and asynchronous event handling, and can be
+// extended with distributed backends (Kafka, RabbitMQ, etc.) using the EventBus interface.
 package events
 
 import (
@@ -18,6 +20,22 @@ type Handler func(ctx context.Context, event Event) error
 
 // ErrorHandler defines a function that handles errors from event handlers
 type ErrorHandler func(ctx context.Context, event Event, err error)
+
+// EventBus defines the interface for event publishing and subscription.
+// This interface allows for different implementations (in-memory, Kafka, RabbitMQ, etc.)
+type EventBus interface {
+	// Subscribe registers a handler for a specific event name.
+	Subscribe(eventName string, handler Handler)
+
+	// Publish broadcasts an event to all registered handlers.
+	Publish(ctx context.Context, event Event)
+
+	// Close gracefully shuts down the event bus.
+	Close() error
+}
+
+// Ensure Bus implements EventBus interface
+var _ EventBus = (*Bus)(nil)
 
 // Bus is a simple in-process event distributor
 type Bus struct {
@@ -74,4 +92,16 @@ func (b *Bus) Publish(ctx context.Context, event Event) {
 			}
 		}(handler)
 	}
+}
+
+// Close gracefully shuts down the in-memory event bus.
+// For the in-memory implementation, this is a no-op.
+func (b *Bus) Close() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Clear all handlers
+	b.handlers = make(map[string][]Handler)
+
+	return nil
 }

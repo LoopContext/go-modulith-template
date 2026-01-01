@@ -286,7 +286,10 @@ func startHTTPServer(cfg *config.AppConfig, mux *http.ServeMux) *http.Server {
 		)
 	}
 
-	// Apply request ID middleware (outermost)
+	// Apply logging middleware (logs requests with method, path, status, duration)
+	handler = middleware.LoggingWithDefaults()(handler)
+
+	// Apply request ID middleware (outermost - ensures request_id is available for logging)
 	handler = middleware.RequestID(handler)
 
 	// Parse timeout configurations
@@ -404,8 +407,22 @@ func initDB(cfg *config.AppConfig) (*sql.DB, error) {
 		}
 	}
 
-	if err := db.Ping(); err != nil {
-		slog.Error("Failed to ping DB", "error", err)
+	// Parse connect timeout and ping with context
+	connectTimeout := 10 * time.Second // default
+
+	if cfg.DBConnectTimeout != "" {
+		if parsed, err := time.ParseDuration(cfg.DBConnectTimeout); err != nil {
+			slog.Warn("Invalid DB_CONNECT_TIMEOUT, using default 10s", "value", cfg.DBConnectTimeout, "error", err)
+		} else {
+			connectTimeout = parsed
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
+	defer cancel()
+
+	if err := db.PingContext(ctx); err != nil {
+		slog.Error("Failed to ping DB", "error", err, "timeout", connectTimeout)
 
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
@@ -414,6 +431,7 @@ func initDB(cfg *config.AppConfig) (*sql.DB, error) {
 		"max_open_conns", cfg.DBMaxOpenConns,
 		"max_idle_conns", cfg.DBMaxIdleConns,
 		"conn_max_lifetime", cfg.DBConnMaxLifetime,
+		"connect_timeout", connectTimeout,
 	)
 
 	return db, nil

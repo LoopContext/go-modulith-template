@@ -1407,6 +1407,234 @@ Para evitar el acoplamiento con proveedores externos (Twilio, SendGrid, etc.), e
 
 ---
 
-## 24. Futuras Mejoras y Nota Final
+## 24. Caching (`internal/cache`)
 
-Esta arquitectura favorece la seguridad en tiempo de compilación y la disciplina operativa. Go 1.23+ se elige por el soporte nativo de `slog`, mejoras en el `toolchain` y optimizaciones de performance que permiten un código más limpio y eficiente.
+El sistema proporciona una abstracción de caché para session storage, rate limiting y caching general.
+
+### Interface
+
+```go
+type Cache interface {
+    Get(ctx context.Context, key string) ([]byte, error)
+    Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
+    Delete(ctx context.Context, key string) error
+    Exists(ctx context.Context, key string) (bool, error)
+    Close() error
+}
+```
+
+### Implementaciones
+
+-   **MemoryCache:** Caché en memoria con limpieza automática de entradas expiradas. Ideal para desarrollo y despliegues single-instance.
+-   **RedisCache:** Stub preparado para Redis. Agregar dependencia `github.com/redis/go-redis/v9` para usar.
+
+### Ejemplo de Uso
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/cache"
+
+// Crear caché en memoria
+mc := cache.NewMemoryCache()
+
+// Guardar valor con TTL
+err := mc.Set(ctx, "session:123", sessionData, 30*time.Minute)
+
+// Recuperar valor
+data, err := mc.Get(ctx, "session:123")
+if errors.Is(err, cache.ErrNotFound) {
+    // Cache miss
+}
+
+// Helper para strings
+sc := cache.NewStringCache(mc)
+token, err := sc.Get(ctx, "token:456")
+```
+
+---
+
+## 25. Resilience Patterns (`internal/resilience`)
+
+Para proteger el sistema contra fallos en cascada, el template incluye patrones de resiliencia.
+
+### Circuit Breaker
+
+Implementa el patrón Circuit Breaker para servicios externos:
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/resilience"
+
+// Crear circuit breaker
+config := resilience.DefaultCircuitBreakerConfig()
+config.MaxFailures = 5
+config.Timeout = 30 * time.Second
+
+cb := resilience.NewCircuitBreaker("payment-service", config)
+
+// Usar para llamadas externas
+err := cb.Execute(ctx, func(ctx context.Context) error {
+    return paymentClient.Charge(ctx, amount)
+})
+
+if errors.Is(err, resilience.ErrCircuitOpen) {
+    // Servicio está fallando, usar fallback
+}
+```
+
+### Estados del Circuit Breaker
+
+-   **Closed:** Operación normal, las llamadas pasan.
+-   **Open:** Circuito abierto, rechaza llamadas inmediatamente.
+-   **Half-Open:** Probando recuperación, permite algunas llamadas.
+
+### Retry con Backoff Exponencial
+
+```go
+config := resilience.DefaultRetryConfig()
+config.MaxAttempts = 3
+config.InitialDelay = 100 * time.Millisecond
+
+err := resilience.Retry(ctx, config, func(ctx context.Context) error {
+    return externalService.Call(ctx)
+})
+```
+
+---
+
+## 26. Feature Flags (`internal/feature`)
+
+Sistema de feature flags para rollouts graduales y A/B testing.
+
+### Uso Básico
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/feature"
+
+// Crear manager
+fm := feature.NewInMemoryManager()
+
+// Registrar flags
+fm.RegisterFlag("new_checkout", "New checkout flow", false)
+fm.RegisterFlag("dark_mode", "Enable dark mode", true)
+
+// Verificar flag
+if fm.IsEnabled(ctx, "new_checkout") {
+    // Usar nuevo flujo
+}
+```
+
+### Rollout por Porcentaje
+
+```go
+// Flag habilitado para 20% de usuarios
+fm.SetFlag(ctx, feature.Flag{
+    Name:       "experimental_feature",
+    Enabled:    true,
+    Percentage: 20,  // Solo 20% de usuarios
+})
+
+// Verificar para un usuario específico
+featureCtx := feature.Context{
+    UserID: userID,
+    Email:  email,
+}
+
+if fm.IsEnabledFor(ctx, "experimental_feature", featureCtx) {
+    // Usuario está en el 20%
+}
+```
+
+### Reglas Condicionales
+
+```go
+fm.SetFlag(ctx, feature.Flag{
+    Name:    "beta_feature",
+    Enabled: true,
+    Rules: []feature.Rule{
+        {
+            Attribute: "email",
+            Operator:  "contains",
+            Value:     "@beta.com",
+        },
+    },
+})
+```
+
+---
+
+## 27. Structured Error Codes
+
+Los errores de dominio ahora incluyen códigos estables para clientes API.
+
+### Formato de Respuesta
+
+Los errores gRPC incluyen el código en el mensaje: `[ERROR_CODE] mensaje`
+
+```
+[USER_NOT_FOUND] user with email test@example.com not found
+[AUTH_TOKEN_EXPIRED] session has expired, please login again
+[VALIDATION_FAILED] email format is invalid
+```
+
+### Códigos Disponibles
+
+| Código | Tipo | Descripción |
+|--------|------|-------------|
+| `NOT_FOUND` | NotFound | Recurso no encontrado |
+| `ALREADY_EXISTS` | AlreadyExists | Recurso ya existe |
+| `VALIDATION_FAILED` | Validation | Error de validación |
+| `AUTH_REQUIRED` | Unauthorized | Autenticación requerida |
+| `AUTH_TOKEN_EXPIRED` | Unauthorized | Token expirado |
+| `FORBIDDEN` | Forbidden | Acceso denegado |
+| `RATE_LIMITED` | Forbidden | Rate limit excedido |
+
+### Uso
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/errors"
+
+// Crear error con código específico
+err := errors.WithCode(errors.CodeUserNotFound, "user not found")
+
+// O usar helpers existentes (código se asigna automáticamente)
+err := errors.NotFound("user not found")  // Código: NOT_FOUND
+
+// Obtener código de un error
+code := errors.GetErrorCode(err)  // "NOT_FOUND"
+```
+
+---
+
+## 28. Request Logging Middleware
+
+El middleware de logging registra todas las peticiones HTTP con información detallada.
+
+### Información Registrada
+
+-   Método HTTP y path
+-   Status code y duración
+-   Bytes escritos
+-   Request ID (si disponible)
+-   User-Agent y Remote Address
+
+### Configuración
+
+```go
+config := middleware.LoggingConfig{
+    SkipPaths: []string{"/healthz", "/readyz", "/metrics"},
+    SlowRequestThreshold: 500 * time.Millisecond,
+}
+
+handler := middleware.Logging(config)(yourHandler)
+```
+
+### Niveles de Log
+
+-   **INFO:** Peticiones exitosas (2xx, 3xx)
+-   **WARN:** Errores de cliente (4xx) o peticiones lentas
+-   **ERROR:** Errores de servidor (5xx)
+
+---
+
+## 29. Futuras Mejoras y Nota Final
+
+Esta arquitectura favorece la seguridad en tiempo de compilación y la disciplina operativa. Go 1.24+ se elige por el soporte nativo de `slog`, mejoras en el `toolchain` y optimizaciones de performance que permiten un código más limpio y eficiente.

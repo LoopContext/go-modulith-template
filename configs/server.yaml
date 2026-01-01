@@ -8,6 +8,7 @@ db_dsn: postgres://postgres:postgres@localhost:5432/modulith_demo?sslmode=disabl
 db_max_open_conns: 25
 db_max_idle_conns: 25
 db_conn_max_lifetime: 5m
+db_connect_timeout: 10s  # Initial connection timeout
 
 # CORS configuration (default: allow all origins)
 cors_allowed_origins:

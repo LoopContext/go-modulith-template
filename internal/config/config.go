@@ -31,6 +31,7 @@ type AppConfig struct {
 	DBMaxOpenConns    int    `yaml:"db_max_open_conns" env:"DB_MAX_OPEN_CONNS"`
 	DBMaxIdleConns    int    `yaml:"db_max_idle_conns" env:"DB_MAX_IDLE_CONNS"`
 	DBConnMaxLifetime string `yaml:"db_conn_max_lifetime" env:"DB_CONN_MAX_LIFETIME"`
+	DBConnectTimeout  string `yaml:"db_connect_timeout" env:"DB_CONNECT_TIMEOUT"` // Initial connection timeout (e.g., "10s")
 
 	// Observability
 	OTLPEndpoint string `yaml:"otlp_endpoint" env:"OTLP_ENDPOINT"`
@@ -68,6 +69,7 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 		DBMaxOpenConns:    25,
 		DBMaxIdleConns:    25,
 		DBConnMaxLifetime: "5m",
+		DBConnectTimeout:  "10s",
 		RateLimitEnabled:  false,
 		RateLimitRPS:      100,
 		RateLimitBurst:    50,
@@ -158,6 +160,11 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 	if maxLifetime := os.Getenv("DB_CONN_MAX_LIFETIME"); maxLifetime != "" {
 		c.DBConnMaxLifetime = maxLifetime
 		sources["DB_CONN_MAX_LIFETIME"] = sourceName
+	}
+
+	if connectTimeout := os.Getenv("DB_CONNECT_TIMEOUT"); connectTimeout != "" {
+		c.DBConnectTimeout = connectTimeout
+		sources["DB_CONNECT_TIMEOUT"] = sourceName
 	}
 
 	if endpoint := os.Getenv("OTLP_ENDPOINT"); endpoint != "" {
@@ -316,6 +323,7 @@ func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]
 		}
 	}, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("DB_CONN_MAX_LIFETIME", func(val string) { c.DBConnMaxLifetime = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("DB_CONNECT_TIMEOUT", func(val string) { c.DBConnectTimeout = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("OTLP_ENDPOINT", func(val string) { c.OTLPEndpoint = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("JWT_SECRET", func(val string) { c.Auth.JWTSecret = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("READ_TIMEOUT", func(val string) { c.ReadTimeout = val }, sources, systemEnvVars, sourceName)
@@ -520,6 +528,11 @@ func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 	if yamlOnly.DBConnMaxLifetime != "" {
 		cfg.DBConnMaxLifetime = yamlOnly.DBConnMaxLifetime
 		sources["DB_CONN_MAX_LIFETIME"] = sourceYAML
+	}
+
+	if yamlOnly.DBConnectTimeout != "" {
+		cfg.DBConnectTimeout = yamlOnly.DBConnectTimeout
+		sources["DB_CONNECT_TIMEOUT"] = sourceYAML
 	}
 
 	if yamlOnly.OTLPEndpoint != "" {
