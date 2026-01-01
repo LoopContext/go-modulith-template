@@ -3,36 +3,62 @@ package {{.MODULE_NAME}}
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	{{.MODULE_NAME}}v1 "{{.PROJECT_NAME}}/gen/go/proto/{{.MODULE_NAME}}/v1"
+	"{{.PROJECT_NAME}}/internal/registry"
 	"{{.PROJECT_NAME}}/modules/{{.MODULE_NAME}}/internal/repository"
 	"{{.PROJECT_NAME}}/modules/{{.MODULE_NAME}}/internal/service"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 )
 
-// Config holds the {{.MODULE_NAME_CAPITALIZED}} module settings
-type Config struct {
-	// Add your module-specific settings here
+// Module implements the registry.Module interface for {{.MODULE_NAME}}.
+type Module struct {
+	svc *service.{{.MODULE_NAME_CAPITALIZED}}Service
 }
 
-// Initialize initializes the {{.MODULE_NAME}} module.
-func Initialize(db *sql.DB, grpcServer *grpc.Server, _ Config) error {
-	repo := repository.NewSQLRepository(db)
-	svc := service.New{{.MODULE_NAME_CAPITALIZED}}Service(repo)
+// NewModule creates a new {{.MODULE_NAME}} module instance.
+func NewModule() *Module {
+	return &Module{}
+}
 
-	{{.MODULE_NAME}}v1.Register{{.MODULE_NAME_CAPITALIZED}}ServiceServer(grpcServer, svc)
+// Name returns the module identifier.
+func (m *Module) Name() string {
+	return "{{.MODULE_NAME}}"
+}
+
+// Initialize sets up the {{.MODULE_NAME}} module with dependencies from the registry.
+func (m *Module) Initialize(r *registry.Registry) error {
+	repo := repository.NewSQLRepository(r.DB())
+	m.svc = service.New{{.MODULE_NAME_CAPITALIZED}}Service(repo, r.EventBus())
 
 	return nil
 }
 
-// RegisterGateway registers the {{.MODULE_NAME}} module gateway.
-func RegisterGateway(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error {
-	if err := {{.MODULE_NAME}}v1.Register{{.MODULE_NAME_CAPITALIZED}}ServiceHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {
-		return fmt.Errorf("failed to register gateway: %w", err)
+// RegisterGRPC registers the {{.MODULE_NAME}} gRPC services.
+func (m *Module) RegisterGRPC(server *grpc.Server) {
+	{{.MODULE_NAME}}v1.Register{{.MODULE_NAME_CAPITALIZED}}ServiceServer(server, m.svc)
+}
+
+// RegisterGateway registers the {{.MODULE_NAME}} HTTP gateway handlers.
+func (m *Module) RegisterGateway(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
+	if err := {{.MODULE_NAME}}v1.Register{{.MODULE_NAME_CAPITALIZED}}ServiceHandler(ctx, mux, conn); err != nil {
+		return fmt.Errorf("failed to register {{.MODULE_NAME}} gateway: %w", err)
 	}
 
 	return nil
+}
+
+// MigrationPath returns the path to the {{.MODULE_NAME}} module's migration directory.
+func (m *Module) MigrationPath() string {
+	return "modules/{{.MODULE_NAME}}/resources/db/migration"
+}
+
+// PublicEndpoints returns the list of public endpoints that don't require authentication.
+// Add your public endpoints here if needed.
+func (m *Module) PublicEndpoints() []string {
+	return []string{
+		// Example: "/{{.MODULE_NAME}}.v1.{{.MODULE_NAME_CAPITALIZED}}Service/PublicMethod",
+	}
 }

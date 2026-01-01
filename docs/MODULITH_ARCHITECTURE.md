@@ -99,11 +99,87 @@ Para mejorar la trazabilidad, depuración y ordenabilidad de los datos, adoptamo
 
 ## 6. Manejo de Errores gRPC
 
-No se deben retornar errores crudos de la base de datos o del sistema al cliente.
+El template proporciona un sistema de manejo de errores estandarizado en `internal/errors` que elimina el boilerplate y garantiza consistencia.
 
--   **Responsabilidad:** El `service` es el único responsable de mapear errores de Go a códigos de estado gRPC (`google.golang.org/grpc/status`).
--   **Helper Recomendado:** Usar `status.Error(codes.Code, message)` para respuestas inmediatas.
--   **Transparencia:** Los errores internos se loaguean con detalle pero se responden al cliente como `codes.Internal` por seguridad.
+### Domain Errors con Mapeo Automático a gRPC
+
+En lugar de mapear manualmente cada error a códigos gRPC, utilizamos errores de dominio tipados:
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/errors"
+
+// En el servicio
+func (s *Service) CreateUser(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+    // Los errores de dominio se mapean automáticamente
+    if err := s.repo.CreateUser(ctx, id, email); err != nil {
+        return nil, errors.ToGRPC(errors.Internal("failed to create user", errors.WithWrappedError(err)))
+    }
+
+    return &pb.Response{Id: id}, nil
+}
+```
+
+### Tipos de Errores Disponibles
+
+El paquete `internal/errors` proporciona constructores para todos los casos comunes:
+
+```go
+// Not found (maps to codes.NotFound)
+errors.NotFound("user not found")
+
+// Validation (maps to codes.InvalidArgument)
+errors.Validation("invalid email format")
+
+// Already exists (maps to codes.AlreadyExists)
+errors.AlreadyExists("user already exists")
+
+// Unauthorized (maps to codes.Unauthenticated)
+errors.Unauthorized("authentication required")
+
+// Forbidden (maps to codes.PermissionDenied)
+errors.Forbidden("access denied")
+
+// Conflict (maps to codes.AlreadyExists)
+errors.Conflict("resource conflict")
+
+// Internal (maps to codes.Internal)
+errors.Internal("internal server error")
+
+// Unavailable (maps to codes.Unavailable)
+errors.Unavailable("service temporarily unavailable")
+```
+
+### Opciones de Error
+
+Los errores pueden incluir detalles adicionales:
+
+```go
+err := errors.NotFound("user not found",
+    errors.WithDetail("user_id", userID),
+    errors.WithWrappedError(sqlErr),
+)
+```
+
+### Verificación de Tipos
+
+```go
+if errors.Is(err, errors.TypeNotFound) {
+    // Handle not found case
+}
+
+var domainErr *errors.DomainError
+if errors.As(err, &domainErr) {
+    // Access error details
+    log.Info("error type", "type", domainErr.Type)
+}
+```
+
+### Beneficios
+
+-   ✅ **Consistencia:** Todos los servicios usan el mismo formato de error
+-   ✅ **Trazabilidad:** Los errores wrappean la cadena completa con `%w`
+-   ✅ **Type-safe:** El compilador detecta errores en los tipos
+-   ✅ **Menos Boilerplate:** No más `status.Error()` manual en cada servicio
 
 ## 7. Transacciones
 
@@ -130,11 +206,87 @@ Establecemos una frontera clara para evitar validaciones duplicadas:
 
 ## 9. Seguridad: Autenticación y Autorización
 
+### 9.1 Autenticación (JWT)
+
 -   **Validación de Tokens:** Se realiza centralizadamente en un **gRPC Interceptor** global.
 -   **Contexto:** El interceptor extrae el `user_id` y `role` del token y los inyecta en el `context.Context` para que estén disponibles en toda la cadena de llamada.
--   **RBAC:** El chequeo de permisos (`users:read`, etc.) ocurre en la capa de `service` basándose en el rol/permisos inyectados en el contexto.
+-   **Endpoints Públicos:** Los módulos declaran sus endpoints públicos (login, registro) que no requieren autenticación.
 
-### 9.1 OAuth/Social Login
+### 9.2 Autorización (RBAC)
+
+El template incluye helpers de autorización en `internal/authz` para implementar control de acceso basado en roles y permisos:
+
+#### Verificación de Permisos
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/authz"
+
+func (s *Service) DeleteUser(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+    // Require specific permission
+    if err := authz.RequirePermission(ctx, "users:delete"); err != nil {
+        return nil, errors.ToGRPC(err)
+    }
+
+    // Business logic...
+}
+```
+
+#### Verificación de Roles
+
+```go
+// Require one of multiple roles
+if err := authz.RequireRole(ctx, authz.RoleAdmin, authz.RoleModerator); err != nil {
+    return nil, errors.ToGRPC(err)
+}
+```
+
+#### Verificación de Propiedad del Recurso
+
+```go
+// Ensure user owns the resource
+if err := authz.RequireOwnership(ctx, req.UserId); err != nil {
+    return nil, errors.ToGRPC(err)
+}
+
+// Allow ownership OR specific roles (flexible)
+if err := authz.RequireOwnershipOrRole(ctx, req.UserId, authz.RoleAdmin); err != nil {
+    return nil, errors.ToGRPC(err)
+}
+```
+
+#### Roles y Permisos Personalizados
+
+Registra roles personalizados durante la inicialización del módulo:
+
+```go
+func init() {
+    authz.RegisterRole("moderator",
+        "posts:delete",
+        "comments:delete",
+        "users:ban",
+    )
+
+    authz.RegisterRole("editor",
+        "posts:create",
+        "posts:edit",
+        "posts:publish",
+    )
+}
+```
+
+#### Roles Predefinidos
+
+-   **`admin`**: Tiene permiso wildcard (`*`) - acceso total
+-   **`user`**: Permisos básicos (`users:read`, `profile:read`, `profile:edit`)
+
+#### Beneficios
+
+-   ✅ **Centralizado:** Toda la lógica de autorización en un solo lugar
+-   ✅ **Reutilizable:** Los mismos helpers funcionan en todos los módulos
+-   ✅ **Type-safe:** Roles y permisos como constantes tipadas
+-   ✅ **Flexible:** Soporta permisos, roles y ownership
+
+### 9.3 OAuth/Social Login
 
 El template soporta autenticación con proveedores externos usando [markbates/goth](https://github.com/markbates/goth):
 
@@ -246,6 +398,63 @@ Implementamos trazabilidad distribuida usando el exportador OTLP.
 -   **Propagación:** Los traces viajan automáticamente a través de los interceptores gRPC.
 -   **Contexto:** Permite ver el camino de una petición desde el gateway hasta el repositorio.
 
+### 12.5. Helpers de Telemetría (`internal/telemetry`)
+
+Para eliminar el boilerplate de OpenTelemetry, el template proporciona helpers que simplifican la instrumentación:
+
+#### Spans por Capa
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/telemetry"
+
+// Service layer - auto-includes module and operation attributes
+func (s *Service) CreateUser(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+    ctx, span := telemetry.ServiceSpan(ctx, "auth", "CreateUser")
+    defer span.End()
+
+    // Add custom attributes
+    telemetry.SetAttribute(ctx, "user_email", req.Email)
+
+    // Business logic...
+    if err != nil {
+        telemetry.RecordError(span, err)
+        return nil, errors.ToGRPC(err)
+    }
+
+    return &pb.Response{Id: id}, nil
+}
+
+// Repository layer - includes entity name
+func (r *Repo) GetUser(ctx context.Context, id string) (*User, error) {
+    ctx, span := telemetry.RepositorySpan(ctx, "auth", "GetUser", "user")
+    defer span.End()
+
+    user, err := r.q.GetUserByID(ctx, id)
+    if err != nil {
+        telemetry.RecordError(span, err)
+        return nil, fmt.Errorf("failed to get user: %w", err)
+    }
+
+    return user, nil
+}
+```
+
+#### Helpers Disponibles
+
+-   **`telemetry.StartSpan(ctx, name)`** - Span básico
+-   **`telemetry.ServiceSpan(ctx, module, operation)`** - Span de capa de servicio
+-   **`telemetry.RepositorySpan(ctx, module, operation, entity)`** - Span de repositorio
+-   **`telemetry.SetAttribute(ctx, key, value)`** - Agregar atributo al span actual
+-   **`telemetry.RecordError(span, err)`** - Registrar error en el span
+-   **`telemetry.AddEvent(ctx, name, attrs)`** - Agregar evento al span
+
+#### Beneficios
+
+-   ✅ **Menos Boilerplate:** No más imports de múltiples paquetes de OTel
+-   ✅ **Consistencia:** Todos los spans siguen la misma convención de nombres
+-   ✅ **Atributos Automáticos:** Module, operation y entity se incluyen automáticamente
+-   ✅ **Context Propagation:** El context se propaga correctamente entre capas
+
 ## 13. Comunicación Asíncrona (Eventos)
 
 Para evitar acoplamiento fuerte entre módulos, disponemos de un **Bus de Eventos** interno (`internal/events`).
@@ -254,21 +463,70 @@ Para evitar acoplamiento fuerte entre módulos, disponemos de un **Bus de Evento
 -   **No Bloqueante:** La publicación de eventos ocurre en goroutines separadas para no penalizar el tiempo de respuesta gRPC/HTTP.
 -   **Extensibilidad:** Facilita añadir efectos secundarios (auditoría, notificaciones) sin modificar el servicio original.
 
-### Ejemplo de Uso (Service -> Audit)
+### Eventos Tipados (`internal/events/types.go`)
+
+Para evitar errores de tipeo y mejorar el autocomplete, el template incluye constantes tipadas para eventos comunes:
 
 ```go
-// En modules/users/internal/service/service.go
+import "github.com/cmelgarejo/go-modulith-template/internal/events"
+
+// En el servicio - usando constantes tipadas
 bus.Publish(ctx, events.Event{
-    Name: "user.created",
-    Payload: map[string]string{"id": id, "email": email},
+    Name:    events.UserCreatedEvent,  // Autocomplete disponible!
+    Payload: events.NewUserCreatedPayload(userID, email),
 })
 
-// En modules/audit/module.go
-eventBus.Subscribe("user.created", func(ctx context.Context, e events.Event) error {
-    slog.InfoContext(ctx, "audit: logging user creation", "payload", e.Payload)
+// Suscripción - usando las mismas constantes
+bus.Subscribe(events.UserCreatedEvent, func(ctx context.Context, e events.Event) error {
+    slog.InfoContext(ctx, "audit: logging user creation", "user_id", e.Payload["user_id"])
     return nil
 })
 ```
+
+#### Eventos Predefinidos
+
+El template incluye eventos comunes del módulo auth:
+
+```go
+// Auth module events
+events.UserCreatedEvent           // "user.created"
+events.MagicCodeRequestedEvent    // "auth.magic_code_requested"
+events.SessionCreatedEvent        // "auth.session_created"
+events.ProfileUpdatedEvent        // "user.profile_updated"
+events.OAuthAccountLinkedEvent    // "auth.oauth_account_linked"
+events.ContactChangeRequestedEvent // "user.contact_change_requested"
+```
+
+#### Agregar Eventos de Tu Módulo
+
+Añade tus eventos en `internal/events/types.go`:
+
+```go
+const (
+    OrderCreatedEvent   = "order.created"
+    OrderCancelledEvent = "order.cancelled"
+    OrderShippedEvent   = "order.shipped"
+)
+
+// Helper para crear payloads type-safe
+func NewOrderCreatedPayload(orderID, userID string, amount float64) (map[string]any, error) {
+    if orderID == "" || userID == "" {
+        return nil, Validation("order ID and user ID are required")
+    }
+    return map[string]any{
+        "order_id": orderID,
+        "user_id":  userID,
+        "amount":   amount,
+    }, nil
+}
+```
+
+#### Beneficios
+
+-   ✅ **Type-safe:** El compilador detecta nombres de eventos incorrectos
+-   ✅ **Autocomplete:** Los IDEs sugieren eventos disponibles
+-   ✅ **Validación:** Los helpers de payload validan campos requeridos
+-   ✅ **Documentación:** Los eventos están centralizados y son fáciles de descubrir
 
 ## 13.1. WebSocket: Comunicación en Tiempo Real
 
@@ -473,6 +731,72 @@ sql:
 
 **4. Generación:**
 Ejecutar `sqlc generate`. Esto crea `modules/users/internal/db/store/` con tipos seguros.
+
+**5. Sistema de Migraciones Multi-Módulo (`internal/migration`):**
+
+El template incluye un sistema automático de descubrimiento y ejecución de migraciones para todos los módulos registrados.
+
+#### Declaración en el Módulo
+
+Cada módulo implementa la interfaz `ModuleMigration` para declarar su ruta de migraciones:
+
+```go
+// En modules/users/module.go
+func (m *Module) MigrationPath() string {
+    return "modules/users/resources/db/migration"
+}
+```
+
+#### Ejecución Automática
+
+Las migraciones se ejecutan automáticamente al iniciar el servidor:
+
+```go
+// En cmd/server/main.go - ya está implementado
+runner := migration.NewRunner(cfg.DBDSN, reg)
+if err := runner.RunAll(); err != nil {
+    return err
+}
+```
+
+El sistema:
+1. Descubre todos los módulos que implementan `ModuleMigration`
+2. Ejecuta las migraciones en el orden de registro de módulos
+3. Usa `golang-migrate` internamente para track de versiones
+4. Cada módulo mantiene su propio historial de migraciones
+
+#### Comandos de Makefile
+
+```bash
+# Ejecutar todas las migraciones de todos los módulos
+make migrate-up  # o simplemente: make migrate
+
+# Revertir la última migración de un módulo específico
+make migrate-down MODULE=users
+
+# Crear una nueva migración para un módulo
+make migrate-create MODULE=users NAME=add_profile_fields
+
+# Borrar todas las tablas y re-ejecutar migraciones
+make db-down    # Solo borra las tablas
+make db-reset   # Borra y re-ejecuta (db-down + migrate-up)
+```
+
+#### Ejecución Manual de Solo Migraciones
+
+```bash
+# Ejecutar solo migraciones sin levantar el servidor
+go run cmd/server/main.go -migrate
+# o
+make migrate
+```
+
+#### Beneficios
+
+-   ✅ **Automático:** No necesitas modificar `main.go` al agregar módulos
+-   ✅ **Ordenado:** Las migraciones se ejecutan en el orden de registro
+-   ✅ **Autónomo:** Cada módulo gestiona su propio esquema
+-   ✅ **Portable:** Funciona tanto en monolito como en microservicios
 
 ### Fase 3: Capa de Repositorio (Adapter)
 
@@ -727,14 +1051,32 @@ Para acelerar el inicio de nuevos módulos y asegurar que sigan los estándares 
     -   `cmd/[name]/main.go`: Entrypoint para microservicio independiente.
     -   `configs/[name].yaml`: Configuración específica del módulo.
     -   `.air.[name].toml`: Configuración de hot reload.
-    -   `modules/[name]/module.go`: Inicialización y registro del Gateway.
-    -   `modules/[name]/internal/service/service.go`: Boilerplate del servicio con TypeID y mapeo de errores.
-    -   `modules/[name]/internal/repository/repository.go`: Interfaz y adaptador SQL con soporte de transacciones (`WithTx`).
-    -   `modules/[name]/resources/db/migration/`: Script inicial de base de datos.
-    -   `proto/[name]/v1/`: Contrato inicial del servicio.
+    -   `modules/[name]/module.go`: Implementación completa de `registry.Module` con:
+        -   `Name()` - Identificador del módulo
+        -   `Initialize(reg)` - Inicialización con acceso al registry
+        -   `RegisterGRPC(server)` - Registro de handlers gRPC
+        -   `RegisterGateway(ctx, mux, conn)` - Registro de gateway HTTP
+        -   `MigrationPath()` - Ruta de migraciones del módulo
+        -   `PublicGRPCEndpoints()` - Endpoints públicos (sin auth)
+    -   `modules/[name]/internal/service/service.go`: Servicio con:
+        -   Integración con `internal/errors` para manejo de errores
+        -   Integración con `internal/telemetry` para tracing
+        -   Integración con `internal/events` para pub/sub
+        -   Generación de TypeIDs
+        -   Validación y autorización
+    -   `modules/[name]/internal/repository/repository.go`:
+        -   Interfaz `Repository` para testabilidad
+        -   Implementación `SQLRepository` con SQLC
+        -   Soporte de transacciones con `WithTx()`
+    -   `modules/[name]/resources/db/migration/`: Scripts SQL iniciales (up/down)
+    -   `proto/[name]/v1/`: Definición Protocol Buffer con anotaciones HTTP
 
 **Después de generar un módulo:**
 ```bash
+# Generar código
+make proto  # Genera código gRPC
+make sqlc   # Genera código de DB
+
 # Build
 make build-module payments
 
@@ -744,6 +1086,50 @@ make docker-build-module payments
 # Desarrollo
 make dev-module payments
 ```
+
+### Quick Start: Creando Tu Primer Módulo
+
+Una vez generado el módulo con `make new-module orders`, implementa la lógica de negocio:
+
+```go
+// modules/orders/internal/service/service.go
+func (s *Service) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*pb.CreateOrderResponse, error) {
+    // 1. Telemetry (ya incluido en el template)
+    ctx, span := telemetry.ServiceSpan(ctx, "orders", "CreateOrder")
+    defer span.End()
+
+    // 2. Autorización (usando helpers del template)
+    if err := authz.RequirePermission(ctx, "orders:create"); err != nil {
+        return nil, errors.ToGRPC(err)
+    }
+
+    // 3. Validación de negocio
+    if req.Amount <= 0 {
+        return nil, errors.ToGRPC(errors.Validation("amount must be positive"))
+    }
+
+    // 4. Generar TypeID (sortable, prefijado)
+    tid, _ := typeid.WithPrefix("order")
+    id := tid.String()
+
+    // 5. Persistencia
+    if err := s.repo.CreateOrder(ctx, id, req); err != nil {
+        telemetry.RecordError(span, err)
+        return nil, errors.ToGRPC(errors.Internal("failed to create order", errors.WithWrappedError(err)))
+    }
+
+    // 6. Publicar evento (typed event)
+    payload, _ := events.NewOrderCreatedPayload(id, req.UserId, req.Amount)
+    s.bus.Publish(ctx, events.Event{
+        Name:    events.OrderCreatedEvent,
+        Payload: payload,
+    })
+
+    return &pb.CreateOrderResponse{Id: id}, nil
+}
+```
+
+**Todo lo anterior utiliza las abstracciones del template - tu código solo contiene lógica de negocio.**
 
 ## 18. Despliegue Granular y Configuración (Microservices Path)
 

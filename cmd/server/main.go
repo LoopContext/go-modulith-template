@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
 	"log/slog"
 	"net"
@@ -19,13 +20,11 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/authn"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/migration"
 	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
@@ -44,7 +43,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+var (
+	migrateOnly = flag.Bool("migrate", false, "Run migrations only and exit")
+)
+
 func main() {
+	flag.Parse()
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -61,12 +66,31 @@ func main() {
 	defer shutdownObs()
 	defer closeDB(db)
 
-	if err := runMigrations(cfg.DBDSN); err != nil {
+	// Create registry with all dependencies
+	reg := createRegistry(cfg, db)
+
+	// Register modules
+	registerModules(reg)
+
+	// Initialize all modules
+	if err := reg.InitializeAll(); err != nil {
+		slog.Error("Failed to initialize modules", "error", err)
+		return
+	}
+
+	// Run migrations for all modules
+	if err := runMigrations(cfg.DBDSN, reg); err != nil {
 		slog.Error("Failed to run migrations", "error", err)
 		return
 	}
 
-	grpcServer, httpServer, gatewayConn := setupAndStartServers(ctx, cfg, db, stop)
+	// If migrate-only flag is set, exit after migrations
+	if *migrateOnly {
+		slog.Info("✅ Migrations completed successfully")
+		return
+	}
+
+	grpcServer, httpServer, gatewayConn := setupAndStartServers(ctx, cfg, reg, stop)
 	if grpcServer == nil {
 		return
 	}
@@ -115,10 +139,10 @@ func closeDB(db *sql.DB) {
 	}
 }
 
-func setupAndStartServers(ctx context.Context, cfg *config.AppConfig, db *sql.DB, stop context.CancelFunc) (grpcServer *grpc.Server, httpServer *http.Server, gatewayConn *grpc.ClientConn) {
+func createRegistry(cfg *config.AppConfig, db *sql.DB) *registry.Registry {
 	// Create shared services
 	ebus := events.NewBus()
-	wsHub := websocket.NewHub(ctx)
+	wsHub := websocket.NewHub(context.Background())
 	ntf := notifier.NewLogNotifier()
 
 	// Initialize WebSocket subscriber
@@ -135,23 +159,24 @@ func setupAndStartServers(ctx context.Context, cfg *config.AppConfig, db *sql.DB
 	slog.Info("WebSocket hub initialized")
 
 	// Create registry with all dependencies
-	reg := registry.New(
+	return registry.New(
 		registry.WithConfig(cfg),
 		registry.WithDatabase(db),
 		registry.WithEventBus(ebus),
 		registry.WithNotifier(ntf),
 		registry.WithWebSocketHub(wsHub),
 	)
+}
 
-	// Register modules
+func registerModules(reg *registry.Registry) {
+	// Register all modules here
 	reg.Register(auth.NewModule())
+	// Add more modules as needed:
+	// reg.Register(order.NewModule())
+	// reg.Register(payment.NewModule())
+}
 
-	// Initialize all modules
-	if err := reg.InitializeAll(); err != nil {
-		slog.Error("Failed to initialize modules", "error", err)
-		return nil, nil, nil
-	}
-
+func setupAndStartServers(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry, stop context.CancelFunc) (grpcServer *grpc.Server, httpServer *http.Server, gatewayConn *grpc.ClientConn) {
 	// Setup gRPC server
 	grpcServer, lis, err := setupGRPC(cfg, reg)
 	if err != nil {
@@ -160,7 +185,7 @@ func setupAndStartServers(ctx context.Context, cfg *config.AppConfig, db *sql.DB
 	}
 
 	// Setup HTTP gateway
-	mux, gatewayConn, err := setupGateway(ctx, cfg, reg, wsHub)
+	mux, gatewayConn, err := setupGateway(ctx, cfg, reg, reg.WebSocketHub())
 	if err != nil {
 		_ = lis.Close()
 
@@ -279,10 +304,8 @@ func setupGRPC(cfg *config.AppConfig, reg *registry.Registry) (*grpc.Server, net
 		return nil, nil, fmt.Errorf("failed to init jwt verifier: %w", err)
 	}
 
-	public := map[string]struct{}{
-		"/auth.v1.AuthService/RequestLogin":  {},
-		"/auth.v1.AuthService/CompleteLogin": {},
-	}
+	// Get public endpoints from all modules
+	public := reg.GetPublicEndpoints()
 
 	grpcServer := grpc.NewServer(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
@@ -416,31 +439,11 @@ window.onload = () => {
 	})
 }
 
-func runMigrations(dbDSN string) error {
-	m, err := migrate.New(
-		"file://modules/auth/resources/db/migration",
-		dbDSN,
-	)
-	if err != nil {
-		return fmt.Errorf("migration failed to initialize: %w", err)
+func runMigrations(dbDSN string, reg *registry.Registry) error {
+	runner := migration.NewRunner(dbDSN, reg)
+	if err := runner.RunAll(); err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
-
-	defer func() {
-		sourceErr, dbErr := m.Close()
-		if sourceErr != nil {
-			slog.Error("Failed to close migration source", "error", sourceErr)
-		}
-
-		if dbErr != nil {
-			slog.Error("Failed to close migration database connection", "error", dbErr)
-		}
-	}()
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("migration failed to run: %w", err)
-	}
-
-	slog.Info("Migrations executed successfully")
 
 	return nil
 }

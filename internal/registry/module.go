@@ -41,3 +41,17 @@ type ModuleLifecycle interface {
 	OnStop(ctx context.Context) error
 }
 
+// ModuleMigrations provides optional database migration support for modules.
+type ModuleMigrations interface {
+	// MigrationPath returns the path to the module's migration directory.
+	// Return empty string if the module has no migrations.
+	MigrationPath() string
+}
+
+// ModuleAuth provides optional authentication configuration for modules.
+type ModuleAuth interface {
+	// PublicEndpoints returns a list of gRPC method paths that don't require authentication.
+	// Format: "/package.service/Method"
+	PublicEndpoints() []string
+}
+

@@ -1,0 +1,165 @@
+// Package main is the entry point for the {{.MODULE_NAME}} service.
+package main
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"log/slog"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"{{.PROJECT_NAME}}/internal/authn"
+	"{{.PROJECT_NAME}}/internal/config"
+	"{{.PROJECT_NAME}}/internal/events"
+	"{{.PROJECT_NAME}}/internal/migration"
+	"{{.PROJECT_NAME}}/internal/notifier"
+	"{{.PROJECT_NAME}}/internal/registry"
+	"{{.PROJECT_NAME}}/internal/websocket"
+	"{{.PROJECT_NAME}}/modules/{{.MODULE_NAME}}"
+	"github.com/joho/godotenv"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+	_ "github.com/jackc/pgx/v5/stdlib"
+)
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// Load configuration
+	systemEnvVars := captureSystemEnvVars()
+	_ = godotenv.Load()
+
+	cfg, err := config.Load("configs/{{.MODULE_NAME}}.yaml", systemEnvVars)
+	if err != nil {
+		slog.Error("Failed to load config", "error", err)
+		return
+	}
+
+	// Initialize database
+	db, err := sql.Open("pgx", cfg.DBDSN)
+	if err != nil {
+		slog.Error("Failed to open DB", "error", err)
+		return
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		slog.Error("Failed to ping DB", "error", err)
+		return
+	}
+
+	// Create registry
+	reg := createRegistry(cfg, db)
+
+	// Register module
+	reg.Register({{.MODULE_NAME}}.NewModule())
+
+	// Initialize module
+	if err := reg.InitializeAll(); err != nil {
+		slog.Error("Failed to initialize module", "error", err)
+		return
+	}
+
+	// Run migrations
+	runner := migration.NewRunner(cfg.DBDSN, reg)
+	if err := runner.RunAll(); err != nil {
+		slog.Error("Failed to run migrations", "error", err)
+		return
+	}
+
+	// Setup gRPC server
+	grpcServer, lis := setupGRPC(cfg, reg)
+	if grpcServer == nil {
+		return
+	}
+
+	// Start server
+	go func() {
+		slog.Info("Starting {{.MODULE_NAME}} gRPC server", "port", cfg.GRPCPort)
+		if err := grpcServer.Serve(lis); err != nil {
+			slog.Error("failed to serve gRPC", "error", err)
+			stop()
+		}
+	}()
+
+	<-ctx.Done()
+	slog.Info("Shutting down {{.MODULE_NAME}} server")
+	grpcServer.GracefulStop()
+}
+
+func createRegistry(cfg *config.AppConfig, db *sql.DB) *registry.Registry {
+	ebus := events.NewBus()
+	wsHub := websocket.NewHub(context.Background())
+	ntf := notifier.NewLogNotifier()
+
+	// Initialize subscribers
+	wsSubscriber := websocket.NewSubscriber(wsHub, ebus)
+	wsSubscriber.Subscribe()
+
+	ns := notifier.NewSubscriber(ntf)
+	ns.SubscribeToEvents(ebus)
+
+	go wsHub.Run()
+
+	return registry.New(
+		registry.WithConfig(cfg),
+		registry.WithDatabase(db),
+		registry.WithEventBus(ebus),
+		registry.WithNotifier(ntf),
+		registry.WithWebSocketHub(wsHub),
+	)
+}
+
+func setupGRPC(cfg *config.AppConfig, reg *registry.Registry) (*grpc.Server, net.Listener) {
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", cfg.GRPCPort))
+	if err != nil {
+		slog.Error("Failed to listen gRPC", "error", err)
+		return nil, nil
+	}
+
+	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTSecret)
+	if err != nil {
+		_ = lis.Close()
+		slog.Error("Failed to init jwt verifier", "error", err)
+		return nil, nil
+	}
+
+	// Get public endpoints from module
+	public := reg.GetPublicEndpoints()
+
+	grpcServer := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		grpc.ChainUnaryInterceptor(authn.UnaryServerInterceptor(authn.InterceptorConfig{
+			Verifier:      verifier,
+			PublicMethods: public,
+		})),
+	)
+
+	reg.RegisterGRPCAll(grpcServer)
+	reflection.Register(grpcServer)
+
+	return grpcServer, lis
+}
+
+func captureSystemEnvVars() map[string]string {
+	systemEnvVars := make(map[string]string)
+	if env := os.Getenv("ENV"); env != "" {
+		systemEnvVars["ENV"] = env
+	}
+	if port := os.Getenv("GRPC_PORT"); port != "" {
+		systemEnvVars["GRPC_PORT"] = port
+	}
+	if dsn := os.Getenv("DB_DSN"); dsn != "" {
+		systemEnvVars["DB_DSN"] = dsn
+	}
+	if secret := os.Getenv("JWT_SECRET"); secret != "" {
+		systemEnvVars["JWT_SECRET"] = secret
+	}
+	return systemEnvVars
+}
+

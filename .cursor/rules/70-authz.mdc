@@ -1,0 +1,56 @@
+## Authorization (internal/authz)
+
+### Permission Checking
+
+Use authz helpers for role-based access control:
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/authz"
+
+func (s *Service) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) (*pb.DeleteUserResponse, error) {
+    // Require specific permission
+    if err := authz.RequirePermission(ctx, authz.PermissionUsersDelete); err != nil {
+        return nil, errors.ToGRPC(err)
+    }
+
+    // Or require role
+    if err := authz.RequireRole(ctx, "admin", "moderator"); err != nil {
+        return nil, errors.ToGRPC(err)
+    }
+
+    // Or require ownership
+    if err := authz.RequireOwnership(ctx, req.UserId); err != nil {
+        return nil, errors.ToGRPC(err)
+    }
+
+    // Or ownership OR role
+    if err := authz.RequireOwnershipOrRole(ctx, req.UserId, "admin"); err != nil {
+        return nil, errors.ToGRPC(err)
+    }
+
+    // ... business logic
+}
+```
+
+### Custom Roles & Permissions
+
+Define custom roles for your module:
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/authz"
+
+func init() {
+    authz.RegisterRole("moderator", []authz.Permission{
+        "posts:delete",
+        "comments:delete",
+        "users:ban",
+    })
+}
+```
+
+### Built-in Permissions
+
+- `authz.PermissionUsersRead`
+- `authz.PermissionUsersWrite`
+- `authz.PermissionUsersDelete`
+- `authz.PermissionAdminAll` (wildcard for admins)

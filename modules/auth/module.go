@@ -74,6 +74,19 @@ func (m *Module) RegisterGateway(ctx context.Context, mux *runtime.ServeMux, con
 	return nil
 }
 
+// MigrationPath returns the path to the auth module's migration directory.
+func (m *Module) MigrationPath() string {
+	return "modules/auth/resources/db/migration"
+}
+
+// PublicEndpoints returns the list of public endpoints that don't require authentication.
+func (m *Module) PublicEndpoints() []string {
+	return []string{
+		"/auth.v1.AuthService/RequestLogin",
+		"/auth.v1.AuthService/CompleteLogin",
+	}
+}
+
 // --- Legacy functions for backwards compatibility ---
 
 // Initialize registers the Auth module with the gRPC server (legacy).

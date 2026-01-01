@@ -1,0 +1,88 @@
+---
+alwaysApply: false
+---
+
+## Error Handling & Telemetry
+
+### Domain Errors (internal/errors)
+
+Use domain error types instead of raw errors for better gRPC mapping:
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/errors"
+
+// Instead of:
+return nil, status.Error(codes.NotFound, "user not found")
+
+// Use:
+return nil, errors.ToGRPC(errors.NotFound("user not found"))
+
+// Or with formatting:
+return nil, errors.ToGRPC(errors.NotFoundf("user %s not found", userID))
+
+// Wrap repository errors:
+if err := repo.CreateUser(ctx, id, email); err != nil {
+    return nil, errors.ToGRPC(errors.Internal("failed to create user", err))
+}
+```
+
+**Available error types:**
+- `errors.NotFound()` → codes.NotFound
+- `errors.AlreadyExists()` → codes.AlreadyExists
+- `errors.Validation()` → codes.InvalidArgument
+- `errors.Unauthorized()` → codes.Unauthenticated
+- `errors.Forbidden()` → codes.PermissionDenied
+- `errors.Conflict()` → codes.Aborted
+- `errors.Internal()` → codes.Internal
+- `errors.Unavailable()` → codes.Unavailable
+
+### Telemetry (internal/telemetry)
+
+Use telemetry helpers for consistent tracing:
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/telemetry"
+
+// Service layer
+func (s *Service) CreateUser(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+    ctx, span := telemetry.ServiceSpan(ctx, "auth", "CreateUser")
+    defer span.End()
+
+    // Add attributes
+    telemetry.SetAttribute(ctx, "user_email", req.Email)
+
+    // Record errors
+    if err != nil {
+        telemetry.RecordError(ctx, err)
+        return nil, err
+    }
+}
+
+// Repository layer
+func (r *Repo) GetUser(ctx context.Context, id string) (*User, error) {
+    ctx, span := telemetry.RepositorySpan(ctx, "auth", "GetUser", "user")
+    defer span.End()
+
+    // ... query logic
+}
+```
+
+### Typed Events (internal/events/types.go)
+
+Use typed event constants instead of strings:
+
+```go
+import "github.com/cmelgarejo/go-modulith-template/internal/events"
+
+// Instead of:
+bus.Publish(ctx, events.Event{
+    Name: "user.created",
+    Payload: map[string]interface{}{"user_id": id},
+})
+
+// Use:
+bus.Publish(ctx, events.Event{
+    Name: events.EventUserCreated,
+    Payload: events.NewUserCreatedPayload(id, email),
+})
+```

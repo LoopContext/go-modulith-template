@@ -1,0 +1,77 @@
+## Module Interfaces
+
+All modules must implement `registry.Module`:
+
+```go
+type Module interface {
+    Name() string
+    Initialize(r *registry.Registry) error
+    RegisterGRPC(server *grpc.Server)
+    RegisterGateway(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
+}
+```
+
+### Optional Interfaces
+
+#### ModuleMigrations
+
+Implement to enable automatic migration discovery:
+
+```go
+func (m *Module) MigrationPath() string {
+    return "modules/mymodule/resources/db/migration"
+}
+```
+
+#### ModuleAuth
+
+Implement to declare public endpoints:
+
+```go
+func (m *Module) PublicEndpoints() []string {
+    return []string{
+        "/mymodule.v1.MyService/PublicMethod",
+    }
+}
+```
+
+#### ModuleLifecycle
+
+Implement for startup/shutdown hooks:
+
+```go
+func (m *Module) OnStart(ctx context.Context) error {
+    // Called after all modules initialized
+    return nil
+}
+
+func (m *Module) OnStop(ctx context.Context) error {
+    // Called during graceful shutdown
+    return nil
+}
+```
+
+#### ModuleHealth
+
+Implement for custom health checks:
+
+```go
+func (m *Module) HealthCheck(ctx context.Context) error {
+    // Return error if module is unhealthy
+    return nil
+}
+```
+
+### Module Registration
+
+In `cmd/server/main.go`:
+
+```go
+func registerModules(reg *registry.Registry) {
+    reg.Register(auth.NewModule())
+    reg.Register(order.NewModule())
+    reg.Register(payment.NewModule())
+}
+```
+
+Migrations and public endpoints are automatically discovered!

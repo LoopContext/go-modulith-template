@@ -71,25 +71,42 @@ ifneq (,$(wildcard ./.env))
     export
 endif
 
-MIGRATIONS_DIR=modules/auth/resources/db/migration
+# Database migrations are now handled by the modulith itself
+# The server discovers and runs migrations for all registered modules
 
-migrate-up: ## Apply all pending database migrations
-	migrate -path $(MIGRATIONS_DIR) -database "$(DB_DSN)" up
+migrate-up: ## Run all module migrations (uses modulith's migration system)
+	@echo "🚀 Running migrations for all modules..."
+	go run cmd/server/main.go -migrate
 
-migrate-down: ## Rollback the last database migration
-	migrate -path $(MIGRATIONS_DIR) -database "$(DB_DSN)" down
+migrate: migrate-up ## Alias for migrate-up
 
-migrate-create: ## Create a new migration file (prompts for name)
-	@read -p "Migration name: " name; \
-	migrate create -ext sql -dir $(MIGRATIONS_DIR) -seq $$name
+migrate-down: ## Rollback last migration for a specific module (usage: make migrate-down MODULE=auth)
+	@if [ -z "$(MODULE)" ]; then echo "Usage: make migrate-down MODULE=module_name"; exit 1; fi
+	@MIGRATIONS_DIR=modules/$(MODULE)/resources/db/migration; \
+	if [ ! -d "$$MIGRATIONS_DIR" ]; then \
+		echo "Error: Module '$(MODULE)' not found or has no migrations directory"; \
+		exit 1; \
+	fi; \
+	echo "⚠️  Rolling back last migration for module: $(MODULE)"; \
+	migrate -path $$MIGRATIONS_DIR -database "$(DB_DSN)" down 1
 
-db-reset: ## Reset the database (drop all tables and re-run migrations)
-	@echo "⚠️  Resetting database..."
-	@migrate -path $(MIGRATIONS_DIR) -database "$(DB_DSN)" drop -f || true
-	@echo "✓ Database dropped"
-	@migrate -path $(MIGRATIONS_DIR) -database "$(DB_DSN)" up
-	@echo "✓ Migrations applied"
-	@echo "✅ Database reset complete!"
+migrate-create: ## Create a new migration file for a module (usage: make migrate-create MODULE=auth NAME=add_users)
+	@if [ -z "$(MODULE)" ]; then echo "Usage: make migrate-create MODULE=module_name NAME=migration_name"; exit 1; fi
+	@if [ -z "$(NAME)" ]; then echo "Usage: make migrate-create MODULE=module_name NAME=migration_name"; exit 1; fi
+	@MIGRATIONS_DIR=modules/$(MODULE)/resources/db/migration; \
+	if [ ! -d "$$MIGRATIONS_DIR" ]; then \
+		echo "Error: Module '$(MODULE)' not found or has no migrations directory"; \
+		exit 1; \
+	fi; \
+	migrate create -ext sql -dir $$MIGRATIONS_DIR -seq $(NAME)
+
+db-down: ## Drop all database tables (destructive, asks for confirmation)
+	@echo "⚠️  WARNING: This will DROP ALL TABLES in the database!"
+	@read -p "Are you sure? Type 'yes' to confirm: " confirm && [ "$$confirm" = "yes" ] || exit 1
+	@psql "$(DB_DSN)" -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;" > /dev/null 2>&1 || true
+	@echo "✅ Database schema dropped"
+
+db-reset: db-down migrate-up ## Drop database and re-run all migrations (db-down + migrate-up)
 
 build: ## Build the monolith binary
 	@mkdir -p bin

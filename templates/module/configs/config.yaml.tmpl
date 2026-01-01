@@ -1,0 +1,12 @@
+# Configuration for {{.MODULE_NAME}} service
+env: "dev"
+grpc_port: "9051"  # Different port for each module
+db_dsn: "postgres://postgres:postgres@localhost:5432/modulith?sslmode=disable"
+
+# Observability
+otlp_endpoint: ""  # Optional: Set to enable tracing (e.g., "localhost:4317")
+
+# Auth configuration
+auth:
+  jwt_secret: "your-secret-key-min-32-bytes-long-for-hs256-algorithm"
+

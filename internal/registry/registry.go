@@ -185,3 +185,18 @@ func (r *Registry) GetModule(name string) Module {
 	return nil
 }
 
+// GetPublicEndpoints returns a map of all public endpoints from registered modules.
+func (r *Registry) GetPublicEndpoints() map[string]struct{} {
+	endpoints := make(map[string]struct{})
+
+	for _, m := range r.modules {
+		if authMod, ok := m.(ModuleAuth); ok {
+			for _, endpoint := range authMod.PublicEndpoints() {
+				endpoints[endpoint] = struct{}{}
+			}
+		}
+	}
+
+	return endpoints
+}
+

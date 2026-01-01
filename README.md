@@ -1,7 +1,7 @@
 # Go Modulith Template 🚀
 
 ![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-33.8%25-yellow)
+![Coverage](https://img.shields.io/badge/coverage-19.9%25-yellow)
 ![Go](https://img.shields.io/badge/go-1.24+-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
@@ -22,6 +22,11 @@ Este es un template profesional para construir aplicaciones en Go siguiendo el p
 -   🔗 **OAuth/Social Login**: Autenticación con Google, Facebook, GitHub, Apple, Microsoft y Twitter/X.
 -   🧪 **Mocking con gomock**: Generación automática de mocks type-safe para testing unitario eficiente.
 -   🛡️ **Observabilidad**: Integración nativa con OpenTelemetry (Tracing & Metrics), Prometheus y Health Checks con manejo de contextos.
+-   ⚡ **Error Handling**: Sistema de errores de dominio con mapeo automático a códigos gRPC.
+-   📡 **Telemetry Helpers**: Helpers integrados para tracing consistente en todos los módulos.
+-   🎯 **Eventos Tipados**: Constantes tipadas para eventos con autocomplete y prevención de typos.
+-   🔄 **Migraciones Multi-Módulo**: Descubrimiento y ejecución automática de migraciones por módulo.
+-   🔐 **RBAC Built-in**: Helpers de autorización para permisos, roles y ownership.
 -   ⛴️ **Cloud Ready**: Dockerfile multi-stage y Helm Charts flexibles para Kubernetes (soporta monolito y módulos independientes).
 -   🌍 **IaC con OpenTofu**: Infraestructura base reproducible (VPC, EKS, RDS) gestionada con OpenTofu y Terragrunt.
 -   🤖 **CI/CD**: Pipelines de GitHub Actions para validación automática.
@@ -88,7 +93,7 @@ make dev-module auth
 
 ## 📖 Documentación Completa
 
--   **[Guía de Arquitectura](docs/MODULITH_ARCHITECTURE.md)** - Arquitectura, Registry Pattern, testing con gomock y coverage reporting
+-   **[Guía de Arquitectura](docs/MODULITH_ARCHITECTURE.md)** - ⭐ Arquitectura completa, patrones, manejo de errores, telemetría, eventos tipados, RBAC, testing y más
 -   **[OAuth/Social Login](docs/OAUTH_INTEGRATION.md)** - Integración con Google, Facebook, GitHub, Apple, Microsoft, Twitter
 -   **[Sistema de Notificaciones](docs/NOTIFICATION_SYSTEM.md)** - Templates, providers (SendGrid, Twilio, SES) y composite notifier
 -   **[WebSocket en Tiempo Real](docs/WEBSOCKET_GUIDE.md)** - Comunicación bidireccional, event bus y autenticación JWT
@@ -155,10 +160,13 @@ open gen/openapiv2/proto/auth/v1/auth.swagger.json
 
 -   `make docker-up`: Levanta la infraestructura (PostgreSQL) con Docker Compose.
 -   `make docker-down`: Detiene los contenedores de Docker.
--   `make migrate-up`: Aplica todas las migraciones pendientes.
--   `make migrate-down`: Revierte la última migración.
--   `make migrate-create`: Crea una nueva migración (solicita nombre).
--   `make db-reset`: ⚠️ Resetea la base de datos completamente (drop + migrate up).
+-   `make migrate-up` / `make migrate`: Ejecuta las migraciones de todos los módulos (el modulith las descubre automáticamente).
+-   `make migrate-down MODULE=auth`: Revierte la última migración de un módulo específico.
+-   `make migrate-create MODULE=auth NAME=add_users`: Crea una nueva migración para un módulo específico.
+-   `make db-down`: ⚠️ Borra todas las tablas de la base de datos (destructivo).
+-   `make db-reset`: ⚠️ Borra todo y ejecuta todas las migraciones (equivalente a `db-down` + `migrate-up`).
+
+**Nota:** Las migraciones se ejecutan automáticamente cuando inicias el servidor. El modulith descubre y aplica las migraciones de todos los módulos registrados.
 
 ### GraphQL (Opcional)
 

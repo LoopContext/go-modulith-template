@@ -319,5 +319,248 @@ func clearTestEnv(t *testing.T) {
 	_ = os.Unsetenv("DB_DSN")
 	_ = os.Unsetenv("OTLP_ENDPOINT")
 	_ = os.Unsetenv("JWT_SECRET")
+
+	// OAuth vars
+	_ = os.Unsetenv("OAUTH_ENABLED")
+	_ = os.Unsetenv("OAUTH_AUTO_LINK_BY_EMAIL")
+	_ = os.Unsetenv("OAUTH_BASE_URL")
+	_ = os.Unsetenv("OAUTH_TOKEN_ENCRYPTION_KEY")
+	_ = os.Unsetenv("GOOGLE_CLIENT_ID")
+	_ = os.Unsetenv("GOOGLE_CLIENT_SECRET")
+	_ = os.Unsetenv("FACEBOOK_CLIENT_ID")
+	_ = os.Unsetenv("FACEBOOK_CLIENT_SECRET")
+	_ = os.Unsetenv("GITHUB_CLIENT_ID")
+	_ = os.Unsetenv("GITHUB_CLIENT_SECRET")
+}
+
+func TestLoad_OAuthConfiguration(t *testing.T) {
+	clearTestEnv(t)
+	setupOAuthEnv(t)
+
+	defer clearTestEnv(t)
+
+	cfg, err := Load("", map[string]string{})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	t.Run("OAuth settings loaded", func(t *testing.T) {
+		if !cfg.Auth.OAuth.Enabled {
+			t.Error("expected OAuth to be enabled")
+		}
+
+		if !cfg.Auth.OAuth.AutoLinkByEmail {
+			t.Error("expected OAuth auto-link to be enabled")
+		}
+
+		if cfg.Auth.OAuth.BaseURL != "http://localhost:8080" {
+			t.Errorf("expected OAuth base URL 'http://localhost:8080', got %s", cfg.Auth.OAuth.BaseURL)
+		}
+
+		if cfg.Auth.OAuth.TokenEncryptionKey != "12345678901234567890123456789012" {
+			t.Errorf("expected OAuth token encryption key, got %s", cfg.Auth.OAuth.TokenEncryptionKey)
+		}
+	})
+
+	t.Run("OAuth providers loaded", func(t *testing.T) {
+		if !cfg.Auth.OAuth.Providers.Google.Enabled {
+			t.Error("expected Google provider to be enabled")
+		}
+
+		if cfg.Auth.OAuth.Providers.Google.ClientID != "google-client-id" {
+			t.Errorf("expected Google client ID, got %s", cfg.Auth.OAuth.Providers.Google.ClientID)
+		}
+
+		if !cfg.Auth.OAuth.Providers.Facebook.Enabled {
+			t.Error("expected Facebook provider to be enabled")
+		}
+
+		if !cfg.Auth.OAuth.Providers.GitHub.Enabled {
+			t.Error("expected GitHub provider to be enabled")
+		}
+	})
+}
+
+func setupOAuthEnv(t *testing.T) {
+	t.Helper()
+
+	_ = os.Setenv("OAUTH_ENABLED", "true")
+	_ = os.Setenv("OAUTH_AUTO_LINK_BY_EMAIL", "true")
+	_ = os.Setenv("OAUTH_BASE_URL", "http://localhost:8080")
+	_ = os.Setenv("OAUTH_TOKEN_ENCRYPTION_KEY", "12345678901234567890123456789012")
+	_ = os.Setenv("GOOGLE_CLIENT_ID", "google-client-id")
+	_ = os.Setenv("GOOGLE_CLIENT_SECRET", "google-client-secret")
+	_ = os.Setenv("FACEBOOK_CLIENT_ID", "facebook-client-id")
+	_ = os.Setenv("FACEBOOK_CLIENT_SECRET", "facebook-client-secret")
+	_ = os.Setenv("GITHUB_CLIENT_ID", "github-client-id")
+	_ = os.Setenv("GITHUB_CLIENT_SECRET", "github-client-secret")
+	_ = os.Setenv("JWT_SECRET", "test-secret-key-that-is-at-least-32-bytes-long")
+}
+
+func TestLoad_OAuthYAMLConfiguration(t *testing.T) {
+	clearTestEnv(t)
+
+	yamlPath := createOAuthYAMLConfig(t)
+
+	cfg, err := Load(yamlPath, map[string]string{})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	t.Run("OAuth settings from YAML", func(t *testing.T) {
+		if !cfg.Auth.OAuth.Enabled {
+			t.Error("expected OAuth to be enabled from YAML")
+		}
+
+		if cfg.Auth.OAuth.BaseURL != "http://yaml:8080" {
+			t.Errorf("expected OAuth base URL from YAML, got %s", cfg.Auth.OAuth.BaseURL)
+		}
+	})
+
+	t.Run("OAuth providers from YAML", func(t *testing.T) {
+		providers := []struct {
+			name    string
+			enabled bool
+		}{
+			{"Google", cfg.Auth.OAuth.Providers.Google.Enabled},
+			{"Facebook", cfg.Auth.OAuth.Providers.Facebook.Enabled},
+			{"GitHub", cfg.Auth.OAuth.Providers.GitHub.Enabled},
+			{"Apple", cfg.Auth.OAuth.Providers.Apple.Enabled},
+			{"Microsoft", cfg.Auth.OAuth.Providers.Microsoft.Enabled},
+			{"Twitter", cfg.Auth.OAuth.Providers.Twitter.Enabled},
+		}
+
+		for _, p := range providers {
+			if !p.enabled {
+				t.Errorf("expected %s provider to be enabled from YAML", p.name)
+			}
+		}
+	})
+}
+
+func createOAuthYAMLConfig(t *testing.T) string {
+	t.Helper()
+
+	tmpDir := t.TempDir()
+	yamlPath := filepath.Join(tmpDir, "test-oauth-config.yaml")
+
+	yamlContent := `env: dev
+http_port: "8080"
+grpc_port: "9050"
+auth:
+  jwt_secret: "test-secret-key-that-is-at-least-32-bytes-long"
+  oauth:
+    enabled: true
+    auto_link_by_email: true
+    base_url: "http://yaml:8080"
+    token_encryption_key: "12345678901234567890123456789012"
+    providers:
+      google:
+        enabled: true
+        client_id: "yaml-google-id"
+        client_secret: "yaml-google-secret"
+      facebook:
+        enabled: true
+        client_id: "yaml-facebook-id"
+        client_secret: "yaml-facebook-secret"
+      github:
+        enabled: true
+        client_id: "yaml-github-id"
+        client_secret: "yaml-github-secret"
+      apple:
+        enabled: true
+        client_id: "yaml-apple-id"
+        team_id: "apple-team-id"
+        key_id: "apple-key-id"
+        private_key_path: "/path/to/key.p8"
+      microsoft:
+        enabled: true
+        client_id: "yaml-microsoft-id"
+        client_secret: "yaml-microsoft-secret"
+      twitter:
+        enabled: true
+        client_id: "yaml-twitter-id"
+        client_secret: "yaml-twitter-secret"
+`
+
+	if err := os.WriteFile(yamlPath, []byte(yamlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test config: %v", err)
+	}
+
+	return yamlPath
+}
+
+func TestValidate_OAuthConfig(t *testing.T) {
+	t.Run("OAuth enabled with valid encryption key", func(t *testing.T) {
+		cfg := validOAuthConfig()
+
+		err := cfg.Validate()
+		if err != nil {
+			t.Errorf("expected no error for valid OAuth config, got %v", err)
+		}
+	})
+
+	t.Run("OAuth enabled with missing base URL", func(t *testing.T) {
+		cfg := validOAuthConfig()
+		cfg.Auth.OAuth.BaseURL = ""
+
+		err := cfg.Validate()
+		if err == nil {
+			t.Error("expected error for OAuth enabled without base URL")
+		}
+	})
+
+	t.Run("OAuth provider enabled with missing credentials", func(t *testing.T) {
+		cfg := validOAuthConfig()
+		cfg.Auth.OAuth.Providers.Google.ClientID = ""
+		cfg.Auth.OAuth.Providers.Google.ClientSecret = ""
+
+		err := cfg.Validate()
+		if err == nil {
+			t.Error("expected error for OAuth provider enabled without credentials")
+		}
+	})
+
+	t.Run("OAuth disabled, no validation required", func(t *testing.T) {
+		cfg := &AppConfig{
+			Env:      "dev",
+			HTTPPort: "8080",
+			GRPCPort: "9050",
+			Auth: AuthConfig{
+				JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
+				OAuth: OAuthConfig{
+					Enabled: false,
+				},
+			},
+		}
+
+		err := cfg.Validate()
+		if err != nil {
+			t.Errorf("expected no error for disabled OAuth, got %v", err)
+		}
+	})
+}
+
+func validOAuthConfig() *AppConfig {
+	return &AppConfig{
+		Env:      "dev",
+		HTTPPort: "8080",
+		GRPCPort: "9050",
+		Auth: AuthConfig{
+			JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
+			OAuth: OAuthConfig{
+				Enabled:            true,
+				BaseURL:            "http://localhost:8080",
+				TokenEncryptionKey: "12345678901234567890123456789012", // Exactly 32 bytes
+				Providers: OAuthProviders{
+					Google: OAuthProviderConfig{
+						Enabled:      true,
+						ClientID:     "google-id",
+						ClientSecret: "google-secret",
+					},
+				},
+			},
+		},
+	}
 }
 

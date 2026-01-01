@@ -26,6 +26,8 @@ fi
 
 MODULE_DIR="modules/${MODULE_NAME}"
 PROTO_DIR="proto/${MODULE_NAME}/v1"
+CMD_DIR="cmd/${MODULE_NAME}"
+CONFIG_DIR="configs"
 
 echo "Scaffolding module: ${MODULE_NAME}..."
 
@@ -35,6 +37,8 @@ mkdir -p "${MODULE_DIR}/internal/repository"
 mkdir -p "${MODULE_DIR}/internal/db/query"
 mkdir -p "${MODULE_DIR}/resources/db/migration"
 mkdir -p "${PROTO_DIR}"
+mkdir -p "${CMD_DIR}"
+mkdir -p "${CONFIG_DIR}"
 
 # Helper function to process templates
 process_template() {
@@ -57,6 +61,8 @@ process_template "templates/module/resources/db/migration/000001_initial.up.sql.
 process_template "templates/module/resources/db/migration/000001_initial.down.sql.tmpl" "${MODULE_DIR}/resources/db/migration/000001_initial_schema.down.sql"
 process_template "templates/module/proto/module.proto.tmpl" "${PROTO_DIR}/${MODULE_NAME}.proto"
 process_template "templates/module/air.toml.tmpl" ".air.${MODULE_NAME}.toml"
+process_template "templates/module/cmd/main.go.tmpl" "${CMD_DIR}/main.go"
+process_template "templates/module/configs/config.yaml.tmpl" "${CONFIG_DIR}/${MODULE_NAME}.yaml"
 
 # Update sqlc.yaml
 if ! grep -q "modules/${MODULE_NAME}/internal/db/store" sqlc.yaml; then
@@ -76,9 +82,19 @@ EOF
 fi
 
 echo "Module ${MODULE_NAME} scaffolded successfully!"
+echo ""
+echo "Generated files:"
+echo "  - ${MODULE_DIR}/module.go"
+echo "  - ${MODULE_DIR}/internal/service/service.go"
+echo "  - ${MODULE_DIR}/internal/repository/repository.go"
+echo "  - ${CMD_DIR}/main.go (standalone service entry point)"
+echo "  - ${CONFIG_DIR}/${MODULE_NAME}.yaml (module configuration)"
+echo "  - .air.${MODULE_NAME}.toml (hot reload config)"
+echo ""
 echo "Next steps:"
 echo "1. Run 'make proto' to generate gRPC code."
 echo "2. Run 'make sqlc' to generate DB code."
-echo "3. Create cmd/${MODULE_NAME}/main.go for the module entry point."
-echo "4. Update cmd/server/main.go to initialize the new module."
-echo "5. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
+echo "3. Update cmd/server/main.go to register the new module:"
+echo "   Add: reg.Register(${MODULE_NAME}.NewModule())"
+echo "4. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
+echo "5. Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
