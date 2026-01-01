@@ -17,6 +17,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
 	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
+	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -185,10 +186,25 @@ func setupGRPCServerAuth(cfg *config.AppConfig, db *sql.DB, _ net.Listener) *grp
 	ns := notifier.NewSubscriber(ntf)
 	ns.SubscribeToEvents(ebus)
 
-	if err := auth.Initialize(db, grpcServer, ebus, cfg.Auth); err != nil {
+	// Create registry with dependencies
+	reg := registry.New(
+		registry.WithConfig(cfg),
+		registry.WithDatabase(db),
+		registry.WithEventBus(ebus),
+		registry.WithNotifier(ntf),
+	)
+
+	// Register and initialize auth module
+	authModule := auth.NewModule()
+	reg.Register(authModule)
+
+	if err := reg.InitializeAll(); err != nil {
 		slog.Error("Failed to initialize auth module", "error", err)
 		return nil
 	}
+
+	// Register gRPC services
+	reg.RegisterGRPCAll(grpcServer)
 
 	reflection.Register(grpcServer)
 

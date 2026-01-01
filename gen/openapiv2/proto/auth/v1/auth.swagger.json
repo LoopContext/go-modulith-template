@@ -16,6 +16,39 @@
     "application/json"
   ],
   "paths": {
+    "/v1/auth/email/change": {
+      "post": {
+        "summary": "ChangeEmail initiates email change by sending verification to new email",
+        "operationId": "AuthService_ChangeEmail",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ChangeEmailResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ChangeEmailRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
     "/v1/auth/login/complete": {
       "post": {
         "summary": "CompleteLogin keeps the code and verifies it to return a token",
@@ -81,9 +114,455 @@
           "AuthService"
         ]
       }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "summary": "Logout invalidates the current session and blacklists the token",
+        "operationId": "AuthService_Logout",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1LogoutResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1LogoutRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/oauth/accounts": {
+      "get": {
+        "summary": "ListLinkedAccounts returns the external accounts linked to the current user (requires auth)",
+        "operationId": "AuthService_ListLinkedAccounts",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListLinkedAccountsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/oauth/callback": {
+      "post": {
+        "summary": "CompleteOAuth handles the OAuth callback and returns tokens",
+        "operationId": "AuthService_CompleteOAuth",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CompleteOAuthResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CompleteOAuthRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/oauth/providers": {
+      "get": {
+        "summary": "GetOAuthProviders returns the list of enabled OAuth providers",
+        "operationId": "AuthService_GetOAuthProviders",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetOAuthProvidersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/oauth/{provider}/link": {
+      "post": {
+        "summary": "LinkExternalAccount links an external provider to the current user (requires auth)",
+        "operationId": "AuthService_LinkExternalAccount",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1LinkExternalAccountResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AuthServiceLinkExternalAccountBody"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/oauth/{provider}/start": {
+      "post": {
+        "summary": "InitiateOAuth starts the OAuth flow for a provider",
+        "operationId": "AuthService_InitiateOAuth",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1InitiateOAuthResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "provider",
+            "description": "e.g., \"google\", \"facebook\"",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AuthServiceInitiateOAuthBody"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/oauth/{provider}/unlink": {
+      "delete": {
+        "summary": "UnlinkExternalAccount unlinks an external provider from the current user (requires auth)",
+        "operationId": "AuthService_UnlinkExternalAccount",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UnlinkExternalAccountResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/phone/change": {
+      "post": {
+        "summary": "ChangePhone initiates phone change by sending verification to new phone",
+        "operationId": "AuthService_ChangePhone",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ChangePhoneResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ChangePhoneRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/profile": {
+      "get": {
+        "summary": "GetProfile returns the current user's profile (requires authentication)",
+        "operationId": "AuthService_GetProfile",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetProfileResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AuthService"
+        ]
+      },
+      "put": {
+        "summary": "UpdateProfile updates the current user's profile (requires authentication)",
+        "operationId": "AuthService_UpdateProfile",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UpdateProfileResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UpdateProfileRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/sessions": {
+      "get": {
+        "summary": "ListSessions returns all active sessions for the current user",
+        "operationId": "AuthService_ListSessions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListSessionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/sessions/revoke-all": {
+      "post": {
+        "summary": "RevokeAllSessions revokes all sessions except the current one",
+        "operationId": "AuthService_RevokeAllSessions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RevokeAllSessionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RevokeAllSessionsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/sessions/{sessionId}": {
+      "delete": {
+        "summary": "RevokeSession revokes a specific session",
+        "operationId": "AuthService_RevokeSession",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RevokeSessionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/token/refresh": {
+      "post": {
+        "summary": "RefreshToken exchanges a refresh token for a new access token",
+        "operationId": "AuthService_RefreshToken",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RefreshTokenResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RefreshTokenRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
     }
   },
   "definitions": {
+    "AuthServiceInitiateOAuthBody": {
+      "type": "object",
+      "properties": {
+        "redirectUrl": {
+          "type": "string",
+          "title": "Where to redirect after OAuth flow"
+        }
+      }
+    },
+    "AuthServiceLinkExternalAccountBody": {
+      "type": "object",
+      "properties": {
+        "redirectUrl": {
+          "type": "string"
+        }
+      }
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -109,6 +588,46 @@
             "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
+        }
+      }
+    },
+    "v1ChangeEmailRequest": {
+      "type": "object",
+      "properties": {
+        "newEmail": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ChangeEmailResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string",
+          "title": "e.g. \"Verification code sent to new email\""
+        }
+      }
+    },
+    "v1ChangePhoneRequest": {
+      "type": "object",
+      "properties": {
+        "newPhone": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ChangePhoneResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string",
+          "title": "e.g. \"Verification code sent to new phone\""
         }
       }
     },
@@ -144,6 +663,198 @@
         }
       }
     },
+    "v1CompleteOAuthRequest": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string",
+          "title": "Authorization code from OAuth provider"
+        },
+        "state": {
+          "type": "string",
+          "title": "State token for verification"
+        }
+      }
+    },
+    "v1CompleteOAuthResponse": {
+      "type": "object",
+      "properties": {
+        "accessToken": {
+          "type": "string"
+        },
+        "refreshToken": {
+          "type": "string"
+        },
+        "expiresIn": {
+          "type": "string",
+          "format": "int64"
+        },
+        "isNewUser": {
+          "type": "boolean",
+          "title": "True if a new user was created"
+        },
+        "user": {
+          "$ref": "#/definitions/v1User"
+        }
+      }
+    },
+    "v1ExternalAccount": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "providerUserId": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "avatarUrl": {
+          "type": "string"
+        },
+        "linkedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1GetOAuthProvidersResponse": {
+      "type": "object",
+      "properties": {
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1OAuthProvider"
+          }
+        }
+      }
+    },
+    "v1GetProfileResponse": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "$ref": "#/definitions/v1User"
+        }
+      }
+    },
+    "v1InitiateOAuthResponse": {
+      "type": "object",
+      "properties": {
+        "authUrl": {
+          "type": "string",
+          "title": "URL to redirect the user to for OAuth"
+        },
+        "state": {
+          "type": "string",
+          "title": "State token for CSRF protection"
+        }
+      }
+    },
+    "v1LinkExternalAccountResponse": {
+      "type": "object",
+      "properties": {
+        "authUrl": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ListLinkedAccountsResponse": {
+      "type": "object",
+      "properties": {
+        "accounts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ExternalAccount"
+          }
+        }
+      }
+    },
+    "v1ListSessionsResponse": {
+      "type": "object",
+      "properties": {
+        "sessions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Session"
+          }
+        }
+      }
+    },
+    "v1LogoutRequest": {
+      "type": "object",
+      "properties": {
+        "revokeAll": {
+          "type": "boolean",
+          "title": "Optional: revoke all sessions, not just the current one"
+        }
+      }
+    },
+    "v1LogoutResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "v1OAuthProvider": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "e.g., \"google\", \"facebook\", \"github\""
+        },
+        "displayName": {
+          "type": "string",
+          "title": "e.g., \"Google\", \"Facebook\", \"GitHub\""
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1RefreshTokenRequest": {
+      "type": "object",
+      "properties": {
+        "refreshToken": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RefreshTokenResponse": {
+      "type": "object",
+      "properties": {
+        "accessToken": {
+          "type": "string"
+        },
+        "refreshToken": {
+          "type": "string"
+        },
+        "expiresIn": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
     "v1RequestLoginRequest": {
       "type": "object",
       "properties": {
@@ -165,6 +876,115 @@
         "message": {
           "type": "string",
           "title": "e.g. \"Magic code sent\""
+        }
+      }
+    },
+    "v1RevokeAllSessionsRequest": {
+      "type": "object",
+      "properties": {
+        "includeCurrent": {
+          "type": "boolean",
+          "title": "If true, also revoke the current session (effectively logging out)"
+        }
+      }
+    },
+    "v1RevokeAllSessionsResponse": {
+      "type": "object",
+      "properties": {
+        "revokedCount": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1RevokeSessionResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1Session": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userAgent": {
+          "type": "string"
+        },
+        "ipAddress": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lastActiveAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "isCurrent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1UnlinkExternalAccountResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "v1UpdateProfileRequest": {
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "avatarUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "v1UpdateProfileResponse": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "$ref": "#/definitions/v1User"
+        }
+      }
+    },
+    "v1User": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "avatarUrl": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     }

@@ -180,56 +180,50 @@ func TestValidate_ProductionRequirements(t *testing.T) {
 			HTTPPort: "8080",
 			GRPCPort: "9050",
 			DBDSN:    "",
-			Auth: struct {
-				JWTSecret string `yaml:"jwt_secret"`
-			}{
-				JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
-			},
-		}
+		Auth: AuthConfig{
+			JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
+		},
+	}
 
-		err := cfg.Validate()
-		if err == nil {
-			t.Fatal("expected error for missing DB_DSN in production")
-		}
-	})
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected error for missing DB_DSN in production")
+	}
+})
 
-	t.Run("prod missing JWT_SECRET", func(t *testing.T) {
-		cfg := &AppConfig{
-			Env:      "prod",
-			HTTPPort: "8080",
-			GRPCPort: "9050",
-			DBDSN:    "postgres://localhost/db",
-			Auth: struct {
-				JWTSecret string `yaml:"jwt_secret"`
-			}{
-				JWTSecret: "",
-			},
-		}
+t.Run("prod missing JWT_SECRET", func(t *testing.T) {
+	cfg := &AppConfig{
+		Env:      "prod",
+		HTTPPort: "8080",
+		GRPCPort: "9050",
+		DBDSN:    "postgres://localhost/db",
+		Auth: AuthConfig{
+			JWTSecret: "",
+		},
+	}
 
-		err := cfg.Validate()
-		if err == nil {
-			t.Fatal("expected error for missing JWT_SECRET in production")
-		}
-	})
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected error for missing JWT_SECRET in production")
+	}
+})
 
-	t.Run("prod with valid config", func(t *testing.T) {
-		cfg := &AppConfig{
-			Env:      "prod",
-			HTTPPort: "8080",
-			GRPCPort: "9050",
-			DBDSN:    "postgres://localhost/db",
-			Auth: struct {
-				JWTSecret string `yaml:"jwt_secret"`
-			}{
-				JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
-			},
-		}
+t.Run("prod with valid config", func(t *testing.T) {
+	cfg := &AppConfig{
+		Env:      "prod",
+		HTTPPort: "8080",
+		GRPCPort: "9050",
+		DBDSN:    "postgres://localhost/db",
+		Auth: AuthConfig{
+			JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
+		},
+	}
 
-		err := cfg.Validate()
-		if err != nil {
-			t.Errorf("expected no error, got %v", err)
-		}
-	})
+	err := cfg.Validate()
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+})
 }
 
 func TestValidate_JWTSecretLength(t *testing.T) {
@@ -238,9 +232,7 @@ func TestValidate_JWTSecretLength(t *testing.T) {
 			Env:      "dev",
 			HTTPPort: "8080",
 			GRPCPort: "9050",
-			Auth: struct {
-				JWTSecret string `yaml:"jwt_secret"`
-			}{
+			Auth: AuthConfig{
 				JWTSecret: "short",
 			},
 		}
@@ -256,9 +248,7 @@ func TestValidate_JWTSecretLength(t *testing.T) {
 			Env:      "dev",
 			HTTPPort: "8080",
 			GRPCPort: "9050",
-			Auth: struct {
-				JWTSecret string `yaml:"jwt_secret"`
-			}{
+			Auth: AuthConfig{
 				JWTSecret: "12345678901234567890123456789012",
 			},
 		}

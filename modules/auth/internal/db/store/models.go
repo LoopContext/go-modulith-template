@@ -7,6 +7,8 @@ package store
 import (
 	"database/sql"
 	"time"
+
+	"github.com/sqlc-dev/pqtype"
 )
 
 type MagicCode struct {
@@ -15,6 +17,26 @@ type MagicCode struct {
 	UserPhone sql.NullString `json:"user_phone"`
 	ExpiresAt time.Time      `json:"expires_at"`
 	CreatedAt time.Time      `json:"created_at"`
+}
+
+type OauthState struct {
+	State       string         `json:"state"`
+	Provider    string         `json:"provider"`
+	RedirectUrl sql.NullString `json:"redirect_url"`
+	UserID      sql.NullString `json:"user_id"`
+	Action      string         `json:"action"`
+	CreatedAt   time.Time      `json:"created_at"`
+	ExpiresAt   time.Time      `json:"expires_at"`
+}
+
+type PendingContactChange struct {
+	ID               string    `json:"id"`
+	UserID           string    `json:"user_id"`
+	ChangeType       string    `json:"change_type"`
+	NewValue         string    `json:"new_value"`
+	VerificationCode string    `json:"verification_code"`
+	CreatedAt        time.Time `json:"created_at"`
+	ExpiresAt        time.Time `json:"expires_at"`
 }
 
 type Permission struct {
@@ -34,12 +56,50 @@ type RolePermission struct {
 	PermissionID string `json:"permission_id"`
 }
 
+type Session struct {
+	ID               string         `json:"id"`
+	UserID           string         `json:"user_id"`
+	RefreshTokenHash string         `json:"refresh_token_hash"`
+	UserAgent        sql.NullString `json:"user_agent"`
+	IpAddress        sql.NullString `json:"ip_address"`
+	CreatedAt        time.Time      `json:"created_at"`
+	LastActiveAt     time.Time      `json:"last_active_at"`
+	ExpiresAt        time.Time      `json:"expires_at"`
+	RevokedAt        sql.NullTime   `json:"revoked_at"`
+}
+
+type TokenBlacklist struct {
+	TokenHash string         `json:"token_hash"`
+	UserID    string         `json:"user_id"`
+	ExpiresAt time.Time      `json:"expires_at"`
+	RevokedAt time.Time      `json:"revoked_at"`
+	Reason    sql.NullString `json:"reason"`
+}
+
 type User struct {
-	ID        string         `json:"id"`
-	Email     sql.NullString `json:"email"`
-	Phone     sql.NullString `json:"phone"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	ID          string         `json:"id"`
+	Email       sql.NullString `json:"email"`
+	Phone       sql.NullString `json:"phone"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DisplayName sql.NullString `json:"display_name"`
+	AvatarUrl   sql.NullString `json:"avatar_url"`
+}
+
+type UserExternalAccount struct {
+	ID             string                `json:"id"`
+	UserID         string                `json:"user_id"`
+	Provider       string                `json:"provider"`
+	ProviderUserID string                `json:"provider_user_id"`
+	Email          sql.NullString        `json:"email"`
+	Name           sql.NullString        `json:"name"`
+	AvatarUrl      sql.NullString        `json:"avatar_url"`
+	AccessToken    sql.NullString        `json:"access_token"`
+	RefreshToken   sql.NullString        `json:"refresh_token"`
+	TokenExpiresAt sql.NullTime          `json:"token_expires_at"`
+	RawData        pqtype.NullRawMessage `json:"raw_data"`
+	CreatedAt      time.Time             `json:"created_at"`
+	UpdatedAt      time.Time             `json:"updated_at"`
 }
 
 type UserRole struct {

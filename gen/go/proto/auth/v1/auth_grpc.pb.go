@@ -19,8 +19,23 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AuthService_RequestLogin_FullMethodName  = "/auth.v1.AuthService/RequestLogin"
-	AuthService_CompleteLogin_FullMethodName = "/auth.v1.AuthService/CompleteLogin"
+	AuthService_RequestLogin_FullMethodName          = "/auth.v1.AuthService/RequestLogin"
+	AuthService_CompleteLogin_FullMethodName         = "/auth.v1.AuthService/CompleteLogin"
+	AuthService_RefreshToken_FullMethodName          = "/auth.v1.AuthService/RefreshToken"
+	AuthService_Logout_FullMethodName                = "/auth.v1.AuthService/Logout"
+	AuthService_GetProfile_FullMethodName            = "/auth.v1.AuthService/GetProfile"
+	AuthService_UpdateProfile_FullMethodName         = "/auth.v1.AuthService/UpdateProfile"
+	AuthService_ChangeEmail_FullMethodName           = "/auth.v1.AuthService/ChangeEmail"
+	AuthService_ChangePhone_FullMethodName           = "/auth.v1.AuthService/ChangePhone"
+	AuthService_ListSessions_FullMethodName          = "/auth.v1.AuthService/ListSessions"
+	AuthService_RevokeSession_FullMethodName         = "/auth.v1.AuthService/RevokeSession"
+	AuthService_RevokeAllSessions_FullMethodName     = "/auth.v1.AuthService/RevokeAllSessions"
+	AuthService_GetOAuthProviders_FullMethodName     = "/auth.v1.AuthService/GetOAuthProviders"
+	AuthService_InitiateOAuth_FullMethodName         = "/auth.v1.AuthService/InitiateOAuth"
+	AuthService_CompleteOAuth_FullMethodName         = "/auth.v1.AuthService/CompleteOAuth"
+	AuthService_LinkExternalAccount_FullMethodName   = "/auth.v1.AuthService/LinkExternalAccount"
+	AuthService_UnlinkExternalAccount_FullMethodName = "/auth.v1.AuthService/UnlinkExternalAccount"
+	AuthService_ListLinkedAccounts_FullMethodName    = "/auth.v1.AuthService/ListLinkedAccounts"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -31,6 +46,36 @@ type AuthServiceClient interface {
 	RequestLogin(ctx context.Context, in *RequestLoginRequest, opts ...grpc.CallOption) (*RequestLoginResponse, error)
 	// CompleteLogin keeps the code and verifies it to return a token
 	CompleteLogin(ctx context.Context, in *CompleteLoginRequest, opts ...grpc.CallOption) (*CompleteLoginResponse, error)
+	// RefreshToken exchanges a refresh token for a new access token
+	RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error)
+	// Logout invalidates the current session and blacklists the token
+	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
+	// GetProfile returns the current user's profile (requires authentication)
+	GetProfile(ctx context.Context, in *GetProfileRequest, opts ...grpc.CallOption) (*GetProfileResponse, error)
+	// UpdateProfile updates the current user's profile (requires authentication)
+	UpdateProfile(ctx context.Context, in *UpdateProfileRequest, opts ...grpc.CallOption) (*UpdateProfileResponse, error)
+	// ChangeEmail initiates email change by sending verification to new email
+	ChangeEmail(ctx context.Context, in *ChangeEmailRequest, opts ...grpc.CallOption) (*ChangeEmailResponse, error)
+	// ChangePhone initiates phone change by sending verification to new phone
+	ChangePhone(ctx context.Context, in *ChangePhoneRequest, opts ...grpc.CallOption) (*ChangePhoneResponse, error)
+	// ListSessions returns all active sessions for the current user
+	ListSessions(ctx context.Context, in *ListSessionsRequest, opts ...grpc.CallOption) (*ListSessionsResponse, error)
+	// RevokeSession revokes a specific session
+	RevokeSession(ctx context.Context, in *RevokeSessionRequest, opts ...grpc.CallOption) (*RevokeSessionResponse, error)
+	// RevokeAllSessions revokes all sessions except the current one
+	RevokeAllSessions(ctx context.Context, in *RevokeAllSessionsRequest, opts ...grpc.CallOption) (*RevokeAllSessionsResponse, error)
+	// GetOAuthProviders returns the list of enabled OAuth providers
+	GetOAuthProviders(ctx context.Context, in *GetOAuthProvidersRequest, opts ...grpc.CallOption) (*GetOAuthProvidersResponse, error)
+	// InitiateOAuth starts the OAuth flow for a provider
+	InitiateOAuth(ctx context.Context, in *InitiateOAuthRequest, opts ...grpc.CallOption) (*InitiateOAuthResponse, error)
+	// CompleteOAuth handles the OAuth callback and returns tokens
+	CompleteOAuth(ctx context.Context, in *CompleteOAuthRequest, opts ...grpc.CallOption) (*CompleteOAuthResponse, error)
+	// LinkExternalAccount links an external provider to the current user (requires auth)
+	LinkExternalAccount(ctx context.Context, in *LinkExternalAccountRequest, opts ...grpc.CallOption) (*LinkExternalAccountResponse, error)
+	// UnlinkExternalAccount unlinks an external provider from the current user (requires auth)
+	UnlinkExternalAccount(ctx context.Context, in *UnlinkExternalAccountRequest, opts ...grpc.CallOption) (*UnlinkExternalAccountResponse, error)
+	// ListLinkedAccounts returns the external accounts linked to the current user (requires auth)
+	ListLinkedAccounts(ctx context.Context, in *ListLinkedAccountsRequest, opts ...grpc.CallOption) (*ListLinkedAccountsResponse, error)
 }
 
 type authServiceClient struct {
@@ -61,6 +106,156 @@ func (c *authServiceClient) CompleteLogin(ctx context.Context, in *CompleteLogin
 	return out, nil
 }
 
+func (c *authServiceClient) RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefreshTokenResponse)
+	err := c.cc.Invoke(ctx, AuthService_RefreshToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogoutResponse)
+	err := c.cc.Invoke(ctx, AuthService_Logout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) GetProfile(ctx context.Context, in *GetProfileRequest, opts ...grpc.CallOption) (*GetProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetProfileResponse)
+	err := c.cc.Invoke(ctx, AuthService_GetProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) UpdateProfile(ctx context.Context, in *UpdateProfileRequest, opts ...grpc.CallOption) (*UpdateProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateProfileResponse)
+	err := c.cc.Invoke(ctx, AuthService_UpdateProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) ChangeEmail(ctx context.Context, in *ChangeEmailRequest, opts ...grpc.CallOption) (*ChangeEmailResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChangeEmailResponse)
+	err := c.cc.Invoke(ctx, AuthService_ChangeEmail_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) ChangePhone(ctx context.Context, in *ChangePhoneRequest, opts ...grpc.CallOption) (*ChangePhoneResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChangePhoneResponse)
+	err := c.cc.Invoke(ctx, AuthService_ChangePhone_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) ListSessions(ctx context.Context, in *ListSessionsRequest, opts ...grpc.CallOption) (*ListSessionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListSessionsResponse)
+	err := c.cc.Invoke(ctx, AuthService_ListSessions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) RevokeSession(ctx context.Context, in *RevokeSessionRequest, opts ...grpc.CallOption) (*RevokeSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeSessionResponse)
+	err := c.cc.Invoke(ctx, AuthService_RevokeSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) RevokeAllSessions(ctx context.Context, in *RevokeAllSessionsRequest, opts ...grpc.CallOption) (*RevokeAllSessionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeAllSessionsResponse)
+	err := c.cc.Invoke(ctx, AuthService_RevokeAllSessions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) GetOAuthProviders(ctx context.Context, in *GetOAuthProvidersRequest, opts ...grpc.CallOption) (*GetOAuthProvidersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetOAuthProvidersResponse)
+	err := c.cc.Invoke(ctx, AuthService_GetOAuthProviders_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) InitiateOAuth(ctx context.Context, in *InitiateOAuthRequest, opts ...grpc.CallOption) (*InitiateOAuthResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InitiateOAuthResponse)
+	err := c.cc.Invoke(ctx, AuthService_InitiateOAuth_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) CompleteOAuth(ctx context.Context, in *CompleteOAuthRequest, opts ...grpc.CallOption) (*CompleteOAuthResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CompleteOAuthResponse)
+	err := c.cc.Invoke(ctx, AuthService_CompleteOAuth_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) LinkExternalAccount(ctx context.Context, in *LinkExternalAccountRequest, opts ...grpc.CallOption) (*LinkExternalAccountResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LinkExternalAccountResponse)
+	err := c.cc.Invoke(ctx, AuthService_LinkExternalAccount_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) UnlinkExternalAccount(ctx context.Context, in *UnlinkExternalAccountRequest, opts ...grpc.CallOption) (*UnlinkExternalAccountResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UnlinkExternalAccountResponse)
+	err := c.cc.Invoke(ctx, AuthService_UnlinkExternalAccount_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) ListLinkedAccounts(ctx context.Context, in *ListLinkedAccountsRequest, opts ...grpc.CallOption) (*ListLinkedAccountsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListLinkedAccountsResponse)
+	err := c.cc.Invoke(ctx, AuthService_ListLinkedAccounts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -69,6 +264,36 @@ type AuthServiceServer interface {
 	RequestLogin(context.Context, *RequestLoginRequest) (*RequestLoginResponse, error)
 	// CompleteLogin keeps the code and verifies it to return a token
 	CompleteLogin(context.Context, *CompleteLoginRequest) (*CompleteLoginResponse, error)
+	// RefreshToken exchanges a refresh token for a new access token
+	RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error)
+	// Logout invalidates the current session and blacklists the token
+	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
+	// GetProfile returns the current user's profile (requires authentication)
+	GetProfile(context.Context, *GetProfileRequest) (*GetProfileResponse, error)
+	// UpdateProfile updates the current user's profile (requires authentication)
+	UpdateProfile(context.Context, *UpdateProfileRequest) (*UpdateProfileResponse, error)
+	// ChangeEmail initiates email change by sending verification to new email
+	ChangeEmail(context.Context, *ChangeEmailRequest) (*ChangeEmailResponse, error)
+	// ChangePhone initiates phone change by sending verification to new phone
+	ChangePhone(context.Context, *ChangePhoneRequest) (*ChangePhoneResponse, error)
+	// ListSessions returns all active sessions for the current user
+	ListSessions(context.Context, *ListSessionsRequest) (*ListSessionsResponse, error)
+	// RevokeSession revokes a specific session
+	RevokeSession(context.Context, *RevokeSessionRequest) (*RevokeSessionResponse, error)
+	// RevokeAllSessions revokes all sessions except the current one
+	RevokeAllSessions(context.Context, *RevokeAllSessionsRequest) (*RevokeAllSessionsResponse, error)
+	// GetOAuthProviders returns the list of enabled OAuth providers
+	GetOAuthProviders(context.Context, *GetOAuthProvidersRequest) (*GetOAuthProvidersResponse, error)
+	// InitiateOAuth starts the OAuth flow for a provider
+	InitiateOAuth(context.Context, *InitiateOAuthRequest) (*InitiateOAuthResponse, error)
+	// CompleteOAuth handles the OAuth callback and returns tokens
+	CompleteOAuth(context.Context, *CompleteOAuthRequest) (*CompleteOAuthResponse, error)
+	// LinkExternalAccount links an external provider to the current user (requires auth)
+	LinkExternalAccount(context.Context, *LinkExternalAccountRequest) (*LinkExternalAccountResponse, error)
+	// UnlinkExternalAccount unlinks an external provider from the current user (requires auth)
+	UnlinkExternalAccount(context.Context, *UnlinkExternalAccountRequest) (*UnlinkExternalAccountResponse, error)
+	// ListLinkedAccounts returns the external accounts linked to the current user (requires auth)
+	ListLinkedAccounts(context.Context, *ListLinkedAccountsRequest) (*ListLinkedAccountsResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -84,6 +309,51 @@ func (UnimplementedAuthServiceServer) RequestLogin(context.Context, *RequestLogi
 }
 func (UnimplementedAuthServiceServer) CompleteLogin(context.Context, *CompleteLoginRequest) (*CompleteLoginResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CompleteLogin not implemented")
+}
+func (UnimplementedAuthServiceServer) RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RefreshToken not implemented")
+}
+func (UnimplementedAuthServiceServer) Logout(context.Context, *LogoutRequest) (*LogoutResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Logout not implemented")
+}
+func (UnimplementedAuthServiceServer) GetProfile(context.Context, *GetProfileRequest) (*GetProfileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetProfile not implemented")
+}
+func (UnimplementedAuthServiceServer) UpdateProfile(context.Context, *UpdateProfileRequest) (*UpdateProfileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateProfile not implemented")
+}
+func (UnimplementedAuthServiceServer) ChangeEmail(context.Context, *ChangeEmailRequest) (*ChangeEmailResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ChangeEmail not implemented")
+}
+func (UnimplementedAuthServiceServer) ChangePhone(context.Context, *ChangePhoneRequest) (*ChangePhoneResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ChangePhone not implemented")
+}
+func (UnimplementedAuthServiceServer) ListSessions(context.Context, *ListSessionsRequest) (*ListSessionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSessions not implemented")
+}
+func (UnimplementedAuthServiceServer) RevokeSession(context.Context, *RevokeSessionRequest) (*RevokeSessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeSession not implemented")
+}
+func (UnimplementedAuthServiceServer) RevokeAllSessions(context.Context, *RevokeAllSessionsRequest) (*RevokeAllSessionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeAllSessions not implemented")
+}
+func (UnimplementedAuthServiceServer) GetOAuthProviders(context.Context, *GetOAuthProvidersRequest) (*GetOAuthProvidersResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetOAuthProviders not implemented")
+}
+func (UnimplementedAuthServiceServer) InitiateOAuth(context.Context, *InitiateOAuthRequest) (*InitiateOAuthResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InitiateOAuth not implemented")
+}
+func (UnimplementedAuthServiceServer) CompleteOAuth(context.Context, *CompleteOAuthRequest) (*CompleteOAuthResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CompleteOAuth not implemented")
+}
+func (UnimplementedAuthServiceServer) LinkExternalAccount(context.Context, *LinkExternalAccountRequest) (*LinkExternalAccountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LinkExternalAccount not implemented")
+}
+func (UnimplementedAuthServiceServer) UnlinkExternalAccount(context.Context, *UnlinkExternalAccountRequest) (*UnlinkExternalAccountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UnlinkExternalAccount not implemented")
+}
+func (UnimplementedAuthServiceServer) ListLinkedAccounts(context.Context, *ListLinkedAccountsRequest) (*ListLinkedAccountsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListLinkedAccounts not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -142,6 +412,276 @@ func _AuthService_CompleteLogin_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_RefreshToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefreshTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).RefreshToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_RefreshToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).RefreshToken(ctx, req.(*RefreshTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_Logout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogoutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).Logout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_Logout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).Logout(ctx, req.(*LogoutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_GetProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).GetProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_GetProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).GetProfile(ctx, req.(*GetProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_UpdateProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).UpdateProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_UpdateProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).UpdateProfile(ctx, req.(*UpdateProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_ChangeEmail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeEmailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ChangeEmail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ChangeEmail_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ChangeEmail(ctx, req.(*ChangeEmailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_ChangePhone_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangePhoneRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ChangePhone(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ChangePhone_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ChangePhone(ctx, req.(*ChangePhoneRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_ListSessions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListSessionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ListSessions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ListSessions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ListSessions(ctx, req.(*ListSessionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_RevokeSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).RevokeSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_RevokeSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).RevokeSession(ctx, req.(*RevokeSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_RevokeAllSessions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeAllSessionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).RevokeAllSessions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_RevokeAllSessions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).RevokeAllSessions(ctx, req.(*RevokeAllSessionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_GetOAuthProviders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOAuthProvidersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).GetOAuthProviders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_GetOAuthProviders_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).GetOAuthProviders(ctx, req.(*GetOAuthProvidersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_InitiateOAuth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InitiateOAuthRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).InitiateOAuth(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_InitiateOAuth_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).InitiateOAuth(ctx, req.(*InitiateOAuthRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_CompleteOAuth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CompleteOAuthRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).CompleteOAuth(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_CompleteOAuth_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).CompleteOAuth(ctx, req.(*CompleteOAuthRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_LinkExternalAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LinkExternalAccountRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).LinkExternalAccount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_LinkExternalAccount_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).LinkExternalAccount(ctx, req.(*LinkExternalAccountRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_UnlinkExternalAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnlinkExternalAccountRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).UnlinkExternalAccount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_UnlinkExternalAccount_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).UnlinkExternalAccount(ctx, req.(*UnlinkExternalAccountRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_ListLinkedAccounts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListLinkedAccountsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ListLinkedAccounts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ListLinkedAccounts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ListLinkedAccounts(ctx, req.(*ListLinkedAccountsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -156,6 +696,66 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CompleteLogin",
 			Handler:    _AuthService_CompleteLogin_Handler,
+		},
+		{
+			MethodName: "RefreshToken",
+			Handler:    _AuthService_RefreshToken_Handler,
+		},
+		{
+			MethodName: "Logout",
+			Handler:    _AuthService_Logout_Handler,
+		},
+		{
+			MethodName: "GetProfile",
+			Handler:    _AuthService_GetProfile_Handler,
+		},
+		{
+			MethodName: "UpdateProfile",
+			Handler:    _AuthService_UpdateProfile_Handler,
+		},
+		{
+			MethodName: "ChangeEmail",
+			Handler:    _AuthService_ChangeEmail_Handler,
+		},
+		{
+			MethodName: "ChangePhone",
+			Handler:    _AuthService_ChangePhone_Handler,
+		},
+		{
+			MethodName: "ListSessions",
+			Handler:    _AuthService_ListSessions_Handler,
+		},
+		{
+			MethodName: "RevokeSession",
+			Handler:    _AuthService_RevokeSession_Handler,
+		},
+		{
+			MethodName: "RevokeAllSessions",
+			Handler:    _AuthService_RevokeAllSessions_Handler,
+		},
+		{
+			MethodName: "GetOAuthProviders",
+			Handler:    _AuthService_GetOAuthProviders_Handler,
+		},
+		{
+			MethodName: "InitiateOAuth",
+			Handler:    _AuthService_InitiateOAuth_Handler,
+		},
+		{
+			MethodName: "CompleteOAuth",
+			Handler:    _AuthService_CompleteOAuth_Handler,
+		},
+		{
+			MethodName: "LinkExternalAccount",
+			Handler:    _AuthService_LinkExternalAccount_Handler,
+		},
+		{
+			MethodName: "UnlinkExternalAccount",
+			Handler:    _AuthService_UnlinkExternalAccount_Handler,
+		},
+		{
+			MethodName: "ListLinkedAccounts",
+			Handler:    _AuthService_ListLinkedAccounts_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

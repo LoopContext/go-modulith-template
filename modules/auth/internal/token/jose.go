@@ -40,9 +40,10 @@ func NewService(secretKey string) (*Service, error) {
 
 // Claims represents the custom claims in the JWT
 type Claims struct {
-	UserID string   `json:"sub"`
-	Role   string   `json:"role"`
-	Scope  []string `json:"scope,omitempty"`
+	Subject   string   `json:"sub"`
+	Role      string   `json:"role"`
+	Scope     []string `json:"scope,omitempty"`
+	ExpiresAt int64    `json:"exp"`
 }
 
 // CreateToken generates a new signed JWT for the given user and role
@@ -85,8 +86,14 @@ func (s *Service) VerifyToken(tokenString string) (*Claims, error) {
 
 	role, _ := privateClaims["role"].(string)
 
+	var expiresAt int64
+	if claims.Expiry != nil {
+		expiresAt = claims.Expiry.Time().Unix()
+	}
+
 	return &Claims{
-		UserID: claims.Subject,
-		Role:   role,
+		Subject:   claims.Subject,
+		Role:      role,
+		ExpiresAt: expiresAt,
 	}, nil
 }

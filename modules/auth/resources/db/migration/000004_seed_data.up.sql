@@ -30,3 +30,4 @@ INSERT INTO user_roles (user_id, role_id) VALUES
 ('user_01j6z1p3m7r2b8v8x0w1m4p2tx', 'role_01j6z1p3m7r2b8v8x0w1m4p2r1'),
 ('user_01j6z1p3m7r2b8v8x0w1m4p2tz', 'role_01j6z1p3m7r2b8v8x0w1m4p2r2')
 ON CONFLICT DO NOTHING;
+

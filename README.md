@@ -10,12 +10,16 @@ Este es un template profesional para construir aplicaciones en Go siguiendo el p
 ## ✨ Características Principales
 
 -   🏗️ **Arquitectura Modular**: Código organizado por dominios con desacoplamiento mediante eventos internos.
+-   📦 **Registry Pattern**: Inyección de dependencias manual, explícita y sin magia para máximo control.
 -   🔐 **gRPC & Protobuf**: Comunicación tipada y eficiente con generación automática vía `buf`.
 -   🗄️ **SQLC & Migraciones**: Acceso a datos Type-safe y gestión de esquemas con `golang-migrate`.
 -   ⚙️ **Configuración Flexible**: Sistema de configuración con jerarquía de precedencia (YAML > .env > system ENV vars > defaults) y logging de fuentes.
 -   🔄 **Hot Reload**: Desarrollo fluido con **Air** que monitorea cambios en código, configuración (`.env`, YAML) y recursos.
 -   🔌 **WebSocket Real-Time**: Comunicación bidireccional integrada con el event bus para notificaciones en tiempo real.
 -   📊 **GraphQL Opcional**: Soporte opcional con gqlgen para APIs flexibles y frontend-friendly (subscriptions incluidas).
+-   📧 **Sistema de Notificaciones**: Templates + providers extensibles (SendGrid, Twilio, AWS SES/SNS).
+-   🔑 **Auth Completo**: Login passwordless, sesiones, refresh tokens, revocación y gestión de perfil.
+-   🔗 **OAuth/Social Login**: Autenticación con Google, Facebook, GitHub, Apple, Microsoft y Twitter/X.
 -   🧪 **Mocking con gomock**: Generación automática de mocks type-safe para testing unitario eficiente.
 -   🛡️ **Observabilidad**: Integración nativa con OpenTelemetry (Tracing & Metrics), Prometheus y Health Checks con manejo de contextos.
 -   ⛴️ **Cloud Ready**: Dockerfile multi-stage y Helm Charts flexibles para Kubernetes (soporta monolito y módulos independientes).
@@ -74,7 +78,9 @@ make dev-module auth
 
 ## 📖 Documentación Completa
 
--   **[Guía de Arquitectura](docs/MODULITH_ARCHITECTURE.md)** - Arquitectura, testing con gomock, coverage reporting y comandos genéricos
+-   **[Guía de Arquitectura](docs/MODULITH_ARCHITECTURE.md)** - Arquitectura, Registry Pattern, testing con gomock y coverage reporting
+-   **[OAuth/Social Login](docs/OAUTH_INTEGRATION.md)** - Integración con Google, Facebook, GitHub, Apple, Microsoft, Twitter
+-   **[Sistema de Notificaciones](docs/NOTIFICATION_SYSTEM.md)** - Templates, providers (SendGrid, Twilio, SES) y composite notifier
 -   **[WebSocket en Tiempo Real](docs/WEBSOCKET_GUIDE.md)** - Comunicación bidireccional, event bus y autenticación JWT
 -   **[Integración GraphQL](docs/GRAPHQL_INTEGRATION.md)** - Setup opcional con gqlgen, schema por módulo y subscriptions
 -   **[Deployment & IaC](docs/DEPLOYMENT_SYNC.md)** - OpenTofu, Helm Charts, estrategias de despliegue y testing

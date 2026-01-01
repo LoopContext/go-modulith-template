@@ -638,3 +638,121 @@ func TestVerifyMagicCodeByPhone_DatabaseError(t *testing.T) {
 	}
 }
 
+
+// Additional mock methods for the extended Repository interface
+
+func (m *mockRepository) GetUserByID(_ context.Context, id string) (*store.User, error) {
+	return &store.User{ID: id}, nil
+}
+
+func (m *mockRepository) UpdateUserProfile(_ context.Context, _, _, _ string) error {
+	return nil
+}
+
+func (m *mockRepository) CreateSession(_ context.Context, _ *repository.Session) error {
+	return nil
+}
+
+func (m *mockRepository) GetSessionByID(_ context.Context, id string) (*repository.Session, error) {
+	return &repository.Session{ID: id}, nil
+}
+
+func (m *mockRepository) GetSessionByRefreshTokenHash(_ context.Context, _ string) (*repository.Session, error) {
+	return &repository.Session{}, nil
+}
+
+func (m *mockRepository) GetSessionsByUserID(_ context.Context, _ string) ([]*repository.Session, error) {
+	return nil, nil
+}
+
+func (m *mockRepository) UpdateSessionActivity(_ context.Context, _ string) error {
+	return nil
+}
+
+func (m *mockRepository) RevokeSession(_ context.Context, _ string) error {
+	return nil
+}
+
+func (m *mockRepository) RevokeAllUserSessions(_ context.Context, _, _ string) (int, error) {
+	return 0, nil
+}
+
+func (m *mockRepository) BlacklistToken(_ context.Context, _, _, _ string, _ time.Time) error {
+	return nil
+}
+
+func (m *mockRepository) IsTokenBlacklisted(_ context.Context, _ string) (bool, error) {
+	return false, nil
+}
+
+func (m *mockRepository) CleanupExpiredBlacklistEntries(_ context.Context) error {
+	return nil
+}
+
+func (m *mockRepository) CreatePendingContactChange(_ context.Context, _, _, _, _, _ string, _ time.Time) error {
+	return nil
+}
+
+func (m *mockRepository) GetPendingContactChange(_ context.Context, _, _, _ string) (*repository.PendingContactChange, error) {
+	return nil, nil
+}
+
+func (m *mockRepository) DeletePendingContactChange(_ context.Context, _ string) error {
+	return nil
+}
+
+// External OAuth accounts mock methods
+
+func (m *mockRepository) CreateExternalAccount(_ context.Context, _ *repository.ExternalAccount) error {
+	return nil
+}
+
+func (m *mockRepository) GetExternalAccountByProviderUserID(_ context.Context, _, _ string) (*repository.ExternalAccount, error) {
+	return nil, nil
+}
+
+func (m *mockRepository) GetExternalAccountsByUserID(_ context.Context, _ string) ([]*repository.ExternalAccount, error) {
+	return nil, nil
+}
+
+func (m *mockRepository) GetExternalAccountByProviderAndEmail(_ context.Context, _, _ string) (*repository.ExternalAccount, error) {
+	return nil, nil
+}
+
+func (m *mockRepository) UpdateExternalAccountTokens(_ context.Context, _, _, _, _ string, _ *time.Time) error {
+	return nil
+}
+
+func (m *mockRepository) UpdateExternalAccountProfile(_ context.Context, _, _, _, _, _ string, _ map[string]interface{}) error {
+	return nil
+}
+
+func (m *mockRepository) DeleteExternalAccount(_ context.Context, _, _ string) error {
+	return nil
+}
+
+func (m *mockRepository) DeleteExternalAccountByProvider(_ context.Context, _, _ string) error {
+	return nil
+}
+
+func (m *mockRepository) CountExternalAccountsByUserID(_ context.Context, _ string) (int64, error) {
+	return 0, nil
+}
+
+// OAuth state mock methods
+
+func (m *mockRepository) CreateOAuthState(_ context.Context, _ *repository.OAuthState) error {
+	return nil
+}
+
+func (m *mockRepository) GetOAuthState(_ context.Context, _ string) (*repository.OAuthState, error) {
+	return nil, nil
+}
+
+func (m *mockRepository) DeleteOAuthState(_ context.Context, _ string) error {
+	return nil
+}
+
+func (m *mockRepository) CleanupExpiredOAuthStates(_ context.Context) error {
+	return nil
+}

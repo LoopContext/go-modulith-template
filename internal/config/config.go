@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cmelgarejo/go-modulith-template/modules/auth"
 	"gopkg.in/yaml.v3"
 )
 
@@ -16,6 +15,7 @@ const (
 	sourceDotenv  = ".env"
 	sourceSystem  = "system"
 	sourceDefault = "default"
+	envTrue       = "true"
 )
 
 // AppConfig is the root configuration for the entire modulith
@@ -29,7 +29,7 @@ type AppConfig struct {
 	OTLPEndpoint string `yaml:"otlp_endpoint" env:"OTLP_ENDPOINT"`
 
 	// Module specific configs
-	Auth auth.Config `yaml:"auth"`
+	Auth AuthConfig `yaml:"auth"`
 }
 
 // Load loads the configuration following this priority order (from lowest to highest):
@@ -113,6 +113,116 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 		c.Auth.JWTSecret = secret
 		sources["JWT_SECRET"] = sourceName
 	}
+
+	// OAuth configuration
+	c.overrideOAuthEnv(sources, sourceName)
+}
+
+// overrideOAuthEnv handles OAuth-specific environment variables.
+//
+//nolint:cyclop,funlen // OAuth configuration has many provider-specific env vars
+func (c *AppConfig) overrideOAuthEnv(sources map[string]string, sourceName string) {
+	if enabled := os.Getenv("OAUTH_ENABLED"); enabled == envTrue {
+		c.Auth.OAuth.Enabled = true
+		sources["OAUTH_ENABLED"] = sourceName
+	}
+
+	if autoLink := os.Getenv("OAUTH_AUTO_LINK_BY_EMAIL"); autoLink == envTrue {
+		c.Auth.OAuth.AutoLinkByEmail = true
+		sources["OAUTH_AUTO_LINK_BY_EMAIL"] = sourceName
+	}
+
+	if baseURL := os.Getenv("OAUTH_BASE_URL"); baseURL != "" {
+		c.Auth.OAuth.BaseURL = baseURL
+		sources["OAUTH_BASE_URL"] = sourceName
+	}
+
+	if key := os.Getenv("OAUTH_TOKEN_ENCRYPTION_KEY"); key != "" {
+		c.Auth.OAuth.TokenEncryptionKey = key
+		sources["OAUTH_TOKEN_ENCRYPTION_KEY"] = sourceName
+	}
+
+	// Google
+	if id := os.Getenv("GOOGLE_CLIENT_ID"); id != "" {
+		c.Auth.OAuth.Providers.Google.ClientID = id
+		c.Auth.OAuth.Providers.Google.Enabled = true
+		sources["GOOGLE_CLIENT_ID"] = sourceName
+	}
+
+	if secret := os.Getenv("GOOGLE_CLIENT_SECRET"); secret != "" {
+		c.Auth.OAuth.Providers.Google.ClientSecret = secret
+		sources["GOOGLE_CLIENT_SECRET"] = sourceName
+	}
+
+	// Facebook
+	if id := os.Getenv("FACEBOOK_CLIENT_ID"); id != "" {
+		c.Auth.OAuth.Providers.Facebook.ClientID = id
+		c.Auth.OAuth.Providers.Facebook.Enabled = true
+		sources["FACEBOOK_CLIENT_ID"] = sourceName
+	}
+
+	if secret := os.Getenv("FACEBOOK_CLIENT_SECRET"); secret != "" {
+		c.Auth.OAuth.Providers.Facebook.ClientSecret = secret
+		sources["FACEBOOK_CLIENT_SECRET"] = sourceName
+	}
+
+	// GitHub
+	if id := os.Getenv("GITHUB_CLIENT_ID"); id != "" {
+		c.Auth.OAuth.Providers.GitHub.ClientID = id
+		c.Auth.OAuth.Providers.GitHub.Enabled = true
+		sources["GITHUB_CLIENT_ID"] = sourceName
+	}
+
+	if secret := os.Getenv("GITHUB_CLIENT_SECRET"); secret != "" {
+		c.Auth.OAuth.Providers.GitHub.ClientSecret = secret
+		sources["GITHUB_CLIENT_SECRET"] = sourceName
+	}
+
+	// Microsoft
+	if id := os.Getenv("MICROSOFT_CLIENT_ID"); id != "" {
+		c.Auth.OAuth.Providers.Microsoft.ClientID = id
+		c.Auth.OAuth.Providers.Microsoft.Enabled = true
+		sources["MICROSOFT_CLIENT_ID"] = sourceName
+	}
+
+	if secret := os.Getenv("MICROSOFT_CLIENT_SECRET"); secret != "" {
+		c.Auth.OAuth.Providers.Microsoft.ClientSecret = secret
+		sources["MICROSOFT_CLIENT_SECRET"] = sourceName
+	}
+
+	// Twitter
+	if id := os.Getenv("TWITTER_CLIENT_ID"); id != "" {
+		c.Auth.OAuth.Providers.Twitter.ClientID = id
+		c.Auth.OAuth.Providers.Twitter.Enabled = true
+		sources["TWITTER_CLIENT_ID"] = sourceName
+	}
+
+	if secret := os.Getenv("TWITTER_CLIENT_SECRET"); secret != "" {
+		c.Auth.OAuth.Providers.Twitter.ClientSecret = secret
+		sources["TWITTER_CLIENT_SECRET"] = sourceName
+	}
+
+	// Apple (uses different env vars)
+	if id := os.Getenv("APPLE_CLIENT_ID"); id != "" {
+		c.Auth.OAuth.Providers.Apple.ClientID = id
+		c.Auth.OAuth.Providers.Apple.Enabled = true
+		sources["APPLE_CLIENT_ID"] = sourceName
+	}
+
+	if teamID := os.Getenv("APPLE_TEAM_ID"); teamID != "" {
+		c.Auth.OAuth.Providers.Apple.TeamID = teamID
+		sources["APPLE_TEAM_ID"] = sourceName
+	}
+
+	if keyID := os.Getenv("APPLE_KEY_ID"); keyID != "" {
+		c.Auth.OAuth.Providers.Apple.KeyID = keyID
+		sources["APPLE_KEY_ID"] = sourceName
+	}
+
+	if keyPath := os.Getenv("APPLE_PRIVATE_KEY_PATH"); keyPath != "" {
+		c.Auth.OAuth.Providers.Apple.PrivateKeyPath = keyPath
+		sources["APPLE_PRIVATE_KEY_PATH"] = sourceName
+	}
 }
 
 // OverrideWithEnvFromDotenv applies .env file values, but only marks as ".env" if:
@@ -125,6 +235,33 @@ func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]
 	c.overrideEnvVar("DB_DSN", func(val string) { c.DBDSN = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("OTLP_ENDPOINT", func(val string) { c.OTLPEndpoint = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("JWT_SECRET", func(val string) { c.Auth.JWTSecret = val }, sources, systemEnvVars, sourceName)
+
+	// OAuth configuration from .env
+	c.overrideOAuthEnvFromDotenv(sources, systemEnvVars, sourceName)
+}
+
+// overrideOAuthEnvFromDotenv handles OAuth-specific environment variables from .env file.
+func (c *AppConfig) overrideOAuthEnvFromDotenv(sources, systemEnvVars map[string]string, sourceName string) {
+	c.overrideEnvVar("OAUTH_ENABLED", func(val string) { c.Auth.OAuth.Enabled = val == envTrue }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("OAUTH_AUTO_LINK_BY_EMAIL", func(val string) { c.Auth.OAuth.AutoLinkByEmail = val == envTrue }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("OAUTH_BASE_URL", func(val string) { c.Auth.OAuth.BaseURL = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("OAUTH_TOKEN_ENCRYPTION_KEY", func(val string) { c.Auth.OAuth.TokenEncryptionKey = val }, sources, systemEnvVars, sourceName)
+
+	// Provider-specific env vars
+	c.overrideEnvVar("GOOGLE_CLIENT_ID", func(val string) { c.Auth.OAuth.Providers.Google.ClientID = val; c.Auth.OAuth.Providers.Google.Enabled = val != "" }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("GOOGLE_CLIENT_SECRET", func(val string) { c.Auth.OAuth.Providers.Google.ClientSecret = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("FACEBOOK_CLIENT_ID", func(val string) { c.Auth.OAuth.Providers.Facebook.ClientID = val; c.Auth.OAuth.Providers.Facebook.Enabled = val != "" }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("FACEBOOK_CLIENT_SECRET", func(val string) { c.Auth.OAuth.Providers.Facebook.ClientSecret = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("GITHUB_CLIENT_ID", func(val string) { c.Auth.OAuth.Providers.GitHub.ClientID = val; c.Auth.OAuth.Providers.GitHub.Enabled = val != "" }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("GITHUB_CLIENT_SECRET", func(val string) { c.Auth.OAuth.Providers.GitHub.ClientSecret = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("MICROSOFT_CLIENT_ID", func(val string) { c.Auth.OAuth.Providers.Microsoft.ClientID = val; c.Auth.OAuth.Providers.Microsoft.Enabled = val != "" }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("MICROSOFT_CLIENT_SECRET", func(val string) { c.Auth.OAuth.Providers.Microsoft.ClientSecret = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("TWITTER_CLIENT_ID", func(val string) { c.Auth.OAuth.Providers.Twitter.ClientID = val; c.Auth.OAuth.Providers.Twitter.Enabled = val != "" }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("TWITTER_CLIENT_SECRET", func(val string) { c.Auth.OAuth.Providers.Twitter.ClientSecret = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("APPLE_CLIENT_ID", func(val string) { c.Auth.OAuth.Providers.Apple.ClientID = val; c.Auth.OAuth.Providers.Apple.Enabled = val != "" }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("APPLE_TEAM_ID", func(val string) { c.Auth.OAuth.Providers.Apple.TeamID = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("APPLE_KEY_ID", func(val string) { c.Auth.OAuth.Providers.Apple.KeyID = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("APPLE_PRIVATE_KEY_PATH", func(val string) { c.Auth.OAuth.Providers.Apple.PrivateKeyPath = val }, sources, systemEnvVars, sourceName)
 }
 
 // overrideEnvVar is a helper to override an env var and track its source
@@ -151,6 +288,70 @@ func (c *AppConfig) Validate() error {
 	// Validate JWT secret length (HS256 requires at least 32 bytes)
 	if c.Auth.JWTSecret != "" && len(c.Auth.JWTSecret) < 32 {
 		return fmt.Errorf("JWT_SECRET must be at least 32 bytes (256 bits) for HS256 algorithm, got %d bytes", len(c.Auth.JWTSecret))
+	}
+
+	// Validate OAuth configuration
+	if err := c.validateOAuthConfig(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateOAuthConfig validates OAuth-specific configuration.
+//
+//nolint:cyclop // Validation requires checking each provider individually
+func (c *AppConfig) validateOAuthConfig() error {
+	oauth := c.Auth.OAuth
+
+	if !oauth.Enabled {
+		return nil // OAuth is disabled, no validation needed
+	}
+
+	// BaseURL is required when OAuth is enabled
+	if oauth.BaseURL == "" {
+		return fmt.Errorf("OAUTH_BASE_URL is required when OAuth is enabled")
+	}
+
+	// Token encryption key must be 32 bytes for AES-256
+	if oauth.TokenEncryptionKey != "" && len(oauth.TokenEncryptionKey) != 32 {
+		return fmt.Errorf("OAUTH_TOKEN_ENCRYPTION_KEY must be exactly 32 bytes for AES-256, got %d bytes", len(oauth.TokenEncryptionKey))
+	}
+
+	// Validate each enabled provider
+	if oauth.Providers.Google.Enabled && oauth.Providers.Google.ClientSecret == "" {
+		return fmt.Errorf("GOOGLE_CLIENT_SECRET is required when Google OAuth is enabled")
+	}
+
+	if oauth.Providers.Facebook.Enabled && oauth.Providers.Facebook.ClientSecret == "" {
+		return fmt.Errorf("FACEBOOK_CLIENT_SECRET is required when Facebook OAuth is enabled")
+	}
+
+	if oauth.Providers.GitHub.Enabled && oauth.Providers.GitHub.ClientSecret == "" {
+		return fmt.Errorf("GITHUB_CLIENT_SECRET is required when GitHub OAuth is enabled")
+	}
+
+	if oauth.Providers.Microsoft.Enabled && oauth.Providers.Microsoft.ClientSecret == "" {
+		return fmt.Errorf("MICROSOFT_CLIENT_SECRET is required when Microsoft OAuth is enabled")
+	}
+
+	if oauth.Providers.Twitter.Enabled && oauth.Providers.Twitter.ClientSecret == "" {
+		return fmt.Errorf("TWITTER_CLIENT_SECRET is required when Twitter OAuth is enabled")
+	}
+
+	// Apple requires additional configuration
+	if oauth.Providers.Apple.Enabled {
+		if oauth.Providers.Apple.TeamID == "" {
+			return fmt.Errorf("APPLE_TEAM_ID is required when Apple OAuth is enabled")
+		}
+
+		if oauth.Providers.Apple.KeyID == "" {
+			return fmt.Errorf("APPLE_KEY_ID is required when Apple OAuth is enabled")
+		}
+
+		if oauth.Providers.Apple.PrivateKeyPath == "" {
+			return fmt.Errorf("APPLE_PRIVATE_KEY_PATH is required when Apple OAuth is enabled")
+		}
 	}
 
 	return nil
@@ -221,6 +422,78 @@ func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 	if yamlOnly.Auth.JWTSecret != "" {
 		cfg.Auth.JWTSecret = yamlOnly.Auth.JWTSecret
 		sources["JWT_SECRET"] = sourceYAML
+	}
+
+	// Apply OAuth configuration from YAML
+	applyYAMLOAuthConfig(cfg, yamlOnly, sources)
+}
+
+// applyYAMLOAuthConfig applies OAuth configuration from YAML.
+func applyYAMLOAuthConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
+	oauth := yamlOnly.Auth.OAuth
+
+	if oauth.Enabled {
+		cfg.Auth.OAuth.Enabled = true
+		sources["OAUTH_ENABLED"] = sourceYAML
+	}
+
+	if oauth.AutoLinkByEmail {
+		cfg.Auth.OAuth.AutoLinkByEmail = true
+		sources["OAUTH_AUTO_LINK_BY_EMAIL"] = sourceYAML
+	}
+
+	if oauth.BaseURL != "" {
+		cfg.Auth.OAuth.BaseURL = oauth.BaseURL
+		sources["OAUTH_BASE_URL"] = sourceYAML
+	}
+
+	if oauth.TokenEncryptionKey != "" {
+		cfg.Auth.OAuth.TokenEncryptionKey = oauth.TokenEncryptionKey
+		sources["OAUTH_TOKEN_ENCRYPTION_KEY"] = sourceYAML
+	}
+
+	// Apply provider configurations
+	applyYAMLOAuthProviders(cfg, yamlOnly, sources)
+}
+
+// applyYAMLOAuthProviders applies OAuth provider configurations from YAML.
+func applyYAMLOAuthProviders(cfg, yamlOnly *AppConfig, sources map[string]string) {
+	providers := yamlOnly.Auth.OAuth.Providers
+
+	// Google
+	if providers.Google.ClientID != "" {
+		cfg.Auth.OAuth.Providers.Google = providers.Google
+		sources["GOOGLE_CLIENT_ID"] = sourceYAML
+	}
+
+	// Facebook
+	if providers.Facebook.ClientID != "" {
+		cfg.Auth.OAuth.Providers.Facebook = providers.Facebook
+		sources["FACEBOOK_CLIENT_ID"] = sourceYAML
+	}
+
+	// GitHub
+	if providers.GitHub.ClientID != "" {
+		cfg.Auth.OAuth.Providers.GitHub = providers.GitHub
+		sources["GITHUB_CLIENT_ID"] = sourceYAML
+	}
+
+	// Microsoft
+	if providers.Microsoft.ClientID != "" {
+		cfg.Auth.OAuth.Providers.Microsoft = providers.Microsoft
+		sources["MICROSOFT_CLIENT_ID"] = sourceYAML
+	}
+
+	// Twitter
+	if providers.Twitter.ClientID != "" {
+		cfg.Auth.OAuth.Providers.Twitter = providers.Twitter
+		sources["TWITTER_CLIENT_ID"] = sourceYAML
+	}
+
+	// Apple
+	if providers.Apple.ClientID != "" {
+		cfg.Auth.OAuth.Providers.Apple = providers.Apple
+		sources["APPLE_CLIENT_ID"] = sourceYAML
 	}
 }
 

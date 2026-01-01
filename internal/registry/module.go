@@ -1,0 +1,43 @@
+// Package registry provides a simple dependency injection container
+// using the Registry Pattern for managing application services and modules.
+package registry
+
+import (
+	"context"
+
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"google.golang.org/grpc"
+)
+
+// Module defines the interface that all application modules must implement.
+// This allows for consistent initialization and registration across modules.
+type Module interface {
+	// Name returns the unique identifier for this module.
+	Name() string
+
+	// Initialize sets up the module with its dependencies from the registry.
+	// This is called once during application startup.
+	Initialize(r *Registry) error
+
+	// RegisterGRPC registers the module's gRPC services with the server.
+	RegisterGRPC(server *grpc.Server)
+
+	// RegisterGateway registers the module's HTTP gateway handlers.
+	RegisterGateway(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
+}
+
+// ModuleHealth provides optional health check capabilities for modules.
+type ModuleHealth interface {
+	// HealthCheck returns an error if the module is unhealthy.
+	HealthCheck(ctx context.Context) error
+}
+
+// ModuleLifecycle provides optional lifecycle hooks for modules.
+type ModuleLifecycle interface {
+	// OnStart is called after all modules are initialized, before serving.
+	OnStart(ctx context.Context) error
+
+	// OnStop is called during graceful shutdown.
+	OnStop(ctx context.Context) error
+}
+

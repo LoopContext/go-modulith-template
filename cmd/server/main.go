@@ -20,6 +20,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
 	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
+	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
 	"github.com/golang-migrate/migrate/v4"
@@ -115,26 +116,51 @@ func closeDB(db *sql.DB) {
 }
 
 func setupAndStartServers(ctx context.Context, cfg *config.AppConfig, db *sql.DB, stop context.CancelFunc) (grpcServer *grpc.Server, httpServer *http.Server, gatewayConn *grpc.ClientConn) {
+	// Create shared services
 	ebus := events.NewBus()
-	initNotifier(ebus)
-
-	// Initialize WebSocket hub and subscriber
 	wsHub := websocket.NewHub(ctx)
+	ntf := notifier.NewLogNotifier()
+
+	// Initialize WebSocket subscriber
 	wsSubscriber := websocket.NewSubscriber(wsHub, ebus)
 	wsSubscriber.Subscribe()
+
+	// Initialize notification subscriber
+	ns := notifier.NewSubscriber(ntf)
+	ns.SubscribeToEvents(ebus)
 
 	// Start WebSocket hub in background
 	go wsHub.Run()
 
 	slog.Info("WebSocket hub initialized")
 
-	grpcServer, lis, err := setupGRPC(cfg, db, ebus)
+	// Create registry with all dependencies
+	reg := registry.New(
+		registry.WithConfig(cfg),
+		registry.WithDatabase(db),
+		registry.WithEventBus(ebus),
+		registry.WithNotifier(ntf),
+		registry.WithWebSocketHub(wsHub),
+	)
+
+	// Register modules
+	reg.Register(auth.NewModule())
+
+	// Initialize all modules
+	if err := reg.InitializeAll(); err != nil {
+		slog.Error("Failed to initialize modules", "error", err)
+		return nil, nil, nil
+	}
+
+	// Setup gRPC server
+	grpcServer, lis, err := setupGRPC(cfg, reg)
 	if err != nil {
 		slog.Error("Failed to setup gRPC server", "error", err)
 		return nil, nil, nil
 	}
 
-	mux, gatewayConn, err := setupGateway(ctx, cfg, db, wsHub)
+	// Setup HTTP gateway
+	mux, gatewayConn, err := setupGateway(ctx, cfg, reg, wsHub)
 	if err != nil {
 		_ = lis.Close()
 
@@ -241,13 +267,7 @@ func initDB(dsn string) (*sql.DB, error) {
 	return db, nil
 }
 
-func initNotifier(ebus *events.Bus) {
-	ntf := notifier.NewLogNotifier()
-	ns := notifier.NewSubscriber(ntf)
-	ns.SubscribeToEvents(ebus)
-}
-
-func setupGRPC(cfg *config.AppConfig, db *sql.DB, ebus *events.Bus) (*grpc.Server, net.Listener, error) {
+func setupGRPC(cfg *config.AppConfig, reg *registry.Registry) (*grpc.Server, net.Listener, error) {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", cfg.GRPCPort))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to listen gRPC: %w", err)
@@ -272,18 +292,15 @@ func setupGRPC(cfg *config.AppConfig, db *sql.DB, ebus *events.Bus) (*grpc.Serve
 		})),
 	)
 
-	err = auth.Initialize(db, grpcServer, ebus, cfg.Auth)
-	if err != nil {
-		_ = lis.Close()
-		return nil, nil, fmt.Errorf("failed to initialize auth module: %w", err)
-	}
+	// Register all modules with gRPC server
+	reg.RegisterGRPCAll(grpcServer)
 
 	reflection.Register(grpcServer)
 
 	return grpcServer, lis, nil
 }
 
-func setupGateway(ctx context.Context, cfg *config.AppConfig, db *sql.DB, wsHub *websocket.Hub) (*http.ServeMux, *grpc.ClientConn, error) {
+func setupGateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry, wsHub *websocket.Hub) (*http.ServeMux, *grpc.ClientConn, error) {
 	rmux := runtime.NewServeMux(
 		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
 			MarshalOptions: protojson.MarshalOptions{
@@ -302,14 +319,14 @@ func setupGateway(ctx context.Context, cfg *config.AppConfig, db *sql.DB, wsHub 
 		return nil, nil, fmt.Errorf("failed to dial gRPC server: %w", err)
 	}
 
-	// Register gateway handlers using the explicit connection
-	if err := auth.RegisterGatewayWithConn(ctx, rmux, conn); err != nil {
+	// Register all modules with gateway
+	if err := reg.RegisterGatewayAll(ctx, rmux, conn); err != nil {
 		_ = conn.Close()
-		return nil, nil, fmt.Errorf("failed to register auth gateway: %w", err)
+		return nil, nil, fmt.Errorf("failed to register gateway: %w", err)
 	}
 
 	mux := http.NewServeMux()
-	setupHealthChecks(mux, db, wsHub)
+	setupHealthChecks(mux, reg.DB(), wsHub)
 	mux.Handle("/", rmux)
 
 	// Setup WebSocket endpoint

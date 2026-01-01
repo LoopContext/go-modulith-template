@@ -134,6 +134,17 @@ Establecemos una frontera clara para evitar validaciones duplicadas:
 -   **Contexto:** El interceptor extrae el `user_id` y `role` del token y los inyecta en el `context.Context` para que estén disponibles en toda la cadena de llamada.
 -   **RBAC:** El chequeo de permisos (`users:read`, etc.) ocurre en la capa de `service` basándose en el rol/permisos inyectados en el contexto.
 
+### 9.1 OAuth/Social Login
+
+El template soporta autenticación con proveedores externos usando [markbates/goth](https://github.com/markbates/goth):
+
+-   **Providers soportados:** Google, Facebook, GitHub, Apple, Microsoft, Twitter/X
+-   **Auto-link por email:** Vincula automáticamente cuentas externas a usuarios existentes con el mismo email
+-   **Linking manual:** Los usuarios pueden vincular/desvincular cuentas desde su perfil
+-   **Encriptación de tokens:** Los tokens OAuth se encriptan con AES-256-GCM antes de almacenarse
+
+Para configuración completa, ver [OAuth Integration Guide](OAUTH_INTEGRATION.md).
+
 ## 10. Configuración y Entorno (Environment)
 
 La jerarquía de configuración favorece la flexibilidad tanto en desarrollo como en despliegues complejos de microservicios.

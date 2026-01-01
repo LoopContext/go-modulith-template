@@ -28,8 +28,8 @@ func TestTokenService(t *testing.T) {
 			t.Fatalf("Failed to verify token: %v", err)
 		}
 
-		if claims.UserID != userID {
-			t.Errorf("Expected userID %s, got %s", userID, claims.UserID)
+		if claims.Subject != userID {
+			t.Errorf("Expected userID %s, got %s", userID, claims.Subject)
 		}
 
 		if claims.Role != role {
@@ -114,8 +114,8 @@ func TestCreateToken_EmptyUserID(t *testing.T) {
 		t.Fatalf("Failed to verify token: %v", err)
 	}
 
-	if claims.UserID != "" {
-		t.Errorf("Expected empty userID, got %s", claims.UserID)
+	if claims.Subject != "" {
+		t.Errorf("Expected empty userID, got %s", claims.Subject)
 	}
 }
 

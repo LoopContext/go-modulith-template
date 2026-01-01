@@ -10,14 +10,65 @@ import (
 )
 
 type Querier interface {
+	// ========================
+	// Token Blacklist
+	// ========================
+	BlacklistToken(ctx context.Context, arg BlacklistTokenParams) error
+	CleanupExpiredBlacklistEntries(ctx context.Context) error
+	CleanupExpiredOAuthStates(ctx context.Context) error
+	CleanupExpiredSessions(ctx context.Context) error
+	CountExternalAccountsByUserID(ctx context.Context, userID string) (int64, error)
+	// ========================
+	// External OAuth Accounts
+	// ========================
+	CreateExternalAccount(ctx context.Context, arg CreateExternalAccountParams) error
+	// ========================
+	// Magic Codes (Passwordless)
+	// ========================
 	CreateMagicCode(ctx context.Context, arg CreateMagicCodeParams) error
+	// ========================
+	// OAuth State Tokens
+	// ========================
+	CreateOAuthState(ctx context.Context, arg CreateOAuthStateParams) error
+	// ========================
+	// Pending Contact Changes
+	// ========================
+	CreatePendingContactChange(ctx context.Context, arg CreatePendingContactChangeParams) error
+	// ========================
+	// Sessions
+	// ========================
+	CreateSession(ctx context.Context, arg CreateSessionParams) error
+	// ========================
+	// User Management
+	// ========================
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	DeleteExpiredPendingContactChanges(ctx context.Context) error
+	DeleteExternalAccount(ctx context.Context, arg DeleteExternalAccountParams) error
+	DeleteExternalAccountByProvider(ctx context.Context, arg DeleteExternalAccountByProviderParams) error
 	DeleteMagicCodesByEmail(ctx context.Context, userEmail sql.NullString) error
 	DeleteMagicCodesByPhone(ctx context.Context, userPhone sql.NullString) error
+	DeleteOAuthState(ctx context.Context, state string) error
+	DeletePendingContactChange(ctx context.Context, id string) error
+	GetExternalAccountByProviderAndEmail(ctx context.Context, arg GetExternalAccountByProviderAndEmailParams) (UserExternalAccount, error)
+	GetExternalAccountByProviderAndUserID(ctx context.Context, arg GetExternalAccountByProviderAndUserIDParams) (UserExternalAccount, error)
+	GetExternalAccountsByUserID(ctx context.Context, userID string) ([]UserExternalAccount, error)
+	GetOAuthState(ctx context.Context, state string) (OauthState, error)
+	GetPendingContactChange(ctx context.Context, arg GetPendingContactChangeParams) (PendingContactChange, error)
+	GetSessionByID(ctx context.Context, id string) (Session, error)
+	GetSessionByRefreshTokenHash(ctx context.Context, refreshTokenHash string) (Session, error)
+	GetSessionsByUserID(ctx context.Context, userID string) ([]Session, error)
 	GetUserByEmail(ctx context.Context, email sql.NullString) (User, error)
+	GetUserByID(ctx context.Context, id string) (User, error)
 	GetUserByPhone(ctx context.Context, phone sql.NullString) (User, error)
 	GetValidMagicCodeByEmail(ctx context.Context, arg GetValidMagicCodeByEmailParams) (MagicCode, error)
 	GetValidMagicCodeByPhone(ctx context.Context, arg GetValidMagicCodeByPhoneParams) (MagicCode, error)
+	IsTokenBlacklisted(ctx context.Context, tokenHash string) (bool, error)
+	RevokeAllUserSessions(ctx context.Context, arg RevokeAllUserSessionsParams) (int64, error)
+	RevokeSession(ctx context.Context, id string) error
+	UpdateExternalAccountProfile(ctx context.Context, arg UpdateExternalAccountProfileParams) error
+	UpdateExternalAccountTokens(ctx context.Context, arg UpdateExternalAccountTokensParams) error
+	UpdateSessionActivity(ctx context.Context, id string) error
+	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error
 }
 
 var _ Querier = (*Queries)(nil)
