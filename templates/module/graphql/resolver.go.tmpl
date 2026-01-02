@@ -11,18 +11,27 @@ import (
 
 // {{.MODULE_NAME_CAPITALIZED}} module resolvers
 // These methods are added to queryResolver, mutationResolver, and subscriptionResolver
-// in resolver.go after running 'make graphql-generate'
-
-// TODO: Add service client to resolver structs in resolver.go:
-// type queryResolver struct {
-//     eventBus *events.Bus
-//     {{.MODULE_NAME}}Client {{.MODULE_NAME}}v1.{{.MODULE_STRUCT_NAME}}ServiceClient
-// }
+// in schema.resolvers.go after running 'make graphql-generate'
+//
+// Note: gqlgen generates resolver structs that embed *Resolver:
+//   type queryResolver struct{ *Resolver }
+//   type mutationResolver struct{ *Resolver }
+//   type subscriptionResolver struct{ *Resolver }
+//
+// To add service clients, extend the Resolver struct in resolver/resolver.go:
+//   type Resolver struct {
+//       eventBus *events.Bus
+//       wsHub    *websocket.Hub
+//       {{.MODULE_NAME}}Client {{.MODULE_NAME}}v1.{{.MODULE_STRUCT_NAME}}ServiceClient // Add this
+//   }
+//
+// Then access it in resolvers via: r.{{.MODULE_NAME}}Client
 
 // Query resolvers for {{.MODULE_NAME}} module
 // TODO: Implement after running 'make graphql-generate'
 // Example:
 // func (r *queryResolver) Get{{.MODULE_STRUCT_NAME}}(ctx context.Context, id string) (*generated.{{.MODULE_STRUCT_NAME}}, error) {
+//     // Access service client via embedded Resolver
 //     req := &{{.MODULE_NAME}}v1.Get{{.MODULE_STRUCT_NAME}}Request{
 //         Id: id,
 //     }
@@ -64,9 +73,14 @@ import (
 // func (r *subscriptionResolver) {{.MODULE_NAME_CAPITALIZED}}Events(ctx context.Context) (<-chan *generated.{{.MODULE_STRUCT_NAME}}Event, error) {
 //     ch := make(chan *generated.{{.MODULE_STRUCT_NAME}}Event)
 //
-//     // Subscribe to events from event bus
-//     r.eventBus.Subscribe("{{.MODULE_NAME}}.*", func(ctx context.Context, e events.Event) error {
+//     // Access event bus via embedded Resolver
+//     r.EventBus().Subscribe("{{.MODULE_NAME}}.*", func(ctx context.Context, e events.Event) error {
 //         // Convert event to GraphQL type and send to channel
+//         select {
+//         case ch <- &generated.{{.MODULE_STRUCT_NAME}}Event{...}:
+//         case <-ctx.Done():
+//             return ctx.Err()
+//         }
 //         return nil
 //     })
 //

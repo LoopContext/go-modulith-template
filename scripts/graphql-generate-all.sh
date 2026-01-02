@@ -29,6 +29,14 @@ fi
 
 echo "🔍 Discovering modules with GraphQL schemas..."
 
+# Check if root schema exists
+ROOT_SCHEMA="${SCHEMA_DIR}/schema.graphql"
+if [ ! -f "${ROOT_SCHEMA}" ]; then
+    echo "❌ Root schema not found: ${ROOT_SCHEMA}"
+    echo "   Run 'make add-graphql' to initialize GraphQL"
+    exit 1
+fi
+
 # Find all module schema files (excluding schema.graphql which is the root)
 MODULES=()
 for schema_file in "${SCHEMA_DIR}"/*.graphql; do
@@ -41,20 +49,19 @@ for schema_file in "${SCHEMA_DIR}"/*.graphql; do
 done
 
 if [ ${#MODULES[@]} -eq 0 ]; then
-    echo "⚠️  No module schemas found in ${SCHEMA_DIR}"
-    echo "   Create schemas for your modules (e.g., auth.graphql, order.graphql)"
-    exit 0
+    echo "📦 Generating GraphQL code for root schema only"
+    echo "   (No module schemas found - add module schemas as needed)"
+else
+    echo "📦 Found ${#MODULES[@]} module(s) with GraphQL schemas:"
+    for module in "${MODULES[@]}"; do
+        echo "   - ${module}"
+    done
 fi
 
-echo "📦 Found ${#MODULES[@]} module(s) with GraphQL schemas:"
-for module in "${MODULES[@]}"; do
-    echo "   - ${module}"
-done
-
 echo ""
-echo "🔄 Generating GraphQL code for all modules..."
+echo "🔄 Generating GraphQL code..."
 
-# Generate for all modules at once (gqlgen handles multiple schemas)
+# Generate for all schemas at once (gqlgen handles root + module schemas)
 cd "${PROJECT_ROOT}"
 if gqlgen generate 2>&1; then
     echo ""

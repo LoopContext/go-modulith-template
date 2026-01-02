@@ -14,3 +14,7 @@ bin/
 # Test coverage
 coverage.out
 *.out
+
+# build files
+bin/
+server

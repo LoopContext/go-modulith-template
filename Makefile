@@ -241,8 +241,8 @@ new-module: ## Scaffold a new module (usage: make new-module MODULE_NAME)
 	./scripts/scaffold-module.sh $(MODULE_NAME)
 
 ##### GraphQL (Optional)
-add-graphql: ## Add optional GraphQL support using gqlgen
-	./scripts/add-graphql.sh
+add-graphql: ## Add optional GraphQL support using gqlgen (use ARGS="--generate" to also generate code)
+	./scripts/add-graphql.sh $(ARGS)
 
 graphql-init: ## Initialize GraphQL (alias for add-graphql)
 	$(MAKE) add-graphql
