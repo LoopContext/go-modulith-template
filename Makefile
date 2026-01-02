@@ -1,4 +1,4 @@
-.PHONY: help sqlc proto install-deps install-mocks generate-mocks test-unit graphql-init graphql-generate graphql-validate add-graphql
+.PHONY: help sqlc proto install-deps install-mocks generate-mocks test-unit graphql-init graphql-generate graphql-generate-module graphql-generate-all graphql-validate add-graphql
 .DEFAULT_GOAL := help
 
 help: ## Show available commands
@@ -209,6 +209,12 @@ ifeq (dev-module,$(firstword $(MAKECMDGOALS)))
   $(eval $(MODULE_NAME):;@:)
 endif
 
+# Handle positional arguments for graphql-generate-module
+ifeq (graphql-generate-module,$(firstword $(MAKECMDGOALS)))
+  MODULE_NAME := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(eval $(MODULE_NAME):;@:)
+endif
+
 ##### Docker
 docker-build: ## Build docker image for server
 	docker build \
@@ -241,16 +247,14 @@ add-graphql: ## Add optional GraphQL support using gqlgen
 graphql-init: ## Initialize GraphQL (alias for add-graphql)
 	$(MAKE) add-graphql
 
-graphql-generate: ## Generate GraphQL code from schema
-	@if ! command -v gqlgen > /dev/null; then \
-		echo "gqlgen not found. Install with: go install github.com/99designs/gqlgen@latest"; \
-		exit 1; \
-	fi
-	@if [ ! -f "gqlgen.yml" ]; then \
-		echo "GraphQL not initialized. Run: make add-graphql"; \
-		exit 1; \
-	fi
-	gqlgen generate
+graphql-generate: graphql-generate-all ## Generate GraphQL code for all modules (alias for graphql-generate-all)
+
+graphql-generate-module: ## Generate GraphQL code for a specific module (usage: make graphql-generate-module auth)
+	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make graphql-generate-module <module_name>"; exit 1; fi
+	./scripts/graphql-generate-module.sh $(MODULE_NAME)
+
+graphql-generate-all: ## Generate GraphQL code for all modules (auto-discovers modules with schemas)
+	./scripts/graphql-generate-all.sh
 
 graphql-validate: ## Validate GraphQL schema
 	@if ! command -v gqlgen > /dev/null; then \

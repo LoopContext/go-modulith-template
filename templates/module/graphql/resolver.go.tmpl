@@ -1,0 +1,75 @@
+// Package resolver implements {{.MODULE_NAME_CAPITALIZED}} module GraphQL resolvers.
+// This file contains resolvers specific to the {{.MODULE_NAME}} module.
+package resolver
+
+import (
+	"context"
+
+	"{{.PROJECT_NAME}}/internal/graphql/generated"
+	{{.MODULE_NAME}}v1 "{{.PROJECT_NAME}}/gen/go/proto/{{.MODULE_NAME}}/v1"
+)
+
+// {{.MODULE_NAME_CAPITALIZED}} module resolvers
+// These methods are added to queryResolver, mutationResolver, and subscriptionResolver
+// in resolver.go after running 'make graphql-generate'
+
+// TODO: Add service client to resolver structs in resolver.go:
+// type queryResolver struct {
+//     eventBus *events.Bus
+//     {{.MODULE_NAME}}Client {{.MODULE_NAME}}v1.{{.MODULE_STRUCT_NAME}}ServiceClient
+// }
+
+// Query resolvers for {{.MODULE_NAME}} module
+// TODO: Implement after running 'make graphql-generate'
+// Example:
+// func (r *queryResolver) Get{{.MODULE_STRUCT_NAME}}(ctx context.Context, id string) (*generated.{{.MODULE_STRUCT_NAME}}, error) {
+//     req := &{{.MODULE_NAME}}v1.Get{{.MODULE_STRUCT_NAME}}Request{
+//         Id: id,
+//     }
+//
+//     resp, err := r.{{.MODULE_NAME}}Client.Get{{.MODULE_STRUCT_NAME}}(ctx, req)
+//     if err != nil {
+//         return nil, err
+//     }
+//
+//     // Convert proto to GraphQL type
+//     return &generated.{{.MODULE_STRUCT_NAME}}{
+//         ID:        resp.{{.MODULE_STRUCT_NAME}}.Id,
+//         CreatedAt: resp.{{.MODULE_STRUCT_NAME}}.CreatedAt.AsTime().Format(time.RFC3339),
+//     }, nil
+// }
+
+// Mutation resolvers for {{.MODULE_NAME}} module
+// TODO: Implement after running 'make graphql-generate'
+// Example:
+// func (r *mutationResolver) Create{{.MODULE_STRUCT_NAME}}(ctx context.Context, input generated.Create{{.MODULE_STRUCT_NAME}}Input) (*generated.{{.MODULE_STRUCT_NAME}}, error) {
+//     req := &{{.MODULE_NAME}}v1.Create{{.MODULE_STRUCT_NAME}}Request{
+//         // Map input fields to proto request
+//     }
+//
+//     resp, err := r.{{.MODULE_NAME}}Client.Create{{.MODULE_STRUCT_NAME}}(ctx, req)
+//     if err != nil {
+//         return nil, err
+//     }
+//
+//     // Convert proto to GraphQL type
+//     return &generated.{{.MODULE_STRUCT_NAME}}{
+//         ID: resp.{{.MODULE_STRUCT_NAME}}.Id,
+//     }, nil
+// }
+
+// Subscription resolvers for {{.MODULE_NAME}} module
+// TODO: Implement after running 'make graphql-generate'
+// Example:
+// func (r *subscriptionResolver) {{.MODULE_NAME_CAPITALIZED}}Events(ctx context.Context) (<-chan *generated.{{.MODULE_STRUCT_NAME}}Event, error) {
+//     ch := make(chan *generated.{{.MODULE_STRUCT_NAME}}Event)
+//
+//     // Subscribe to events from event bus
+//     r.eventBus.Subscribe("{{.MODULE_NAME}}.*", func(ctx context.Context, e events.Event) error {
+//         // Convert event to GraphQL type and send to channel
+//         return nil
+//     })
+//
+//     return ch, nil
+// }
+

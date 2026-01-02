@@ -1,0 +1,51 @@
+# {{.MODULE_NAME_CAPITALIZED}} Module GraphQL Schema
+# This schema is specific to the {{.MODULE_NAME}} module
+# Each module should have its own schema file
+
+# Extend Query root (defined in schema.graphql)
+extend type Query {
+  # TODO: Add your queries here
+  # Example:
+  # get{{.MODULE_STRUCT_NAME}}(id: ID!): {{.MODULE_STRUCT_NAME}}
+  # list{{.MODULE_NAME_PLURAL}}: [{{.MODULE_STRUCT_NAME}}!]!
+}
+
+# Extend Mutation root
+extend type Mutation {
+  # TODO: Add your mutations here
+  # Example:
+  # create{{.MODULE_STRUCT_NAME}}(input: Create{{.MODULE_STRUCT_NAME}}Input!): {{.MODULE_STRUCT_NAME}}!
+  # update{{.MODULE_STRUCT_NAME}}(id: ID!, input: Update{{.MODULE_STRUCT_NAME}}Input!): {{.MODULE_STRUCT_NAME}}!
+  # delete{{.MODULE_STRUCT_NAME}}(id: ID!): Boolean!
+}
+
+# Extend Subscription root
+extend type Subscription {
+  # TODO: Add your subscriptions here
+  # Example:
+  # {{.MODULE_NAME}}Events: {{.MODULE_STRUCT_NAME}}Event!
+}
+
+# {{.MODULE_NAME_CAPITALIZED}} module-specific types
+# TODO: Define your GraphQL types based on your proto messages
+# Example:
+# type {{.MODULE_STRUCT_NAME}} {
+#   id: ID!
+#   # Add fields from your proto message
+#   createdAt: String!
+#   updatedAt: String!
+# }
+#
+# input Create{{.MODULE_STRUCT_NAME}}Input {
+#   # Add input fields
+# }
+#
+# input Update{{.MODULE_STRUCT_NAME}}Input {
+#   # Add input fields
+# }
+#
+# type {{.MODULE_STRUCT_NAME}}Event {
+#   type: String!
+#   {{.MODULE_NAME}}: {{.MODULE_STRUCT_NAME}}!
+# }
+

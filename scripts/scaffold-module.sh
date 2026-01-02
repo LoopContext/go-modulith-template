@@ -66,6 +66,35 @@ process_template "templates/module/air.toml.tmpl" ".air.${MODULE_NAME}.toml"
 process_template "templates/module/cmd/main.go.tmpl" "${CMD_DIR}/main.go"
 process_template "templates/module/configs/config.yaml.tmpl" "${CONFIG_DIR}/${MODULE_NAME}.yaml"
 
+# Check if GraphQL is initialized and create GraphQL files
+GRAPHQL_SCHEMA_DIR="internal/graphql/schema"
+GRAPHQL_RESOLVER_DIR="internal/graphql/resolver"
+GRAPHQL_SCHEMA_FILE="${GRAPHQL_SCHEMA_DIR}/${MODULE_NAME}.graphql"
+GRAPHQL_RESOLVER_FILE="${GRAPHQL_RESOLVER_DIR}/${MODULE_NAME}.go"
+
+if [ -d "${GRAPHQL_SCHEMA_DIR}" ]; then
+    echo "📊 GraphQL detected - creating GraphQL schema and resolver files..."
+
+    # Create GraphQL schema file
+    if [ ! -f "${GRAPHQL_SCHEMA_FILE}" ]; then
+        process_template "templates/module/graphql/schema.graphql.tmpl" "${GRAPHQL_SCHEMA_FILE}"
+        echo "  ✅ Created ${GRAPHQL_SCHEMA_FILE}"
+    else
+        echo "  ℹ️  ${GRAPHQL_SCHEMA_FILE} already exists, skipping..."
+    fi
+
+    # Create GraphQL resolver file
+    if [ ! -f "${GRAPHQL_RESOLVER_FILE}" ]; then
+        process_template "templates/module/graphql/resolver.go.tmpl" "${GRAPHQL_RESOLVER_FILE}"
+        echo "  ✅ Created ${GRAPHQL_RESOLVER_FILE}"
+    else
+        echo "  ℹ️  ${GRAPHQL_RESOLVER_FILE} already exists, skipping..."
+    fi
+else
+    echo "  ℹ️  GraphQL not initialized - skipping GraphQL files"
+    echo "     Run 'make add-graphql' to enable GraphQL support"
+fi
+
 # Update sqlc.yaml
 if ! grep -q "modules/${MODULE_NAME}/internal/db/store" sqlc.yaml; then
     echo "Updating sqlc.yaml..."
@@ -92,11 +121,31 @@ echo "  - ${MODULE_DIR}/internal/repository/repository.go"
 echo "  - ${CMD_DIR}/main.go (standalone service entry point)"
 echo "  - ${CONFIG_DIR}/${MODULE_NAME}.yaml (module configuration)"
 echo "  - .air.${MODULE_NAME}.toml (hot reload config)"
+
+if [ -d "${GRAPHQL_SCHEMA_DIR}" ]; then
+    echo "  - ${GRAPHQL_SCHEMA_FILE} (GraphQL schema)"
+    echo "  - ${GRAPHQL_RESOLVER_FILE} (GraphQL resolver)"
+fi
+
 echo ""
 echo "Next steps:"
 echo "1. Run 'make proto' to generate gRPC code."
 echo "2. Run 'make sqlc' to generate DB code."
-echo "3. Update cmd/server/main.go to register the new module:"
-echo "   Add: reg.Register(${MODULE_NAME}.NewModule())"
-echo "4. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
-echo "5. Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
+
+if [ -d "${GRAPHQL_SCHEMA_DIR}" ]; then
+    echo "3. Edit ${GRAPHQL_SCHEMA_FILE} to define your GraphQL schema."
+    echo "4. Run 'make graphql-generate-module MODULE_NAME=${MODULE_NAME}' to generate GraphQL code for this module."
+    echo "   Or run 'make graphql-generate-all' to generate for all modules."
+    echo "5. Implement resolvers in ${GRAPHQL_RESOLVER_FILE}."
+    echo "6. Update cmd/server/main.go to register the new module:"
+    echo "   Add: reg.Register(${MODULE_NAME}.NewModule())"
+    echo "7. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
+    echo "8. Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
+else
+    echo "3. Update cmd/server/main.go to register the new module:"
+    echo "   Add: reg.Register(${MODULE_NAME}.NewModule())"
+    echo "4. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
+    echo "5. Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
+    echo ""
+    echo "💡 Tip: Run 'make add-graphql' to enable GraphQL support for future modules."
+fi
