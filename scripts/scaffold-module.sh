@@ -79,6 +79,10 @@ if [ -d "${GRAPHQL_SCHEMA_DIR}" ]; then
     if [ ! -f "${GRAPHQL_SCHEMA_FILE}" ]; then
         process_template "templates/module/graphql/schema.graphql.tmpl" "${GRAPHQL_SCHEMA_FILE}"
         echo "  ✅ Created ${GRAPHQL_SCHEMA_FILE}"
+        echo ""
+        echo "  💡 Tip: After defining your proto file and running 'make proto',"
+        echo "     you can auto-generate the GraphQL schema with:"
+        echo "     make graphql-from-proto-module MODULE_NAME=${MODULE_NAME}"
     else
         echo "  ℹ️  ${GRAPHQL_SCHEMA_FILE} already exists, skipping..."
     fi

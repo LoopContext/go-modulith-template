@@ -17,4 +17,5 @@ coverage.out
 
 # build files
 bin/
+scripts/graphql-from-proto/graphql-from-proto
 server

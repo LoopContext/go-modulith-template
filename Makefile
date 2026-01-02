@@ -1,4 +1,4 @@
-.PHONY: help sqlc proto install-deps install-mocks generate-mocks test-unit graphql-init graphql-generate graphql-generate-module graphql-generate-all graphql-validate add-graphql
+.PHONY: help sqlc proto install-deps install-mocks generate-mocks test-unit graphql-init graphql-generate graphql-generate-module graphql-generate-all graphql-validate add-graphql graphql-from-proto
 .DEFAULT_GOAL := help
 
 help: ## Show available commands
@@ -215,6 +215,12 @@ ifeq (graphql-generate-module,$(firstword $(MAKECMDGOALS)))
   $(eval $(MODULE_NAME):;@:)
 endif
 
+# Handle positional arguments for graphql-from-proto-module (if we add it back)
+ifeq (graphql-from-proto-module,$(firstword $(MAKECMDGOALS)))
+  MODULE_NAME := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(eval $(MODULE_NAME):;@:)
+endif
+
 ##### Docker
 docker-build: ## Build docker image for server
 	docker build \
@@ -255,6 +261,9 @@ graphql-generate-module: ## Generate GraphQL code for a specific module (usage: 
 
 graphql-generate-all: ## Generate GraphQL code for all modules (auto-discovers modules with schemas)
 	./scripts/graphql-generate-all.sh
+
+graphql-from-proto: ## Generate GraphQL schemas from OpenAPI/Swagger files for all modules
+	./scripts/graphql-from-proto-all.sh
 
 graphql-validate: ## Validate GraphQL schema
 	@if ! command -v gqlgen > /dev/null; then \

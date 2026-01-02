@@ -388,5 +388,6 @@ fi
 
 echo ""
 echo "📖 See docs/GRAPHQL_INTEGRATION.md for detailed instructions"
+echo "📖 See docs/GRAPHQL_AUTO_GENERATION.md for auto-generating schemas from proto files"
 
 
