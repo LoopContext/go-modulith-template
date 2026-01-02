@@ -1,53 +1,53 @@
 # Deployment Infrastructure
 
-Esta carpeta contiene toda la infraestructura necesaria para desplegar el Go Modulith en la nube.
+This folder contains all the infrastructure needed to deploy Go Modulith to the cloud.
 
-## 📁 Estructura
+## 📁 Structure
 
 ```
 deployment/
-├── helm/              # Helm charts para Kubernetes
-│   └── modulith/      # Chart principal (soporta server y módulos)
-│       ├── values.yaml                  # Valores por defecto
-│       ├── values-server.yaml           # Ejemplo: deployment monolito
-│       ├── values-auth-module.yaml      # Ejemplo: deployment módulo auth
-│       └── README.md                    # Documentación completa
-├── opentofu/          # Módulos de infraestructura base
+├── helm/              # Helm charts for Kubernetes
+│   └── modulith/      # Main chart (supports server and modules)
+│       ├── values.yaml                  # Default values
+│       ├── values-server.yaml           # Example: monolith deployment
+│       ├── values-auth-module.yaml      # Example: auth module deployment
+│       └── README.md                    # Complete documentation
+├── opentofu/          # Base infrastructure modules
 │   └── modules/
-│       ├── vpc/       # Red virtual (subnets, NAT, IGW)
+│       ├── vpc/       # Virtual network (subnets, NAT, IGW)
 │       ├── eks/       # Kubernetes cluster
-│       └── rds/       # Base de datos PostgreSQL
-└── terragrunt/        # Configuración por ambiente
+│       └── rds/       # PostgreSQL database
+└── terragrunt/        # Environment-specific configuration
     └── envs/
-        ├── dev/       # Ambiente de desarrollo
-        └── prod/      # Ambiente de producción
+        ├── dev/       # Development environment
+        └── prod/      # Production environment
 ```
 
-## 🚀 Flujo de Despliegue Completo
+## 🚀 Complete Deployment Flow
 
-### 1️⃣ Provisionar Infraestructura Base (IaC)
+### 1️⃣ Provision Base Infrastructure (IaC)
 
-Usa OpenTofu + Terragrunt para crear VPC, EKS y RDS:
+Use OpenTofu + Terragrunt to create VPC, EKS, and RDS:
 
 ```bash
 cd deployment/terragrunt/envs/dev
 
-# Crear VPC
+# Create VPC
 cd vpc && terragrunt apply
 
-# Crear EKS cluster
+# Create EKS cluster
 cd ../eks && terragrunt apply
 
-# Crear RDS PostgreSQL
+# Create RDS PostgreSQL
 cd ../rds && terragrunt apply
 ```
 
-**Salidas importantes:**
+**Important outputs:**
 - `vpc_id`, `subnet_ids`
 - `eks_cluster_endpoint`, `eks_cluster_name`
 - `rds_endpoint`, `rds_connection_string`
 
-### 2️⃣ Configurar kubectl
+### 2️⃣ Configure kubectl
 
 ```bash
 aws eks update-kubeconfig \
@@ -55,21 +55,21 @@ aws eks update-kubeconfig \
   --name modulith-cluster-dev
 ```
 
-### 3️⃣ Construir y Publicar Imágenes Docker
+### 3️⃣ Build and Push Docker Images
 
 ```bash
-# Construir imágenes
+# Build images
 make docker-build                # modulith-server:latest
 make docker-build-module auth    # modulith-auth:latest
 
-# Tag y push a registry (ejemplo: ECR)
+# Tag and push to registry (example: ECR)
 docker tag modulith-server:latest 123456789.dkr.ecr.us-east-1.amazonaws.com/modulith-server:v1.0.0
 docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/modulith-server:v1.0.0
 ```
 
-### 4️⃣ Desplegar con Helm
+### 4️⃣ Deploy with Helm
 
-#### Opción A: Monolito
+#### Option A: Monolith
 
 ```bash
 helm install modulith-server ./deployment/helm/modulith \
@@ -81,10 +81,10 @@ helm install modulith-server ./deployment/helm/modulith \
   --create-namespace
 ```
 
-#### Opción B: Módulos Independientes
+#### Option B: Independent Modules
 
 ```bash
-# Desplegar módulo auth
+# Deploy auth module
 helm install modulith-auth ./deployment/helm/modulith \
   --values ./deployment/helm/modulith/values-auth-module.yaml \
   --set image.repository=123456789.dkr.ecr.us-east-1.amazonaws.com/modulith \
@@ -92,16 +92,16 @@ helm install modulith-auth ./deployment/helm/modulith \
   --namespace production
 ```
 
-## 🔄 Estrategias de Migración
+## 🔄 Migration Strategies
 
-### Fase 1: Monolito (Inicio)
+### Phase 1: Monolith (Start)
 
 ```
 ┌─────────────────────────────┐
 │   EKS Cluster               │
 │  ┌─────────────────────┐    │
 │  │ modulith-server     │    │
-│  │ (todos los módulos) │    │
+│  │ (all modules)       │    │
 │  └─────────────────────┘    │
 └─────────────────────────────┘
          ↓
@@ -110,12 +110,12 @@ helm install modulith-auth ./deployment/helm/modulith \
     └─────────┘
 ```
 
-**Ventajas:**
-- ✅ Simple de operar
-- ✅ Menor latencia entre módulos
-- ✅ Transacciones ACID nativas
+**Advantages:**
+- ✅ Simple to operate
+- ✅ Lower latency between modules
+- ✅ Native ACID transactions
 
-### Fase 2: Híbrida (Transición)
+### Phase 2: Hybrid (Transition)
 
 ```
 ┌─────────────────────────────┐
@@ -135,12 +135,12 @@ helm install modulith-auth ./deployment/helm/modulith \
     └─────────┘
 ```
 
-**Ventajas:**
-- ✅ Escala módulos críticos independientemente
-- ✅ Reduce blast radius de fallos
-- ✅ Mantiene simplicidad para módulos estables
+**Advantages:**
+- ✅ Scale critical modules independently
+- ✅ Reduce blast radius of failures
+- ✅ Maintain simplicity for stable modules
 
-### Fase 3: Microservicios (Avanzada)
+### Phase 3: Microservices (Advanced)
 
 ```
 ┌─────────────────────────────┐
@@ -161,36 +161,36 @@ helm install modulith-auth ./deployment/helm/modulith \
     └─────────┘
 ```
 
-**Ventajas:**
-- ✅ Máxima flexibilidad de escalado
-- ✅ Deployments independientes por equipo
-- ✅ Aislamiento total de fallos
+**Advantages:**
+- ✅ Maximum scaling flexibility
+- ✅ Independent deployments per team
+- ✅ Complete failure isolation
 
-## 📊 Monitoreo y Observabilidad
+## 📊 Monitoring and Observability
 
-El proyecto incluye integración con:
+The project includes integration with:
 
-- **OpenTelemetry**: Tracing distribuido
-- **Prometheus**: Métricas expuestas en `/metrics`
+- **OpenTelemetry**: Distributed tracing
+- **Prometheus**: Metrics exposed at `/metrics`
 - **Health Checks**: `/healthz` (liveness), `/readyz` (readiness)
 
-### Configurar Prometheus en K8s
+### Configure Prometheus in K8s
 
 ```bash
-# Instalar Prometheus Operator
+# Install Prometheus Operator
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm install prometheus prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   --create-namespace
 
-# ServiceMonitor se crea automáticamente si tienes annotations
+# ServiceMonitor is created automatically if you have annotations
 ```
 
-## 🔐 Gestión de Secretos
+## 🔐 Secrets Management
 
-### Desarrollo
+### Development
 
-Usa valores directos en `values.yaml` (solo para dev):
+Use direct values in `values.yaml` (dev only):
 
 ```yaml
 config:
@@ -198,12 +198,12 @@ config:
   jwtSecret: "dev-secret"
 ```
 
-### Producción
+### Production
 
-Usa External Secrets Operator o Sealed Secrets:
+Use External Secrets Operator or Sealed Secrets:
 
 ```bash
-# Ejemplo con External Secrets (AWS Secrets Manager)
+# Example with External Secrets (AWS Secrets Manager)
 kubectl apply -f - <<EOF
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
@@ -224,10 +224,10 @@ spec:
 EOF
 ```
 
-## 🧪 Testing en Kubernetes
+## 🧪 Testing in Kubernetes
 
 ```bash
-# Port forward para testing local
+# Port forward for local testing
 kubectl port-forward svc/modulith-server 8080:8080 -n production
 
 # Health checks
@@ -238,39 +238,38 @@ curl http://localhost:8080/readyz
 grpcurl -plaintext localhost:9050 list
 ```
 
-## 📚 Recursos Adicionales
+## 📚 Additional Resources
 
-- [Helm Chart README](./helm/modulith/README.md) - Documentación detallada del chart
-- [MODULITH_ARCHITECTURE.md](../docs/MODULITH_ARCHITECTURE.md) - Arquitectura completa
-- [Makefile Commands](../README.md) - Comandos de build y deploy
+- [Helm Chart README](./helm/modulith/README.md) - Detailed chart documentation
+- [MODULITH_ARCHITECTURE.md](../docs/MODULITH_ARCHITECTURE.md) - Complete architecture
+- [Makefile Commands](../README.md) - Build and deploy commands
 
 ## 🆘 Troubleshooting
 
-### Pods no inician
+### Pods don't start
 
 ```bash
 kubectl describe pod <pod-name> -n production
 kubectl logs <pod-name> -n production --previous
 ```
 
-### Problemas de conectividad a RDS
+### RDS connectivity issues
 
-Verifica security groups y que los pods estén en las subnets correctas:
+Verify security groups and that pods are in the correct subnets:
 
 ```bash
-# Desde un pod de debug
+# From a debug pod
 kubectl run -it --rm debug --image=postgres:alpine --restart=Never -- sh
-# Dentro: psql "postgres://user:pass@rds-endpoint:5432/db"
+# Inside: psql "postgres://user:pass@rds-endpoint:5432/db"
 ```
 
-### HPA no escala
+### HPA doesn't scale
 
 ```bash
-# Verifica metrics-server
+# Verify metrics-server
 kubectl top nodes
 kubectl top pods -n production
 
-# Verifica HPA status
+# Verify HPA status
 kubectl describe hpa modulith-server -n production
 ```
-

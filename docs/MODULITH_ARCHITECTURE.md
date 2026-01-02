@@ -6,7 +6,7 @@ This documentation defines the architectural and implementation standard for new
 
 All implementations must strictly adhere to the following technologies:
 
--   **Language:** Go 1.23+.
+-   **Language:** Go 1.24+.
 -   **Architecture:** Modular Monolith.
 -   **Communication/Contract:** gRPC and Protocol Buffers (Single Source of Truth).
 -   **External API:**
@@ -1952,7 +1952,7 @@ value, err := secrets.GetSecretOrDefault(ctx, provider, "API_KEY", "default-key"
 
 ## 33. Future Improvements and Final Note
 
-This architecture favors compile-time safety and operational discipline. Go 1.24+ is chosen for native `slog` support, `toolchain` improvements, and performance optimizations that enable cleaner and more efficient code.
+This architecture favors compile-time safety and operational discipline. Go 1.24+ is chosen for native `slog` support, improved toolchain features, and performance optimizations that enable cleaner and more efficient code.
 
 ## 20. Stateless Processes (12-Factor App: Factor VI)
 

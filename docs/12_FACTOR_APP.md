@@ -390,5 +390,5 @@ Antes de desplegar a producción, verificar:
 
 ---
 
-**Última actualización:** Enero 2026
-**Mantenido por:** Go Modulith Template Team
+**Last updated:** January 2026
+**Maintained by:** Go Modulith Template Team

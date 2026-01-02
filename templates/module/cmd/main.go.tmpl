@@ -7,9 +7,14 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"{{.PROJECT_NAME}}/internal/authn"
 	"{{.PROJECT_NAME}}/internal/config"
@@ -17,13 +22,15 @@ import (
 	"{{.PROJECT_NAME}}/internal/migration"
 	"{{.PROJECT_NAME}}/internal/notifier"
 	"{{.PROJECT_NAME}}/internal/registry"
+	"{{.PROJECT_NAME}}/internal/swagger"
 	"{{.PROJECT_NAME}}/internal/websocket"
 	"{{.PROJECT_NAME}}/modules/{{.MODULE_NAME}}"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -73,12 +80,24 @@ func main() {
 	}
 
 	// Setup gRPC server
-	grpcServer, lis := setupGRPC(cfg, reg)
-	if grpcServer == nil {
+	grpcServer, lis, err := setupGRPC(cfg, reg)
+	if err != nil {
+		slog.Error("Failed to setup gRPC server", "error", err)
 		return
 	}
 
-	// Start server
+	// Setup HTTP gateway
+	mux, gatewayConn, err := setupGateway(ctx, cfg, reg)
+	if err != nil {
+		_ = lis.Close()
+		slog.Error("Failed to setup gateway", "error", err)
+		return
+	}
+
+	// Start HTTP server
+	httpServer := startHTTPServer(cfg, mux)
+
+	// Start gRPC server
 	go func() {
 		slog.Info("Starting {{.MODULE_NAME}} gRPC server", "port", cfg.GRPCPort)
 		if err := grpcServer.Serve(lis); err != nil {
@@ -88,8 +107,7 @@ func main() {
 	}()
 
 	<-ctx.Done()
-	slog.Info("Shutting down {{.MODULE_NAME}} server")
-	grpcServer.GracefulStop()
+	shutdownServers(cfg, httpServer, grpcServer, gatewayConn)
 }
 
 func createRegistry(cfg *config.AppConfig, db *sql.DB) *registry.Registry {
@@ -115,18 +133,16 @@ func createRegistry(cfg *config.AppConfig, db *sql.DB) *registry.Registry {
 	)
 }
 
-func setupGRPC(cfg *config.AppConfig, reg *registry.Registry) (*grpc.Server, net.Listener) {
+func setupGRPC(cfg *config.AppConfig, reg *registry.Registry) (*grpc.Server, net.Listener, error) {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", cfg.GRPCPort))
 	if err != nil {
-		slog.Error("Failed to listen gRPC", "error", err)
-		return nil, nil
+		return nil, nil, fmt.Errorf("failed to listen gRPC: %w", err)
 	}
 
 	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTSecret)
 	if err != nil {
 		_ = lis.Close()
-		slog.Error("Failed to init jwt verifier", "error", err)
-		return nil, nil
+		return nil, nil, fmt.Errorf("failed to init jwt verifier: %w", err)
 	}
 
 	// Get public endpoints from module
@@ -143,7 +159,94 @@ func setupGRPC(cfg *config.AppConfig, reg *registry.Registry) (*grpc.Server, net
 	reg.RegisterGRPCAll(grpcServer)
 	reflection.Register(grpcServer)
 
-	return grpcServer, lis
+	return grpcServer, lis, nil
+}
+
+func setupGateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry) (*http.ServeMux, *grpc.ClientConn, error) {
+	rmux := runtime.NewServeMux(
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
+			MarshalOptions: protojson.MarshalOptions{
+				EmitUnpopulated: true,
+				UseProtoNames:   true,
+			},
+		}),
+	)
+
+	// Create gRPC connection for gateway
+	conn, err := grpc.NewClient(
+		fmt.Sprintf("127.0.0.1:%s", cfg.GRPCPort),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to dial gRPC server: %w", err)
+	}
+
+	// Register module with gateway
+	if err := reg.RegisterGatewayAll(ctx, rmux, conn); err != nil {
+		_ = conn.Close()
+		return nil, nil, fmt.Errorf("failed to register gateway: %w", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/", rmux)
+
+	// Setup health checks
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	})
+
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		if err := reg.DB().PingContext(r.Context()); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte("Disconnected"))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Ready"))
+	})
+
+	// Setup Swagger UI (dev only, not prod)
+	if cfg.Env == "dev" {
+		swagger.SetupForModule(mux, "{{.MODULE_NAME}}")
+	}
+
+	return mux, conn, nil
+}
+
+func startHTTPServer(cfg *config.AppConfig, mux *http.ServeMux) *http.Server {
+	server := &http.Server{
+		Addr:              fmt.Sprintf(":%s", cfg.HTTPPort),
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	go func() {
+		slog.Info("Starting {{.MODULE_NAME}} HTTP server", "port", cfg.HTTPPort)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("failed to serve HTTP", "error", err)
+		}
+	}()
+
+	return server
+}
+
+func shutdownServers(cfg *config.AppConfig, httpServer *http.Server, grpcServer *grpc.Server, gatewayConn *grpc.ClientConn) {
+	slog.Info("Shutting down {{.MODULE_NAME}} server")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if gatewayConn != nil {
+		_ = gatewayConn.Close()
+	}
+
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		slog.Error("Failed to shutdown HTTP server", "error", err)
+	}
+
+	grpcServer.GracefulStop()
+	slog.Info("{{.MODULE_NAME}} server shutdown complete")
 }
 
 func captureSystemEnvVars() map[string]string {

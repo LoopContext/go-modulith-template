@@ -1,172 +1,171 @@
 # Contributing to Go Modulith Template
 
-¡Gracias por tu interés en contribuir! Este documento proporciona pautas para contribuir al proyecto.
+Thank you for your interest in contributing! This document provides guidelines for contributing to the project.
 
-## 🚀 Inicio Rápido
+## 🚀 Quick Start
 
-1. **Fork el repositorio**
-2. **Clona tu fork**:
+1. **Fork the repository**
+2. **Clone your fork**:
    ```bash
-   git clone https://github.com/TU_USUARIO/go-modulith-template.git
+   git clone https://github.com/YOUR_USERNAME/go-modulith-template.git
    cd go-modulith-template
    ```
 
-3. **Instala dependencias**:
+3. **Install dependencies**:
    ```bash
    make install-deps
    ```
 
-4. **Levanta la infraestructura**:
+4. **Start infrastructure**:
    ```bash
    make docker-up
    ```
 
-5. **Ejecuta los tests**:
+5. **Run tests**:
    ```bash
    make test
    make lint
    ```
 
-## 📋 Proceso de Contribución
+## 📋 Contribution Process
 
-### 1. Crea una rama para tu feature
+### 1. Create a branch for your feature
 
 ```bash
-git checkout -b feature/nombre-descriptivo
+git checkout -b feature/descriptive-name
 ```
 
-### 2. Realiza tus cambios
+### 2. Make your changes
 
-Asegúrate de seguir las convenciones del proyecto:
+Ensure you follow the project conventions:
 
-- **Código Go**: Sigue las [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments)
-- **Commits**: Usa mensajes descriptivos en español
-- **Tests**: Agrega tests para nuevas funcionalidades
-- **Documentación**: Actualiza la documentación relevante
+- **Go Code**: Follow [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments)
+- **Commits**: Use descriptive commit messages
+- **Tests**: Add tests for new functionality
+- **Documentation**: Update relevant documentation
 
-### 3. Ejecuta validaciones
+### 3. Run validations
 
-**OBLIGATORIO antes de hacer commit:**
+**MANDATORY before committing:**
 
 ```bash
-# Linter (debe pasar sin errores)
+# Linter (must pass with 0 errors)
 make lint
 
 # Tests
 make test
 
-# Coverage (opcional pero recomendado)
+# Coverage (optional but recommended)
 make coverage-report
 ```
 
-### 4. Commit y Push
+### 4. Commit and Push
 
 ```bash
 git add .
-git commit -m "feat: descripción breve del cambio"
-git push origin feature/nombre-descriptivo
+git commit -m "feat: brief description of change"
+git push origin feature/descriptive-name
 ```
 
-### 5. Crea un Pull Request
+### 5. Create a Pull Request
 
-- Usa un título descriptivo
-- Explica qué cambia y por qué
-- Referencia issues relacionados (si aplica)
-- Asegúrate de que el CI pase
+- Use a descriptive title
+- Explain what changes and why
+- Reference related issues (if applicable)
+- Ensure CI passes
 
-## 🔍 Guías de Estilo
+## 🔍 Style Guidelines
 
-### Código Go
+### Go Code
 
-- **Linting**: El proyecto usa `golangci-lint` con configuración estricta
-- **Formato**: Todo el código debe pasar `gofmt` y `goimports`
-- **Nombrado**: Sigue las convenciones estándar de Go
-- **Errores**: Siempre wrappea errores con contexto usando `fmt.Errorf("context: %w", err)`
+- **Linting**: The project uses `golangci-lint` with strict configuration
+- **Formatting**: All code must pass `gofmt` and `goimports`
+- **Naming**: Follow standard Go conventions
+- **Errors**: Always wrap errors with context using `fmt.Errorf("context: %w", err)`
 
 ### Tests
 
-- **Unit tests**: Para lógica de negocio (usa mocks de `gomock`)
-- **Integration tests**: Para operaciones de DB (con flag `-short`)
-- **Coverage mínimo**: Aspira a >60% en código nuevo
+- **Unit tests**: For business logic (use `gomock` mocks)
+- **Integration tests**: For DB operations (with `-short` flag)
+- **Minimum coverage**: Aim for >60% on new code
 
-### Documentación
+### Documentation
 
-- **README**: Actualiza si agregas features visibles
-- **Código**: Documenta funciones/tipos públicos con GoDoc
-- **Docs**: Actualiza documentos en `/docs/` si es relevante
+- **README**: Update if you add visible features
+- **Code**: Document public functions/types with GoDoc
+- **Docs**: Update documents in `/docs/` if relevant
 
-## 📝 Tipos de Commits
+## 📝 Commit Types
 
-Usa prefijos semánticos:
+Use semantic prefixes:
 
-- `feat:` - Nueva funcionalidad
-- `fix:` - Corrección de bug
-- `docs:` - Cambios en documentación
-- `refactor:` - Refactorización sin cambio de comportamiento
-- `test:` - Agregar o modificar tests
-- `chore:` - Cambios en build, deps, etc.
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation changes
+- `refactor:` - Refactoring without behavior change
+- `test:` - Add or modify tests
+- `chore:` - Build, deps, etc. changes
 
-### Actualizar CHANGELOG.md
+### Updating CHANGELOG.md
 
-Cuando agregues features, fixes, o cambios importantes, actualiza `CHANGELOG.md`:
+When adding features, fixes, or important changes, update `CHANGELOG.md`:
 
-1. Agrega tu cambio en la sección `[Unreleased]` apropiada
-2. Usa las categorías: Added, Changed, Deprecated, Removed, Fixed, Security
-3. Sigue el formato existente
-4. Los cambios se moverán a una versión específica en el próximo release
+1. Add your change in the appropriate `[Unreleased]` section
+2. Use categories: Added, Changed, Deprecated, Removed, Fixed, Security
+3. Follow the existing format
+4. Changes will be moved to a specific version in the next release
 
-## 🐛 Reportar Bugs
+## 🐛 Reporting Bugs
 
-Cuando reportes un bug, incluye:
+When reporting a bug, include:
 
-1. **Descripción**: Qué esperabas vs qué pasó
-2. **Pasos para reproducir**
-3. **Versión de Go**: `go version`
-4. **Logs relevantes**: Si aplica
+1. **Description**: What you expected vs what happened
+2. **Steps to reproduce**
+3. **Go version**: `go version`
+4. **Relevant logs**: If applicable
 
-## 💡 Proponer Features
+## 💡 Proposing Features
 
-Para proponer nuevas funcionalidades:
+To propose new functionality:
 
-1. **Abre un issue** primero para discutirlo
-2. Explica el caso de uso
-3. Considera el impacto en la arquitectura
-4. Espera feedback antes de implementar
+1. **Open an issue** first to discuss it
+2. Explain the use case
+3. Consider the architectural impact
+4. Wait for feedback before implementing
 
-## ⚠️ Consideraciones Importantes
+## ⚠️ Important Considerations
 
-### No Modificar Sin Justificación
+### Do Not Modify Without Justification
 
-- `.golangci.yaml` - No suavizar reglas de linting
-- `sqlc.yaml` - Solo cambiar para nuevos módulos
-- `buf.yaml` - Configuración de protobuf estándar
+- `.golangci.yaml` - Do not relax linting rules
+- `sqlc.yaml` - Only change for new modules
+- `buf.yaml` - Standard protobuf configuration
 
-### Arquitectura
+### Architecture
 
-Este es un template **modulith**:
-- Mantén el aislamiento entre módulos
-- Usa eventos para comunicación cross-module
-- Sigue el patrón de registry para DI
-- Documenta decisiones arquitectónicas importantes
+This is a **modulith** template:
+- Maintain isolation between modules
+- Use events for cross-module communication
+- Follow the registry pattern for DI
+- Document important architectural decisions
 
 ### Performance
 
-- No optimizar prematuramente
-- Si agregas código crítico para performance, incluye benchmarks
-- Usa `go test -bench=.` para validar
+- Don't optimize prematurely
+- If you add performance-critical code, include benchmarks
+- Use `go test -bench=.` to validate
 
-## 🤝 Código de Conducta
+## 🤝 Code of Conduct
 
-- Sé respetuoso y constructivo
-- Acepta feedback con mente abierta
-- Enfócate en el código, no en las personas
-- Ayuda a otros contributors cuando puedas
+- Be respectful and constructive
+- Accept feedback with an open mind
+- Focus on the code, not the people
+- Help other contributors when you can
 
-## 📧 Contacto
+## 📧 Contact
 
-Si tienes preguntas, abre un issue o discusión en GitHub.
+If you have questions, open an issue or discussion on GitHub.
 
 ---
 
-¡Gracias por contribuir! 🚀
-
+Thank you for contributing! 🚀

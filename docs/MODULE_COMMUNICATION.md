@@ -46,7 +46,7 @@ In the modulith scenario, all modules run in a **single process** (`cmd/server/m
 └─────────────────────────────────────────────────┘
 ```
 
-### Comunicación gRPC (In-Process)
+### gRPC Communication (In-Process)
 
 **Features:**
 
@@ -68,7 +68,7 @@ In the modulith scenario, all modules run in a **single process** (`cmd/server/m
     }
     ```
 
-2. **Registro con gRPC Server:**
+2. **Register with gRPC Server:**
 
      ```go
      // All modules register with the same gRPC server
@@ -243,7 +243,7 @@ In the microservices scenario, each module runs as an **independent process** (`
               targetPort: 9050
     ```
 
-3. **Llamada entre servicios:**
+3. **Inter-service call:**
 
      ```go
      // In the Order module, calling the Auth service
@@ -455,7 +455,7 @@ func newAuthClientWithResilience(serviceAddr string) (authv1.AuthServiceClient, 
         return nil, err
     }
 
-    // Envolver con circuit breaker
+    // Wrap with circuit breaker
     // (implementación futura)
     return authv1.NewAuthServiceClient(conn), nil
 }
@@ -511,7 +511,7 @@ func NewOrderService(repo repository.Repository, bus *events.Bus, grpcAddr strin
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
-    // Llamar a Auth (in-process, sin latencia de red)
+    // Call Auth (in-process, no network latency)
     user, err := s.authClient.GetUser(ctx, &authv1.GetUserRequest{
         UserId: req.UserId,
     })
@@ -834,10 +834,10 @@ gRPC Server (in-process)
     │               └─→ Payment Module (in-process call)
     │
     ▼
-Response (sin latencia de red entre módulos)
+Response (no network latency between modules)
 ```
 
-### Microservicios: Request Flow
+### Microservices: Request Flow
 
 ```
 Client Request
@@ -912,14 +912,14 @@ Kafka Topic: "user.created"
 
 ---
 
-## Referencias
+## References
 
--   [Modulith Architecture](MODULITH_ARCHITECTURE.md) - Arquitectura completa
+-   [Modulith Architecture](MODULITH_ARCHITECTURE.md) - Complete architecture
 -   [Event Bus Guide](MODULITH_ARCHITECTURE.md#12-events) - Sistema de eventos
 -   [Deployment Guide](DEPLOYMENT_SYNC.md) - Guía de despliegue
 -   [gRPC Best Practices](https://grpc.io/docs/guides/best-practices/)
 
 ---
 
-**Última actualización:** Enero 2026
-**Mantenido por:** Go Modulith Template Team
+**Last updated:** January 2026
+**Maintained by:** Go Modulith Template Team

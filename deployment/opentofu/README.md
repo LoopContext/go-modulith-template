@@ -1,26 +1,26 @@
 # OpenTofu Infrastructure Modules
 
-Módulos de infraestructura base para desplegar el Go Modulith en AWS usando OpenTofu (fork open-source de Terraform).
+Base infrastructure modules for deploying Go Modulith on AWS using OpenTofu (open-source fork of Terraform).
 
-## 📁 Estructura de Módulos
+## 📁 Module Structure
 
 ```
 opentofu/modules/
-├── vpc/        # Red virtual privada
+├── vpc/        # Virtual private network
 ├── eks/        # Kubernetes cluster
-└── rds/        # Base de datos PostgreSQL
+└── rds/        # PostgreSQL database
 ```
 
-## 🏗️ Módulos Disponibles
+## 🏗️ Available Modules
 
 ### VPC Module
 
-Crea una VPC con subnets públicas y privadas, NAT Gateway e Internet Gateway.
+Creates a VPC with public and private subnets, NAT Gateway, and Internet Gateway.
 
-**Recursos creados:**
-- VPC con CIDR configurable
-- Subnets públicas (para Load Balancers)
-- Subnets privadas (para EKS nodes y RDS)
+**Resources created:**
+- VPC with configurable CIDR
+- Public subnets (for Load Balancers)
+- Private subnets (for EKS nodes and RDS)
 - Internet Gateway
 - NAT Gateway
 - Route tables
@@ -32,12 +32,12 @@ Crea una VPC con subnets públicas y privadas, NAT Gateway e Internet Gateway.
 
 ### EKS Module
 
-Crea un cluster de Kubernetes gestionado con node groups.
+Creates a managed Kubernetes cluster with node groups.
 
-**Recursos creados:**
+**Resources created:**
 - EKS Cluster
-- IAM roles y policies
-- Node groups con autoscaling
+- IAM roles and policies
+- Node groups with autoscaling
 - Security groups
 
 **Outputs:**
@@ -46,42 +46,42 @@ Crea un cluster de Kubernetes gestionado con node groups.
 
 ### RDS Module
 
-Crea una instancia de PostgreSQL gestionada.
+Creates a managed PostgreSQL instance.
 
-**Recursos creados:**
+**Resources created:**
 - RDS PostgreSQL instance
 - DB subnet group
-- Security group (puerto 5432)
+- Security group (port 5432)
 
 **Outputs:**
 - `db_endpoint`
 - `db_connection_string` (sensitive)
 
-## 🚀 Uso con Terragrunt
+## 🚀 Usage with Terragrunt
 
-Los módulos se usan a través de Terragrunt para gestionar múltiples ambientes:
+Modules are used through Terragrunt to manage multiple environments:
 
 ```bash
 cd deployment/terragrunt/envs/dev
 
-# Inicializar y aplicar VPC
+# Initialize and apply VPC
 cd vpc
 terragrunt init
 terragrunt plan
 terragrunt apply
 
-# Inicializar y aplicar EKS (depende de VPC)
+# Initialize and apply EKS (depends on VPC)
 cd ../eks
 terragrunt apply
 
-# Inicializar y aplicar RDS (depende de VPC)
+# Initialize and apply RDS (depends on VPC)
 cd ../rds
 terragrunt apply
 ```
 
-## 📋 Prerrequisitos
+## 📋 Prerequisites
 
-1. **OpenTofu instalado:**
+1. **OpenTofu installed:**
 ```bash
 # macOS
 brew install opentofu
@@ -90,7 +90,7 @@ brew install opentofu
 curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh | sh
 ```
 
-2. **Terragrunt instalado:**
+2. **Terragrunt installed:**
 ```bash
 # macOS
 brew install terragrunt
@@ -101,15 +101,15 @@ chmod +x terragrunt_linux_amd64
 sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
 ```
 
-3. **AWS CLI configurado:**
+3. **AWS CLI configured:**
 ```bash
 aws configure
-# Ingresa: Access Key ID, Secret Access Key, Region
+# Enter: Access Key ID, Secret Access Key, Region
 ```
 
-## 🔧 Configuración por Ambiente
+## 🔧 Environment Configuration
 
-### Desarrollo (dev)
+### Development (dev)
 
 ```hcl
 # deployment/terragrunt/envs/dev/vpc/terragrunt.hcl
@@ -119,7 +119,7 @@ inputs = {
 }
 ```
 
-### Producción (prod)
+### Production (prod)
 
 ```hcl
 # deployment/terragrunt/envs/prod/vpc/terragrunt.hcl
@@ -129,29 +129,29 @@ inputs = {
 }
 ```
 
-## 🔄 Workflow Completo
+## 🔄 Complete Workflow
 
-### 1. Provisionar Infraestructura
+### 1. Provision Infrastructure
 
 ```bash
-# Desde la raíz del proyecto
+# From project root
 cd deployment/terragrunt/envs/dev
 
-# Aplicar todos los módulos en orden
+# Apply all modules in order
 terragrunt run-all apply
 ```
 
-### 2. Obtener Outputs
+### 2. Get Outputs
 
 ```bash
-# Endpoint del cluster EKS
+# EKS cluster endpoint
 cd eks && terragrunt output cluster_endpoint
 
-# Connection string de RDS
+# RDS connection string
 cd ../rds && terragrunt output db_connection_string
 ```
 
-### 3. Configurar kubectl
+### 3. Configure kubectl
 
 ```bash
 aws eks update-kubeconfig \
@@ -159,29 +159,29 @@ aws eks update-kubeconfig \
   --name $(cd eks && terragrunt output -raw cluster_name)
 ```
 
-### 4. Verificar Conectividad
+### 4. Verify Connectivity
 
 ```bash
-# Verificar nodes
+# Verify nodes
 kubectl get nodes
 
-# Verificar que RDS es accesible desde el cluster
+# Verify RDS is accessible from cluster
 kubectl run -it --rm debug --image=postgres:alpine --restart=Never -- \
   psql "$(cd rds && terragrunt output -raw db_connection_string)"
 ```
 
-## 🔐 Gestión de Secretos
+## 🔐 Secrets Management
 
-**⚠️ IMPORTANTE:** Los valores sensibles (passwords, secrets) NO deben estar en el código.
+**⚠️ IMPORTANT:** Sensitive values (passwords, secrets) should NOT be in code.
 
-### Opción 1: Variables de Entorno
+### Option 1: Environment Variables
 
 ```bash
 export TF_VAR_db_password="super-secret-password"
 terragrunt apply
 ```
 
-### Opción 2: AWS Secrets Manager
+### Option 2: AWS Secrets Manager
 
 ```hcl
 data "aws_secretsmanager_secret_version" "db_password" {
@@ -193,7 +193,7 @@ resource "aws_db_instance" "main" {
 }
 ```
 
-### Opción 3: Terragrunt Inputs
+### Option 3: Terragrunt Inputs
 
 ```hcl
 # terragrunt.hcl
@@ -202,84 +202,83 @@ inputs = {
 }
 ```
 
-## 🧹 Limpieza
+## 🧹 Cleanup
 
-Para destruir toda la infraestructura:
+To destroy all infrastructure:
 
 ```bash
 cd deployment/terragrunt/envs/dev
 
-# Destruir en orden inverso
+# Destroy in reverse order
 cd rds && terragrunt destroy
 cd ../eks && terragrunt destroy
 cd ../vpc && terragrunt destroy
 
-# O todo a la vez (con cuidado!)
+# Or all at once (with caution!)
 terragrunt run-all destroy
 ```
 
-## 📊 Costos Estimados (AWS)
+## 📊 Estimated Costs (AWS)
 
-### Ambiente de Desarrollo
+### Development Environment
 
-| Recurso | Tipo | Costo Mensual (aprox.) |
-|---------|------|------------------------|
+| Resource | Type | Monthly Cost (approx.) |
+|----------|------|------------------------|
 | EKS Cluster | - | $73 |
 | EC2 Nodes | 2x t3.medium | $60 |
 | RDS | db.t3.micro | $15 |
 | NAT Gateway | - | $32 |
-| **Total** | | **~$180/mes** |
+| **Total** | | **~$180/month** |
 
-### Ambiente de Producción
+### Production Environment
 
-| Recurso | Tipo | Costo Mensual (aprox.) |
-|---------|------|------------------------|
+| Resource | Type | Monthly Cost (approx.) |
+|----------|------|------------------------|
 | EKS Cluster | - | $73 |
 | EC2 Nodes | 3x t3.large | $190 |
 | RDS | db.t3.medium | $60 |
 | NAT Gateway | - | $32 |
-| **Total** | | **~$355/mes** |
+| **Total** | | **~$355/month** |
 
-**Nota:** Costos aproximados en us-east-1. Pueden variar por región y uso.
+**Note:** Approximate costs in us-east-1. May vary by region and usage.
 
-## 🛡️ Mejores Prácticas
+## 🛡️ Best Practices
 
-1. **State Remoto**: Usa S3 + DynamoDB para el state de Terragrunt
-2. **Módulos Versionados**: Usa tags específicos en lugar de `latest`
-3. **Ambientes Separados**: Nunca compartas VPCs entre dev y prod
-4. **Backups**: Habilita backups automáticos en RDS para producción
-5. **Monitoring**: Configura CloudWatch alarms para recursos críticos
-6. **Tagging**: Usa tags consistentes para cost allocation
+1. **Remote State**: Use S3 + DynamoDB for Terragrunt state
+2. **Versioned Modules**: Use specific tags instead of `latest`
+3. **Separate Environments**: Never share VPCs between dev and prod
+4. **Backups**: Enable automatic backups in RDS for production
+5. **Monitoring**: Configure CloudWatch alarms for critical resources
+6. **Tagging**: Use consistent tags for cost allocation
 
 ## 🔍 Troubleshooting
 
 ### Error: "Error creating EKS Cluster"
 
-Verifica que:
-- Las subnets tengan los tags requeridos por EKS
-- El IAM role tenga los permisos correctos
-- Tienes cuota suficiente en AWS
+Verify that:
+- Subnets have the tags required by EKS
+- IAM role has correct permissions
+- You have sufficient quota in AWS
 
 ### Error: "Error creating RDS instance"
 
-Verifica que:
-- Las subnets privadas existen
-- El security group permite tráfico desde EKS
-- El password cumple los requisitos de complejidad
+Verify that:
+- Private subnets exist
+- Security group allows traffic from EKS
+- Password meets complexity requirements
 
 ### State Lock
 
-Si el state está bloqueado:
+If state is locked:
 
 ```bash
-# Forzar unlock (con cuidado!)
+# Force unlock (with caution!)
 terragrunt force-unlock <lock-id>
 ```
 
-## 📚 Recursos Adicionales
+## 📚 Additional Resources
 
 - [OpenTofu Documentation](https://opentofu.org/docs/)
 - [Terragrunt Documentation](https://terragrunt.gruntwork.io/)
 - [AWS EKS Best Practices](https://aws.github.io/aws-eks-best-practices/)
 - [Deployment Guide](../README.md)
-
