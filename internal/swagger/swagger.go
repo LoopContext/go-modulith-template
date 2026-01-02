@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	swaggerBasePath = "gen/openapiv2/proto"
+	swaggerBasePath   = "gen/openapiv2/proto"
 	swaggerUITemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,10 +48,12 @@ window.onload = () => {
 
 // Setup registers Swagger UI endpoints on the provided mux.
 // It automatically discovers and merges Swagger specs from all modules.
-func Setup(mux *http.ServeMux) {
+func Setup(mux *http.ServeMux, apiTitle string) {
 	slog.Info("Serving Swagger UI", "path", "/swagger-ui/")
 
-	mux.HandleFunc("/swagger.json", handleSwaggerJSON)
+	mux.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+		handleSwaggerJSON(w, r, apiTitle)
+	})
 	mux.HandleFunc("/swagger-ui/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 
@@ -63,7 +65,7 @@ func Setup(mux *http.ServeMux) {
 
 // SetupForModule registers Swagger UI endpoints for a single module.
 // It loads only the specified module's Swagger spec.
-func SetupForModule(mux *http.ServeMux, moduleName string) {
+func SetupForModule(mux *http.ServeMux, moduleName, apiTitle string) {
 	slog.Info("Serving Swagger UI", "path", "/swagger-ui/", "module", moduleName)
 
 	mux.HandleFunc("/swagger.json", func(w http.ResponseWriter, _ *http.Request) {
@@ -75,7 +77,7 @@ func SetupForModule(mux *http.ServeMux, moduleName string) {
 			return
 		}
 
-		enhanceSwaggerSpec(swagger)
+		enhanceSwaggerSpec(swagger, apiTitle)
 
 		jsonData, err := json.Marshal(swagger)
 		if err != nil {
@@ -101,8 +103,8 @@ func SetupForModule(mux *http.ServeMux, moduleName string) {
 	})
 }
 
-func handleSwaggerJSON(w http.ResponseWriter, _ *http.Request) {
-	swagger, err := loadAndMergeSwaggerSpecs()
+func handleSwaggerJSON(w http.ResponseWriter, _ *http.Request, apiTitle string) {
+	swagger, err := loadAndMergeSwaggerSpecs(apiTitle)
 	if err != nil {
 		slog.Error("failed to load swagger specs", "error", err)
 		http.Error(w, "Failed to load Swagger specification", http.StatusInternalServerError)
@@ -110,7 +112,7 @@ func handleSwaggerJSON(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	enhanceSwaggerSpec(swagger)
+	enhanceSwaggerSpec(swagger, apiTitle)
 
 	jsonData, err := json.Marshal(swagger)
 	if err != nil {
@@ -127,8 +129,7 @@ func handleSwaggerJSON(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-func loadAndMergeSwaggerSpecs() (map[string]interface{}, error) {
-	// Discover all Swagger JSON files
+func loadAndMergeSwaggerSpecs(apiTitle string) (map[string]interface{}, error) {
 	swaggerFiles, err := filepath.Glob(filepath.Join(swaggerBasePath, "*", "v1", "*.swagger.json"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover swagger files: %w", err)
@@ -138,67 +139,24 @@ func loadAndMergeSwaggerSpecs() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("no swagger files found in %s", swaggerBasePath)
 	}
 
-	// Load and merge all Swagger specs
 	merged := make(map[string]interface{})
-	var allPaths map[string]interface{}
-	var allDefinitions map[string]interface{}
+	allPaths := make(map[string]interface{})
+	allDefinitions := make(map[string]interface{})
 	seenTags := make(map[string]bool)
+
 	var allTags []interface{}
 
 	for _, file := range swaggerFiles {
-		data, err := os.ReadFile(file)
+		spec, err := loadSwaggerFile(file)
 		if err != nil {
-			slog.Warn("failed to read swagger file", "file", file, "error", err)
+			slog.Warn("failed to load swagger file", "file", file, "error", err)
 			continue
 		}
 
-		var spec map[string]interface{}
-		if err := json.Unmarshal(data, &spec); err != nil {
-			slog.Warn("failed to parse swagger file", "file", file, "error", err)
-			continue
-		}
-
-		// Initialize merged spec from first file
-		if merged["swagger"] == nil {
-			merged["swagger"] = spec["swagger"]
-			merged["consumes"] = spec["consumes"]
-			merged["produces"] = spec["produces"]
-			// Set generic info for merged spec
-			merged["info"] = map[string]interface{}{
-				"title":   "Modulith API",
-				"version": "version not set",
-			}
-			allPaths = make(map[string]interface{})
-			allDefinitions = make(map[string]interface{})
-		}
-
-		// Merge paths
-		if paths, ok := spec["paths"].(map[string]interface{}); ok {
-			for path, pathItem := range paths {
-				allPaths[path] = pathItem
-			}
-		}
-
-		// Merge definitions
-		if definitions, ok := spec["definitions"].(map[string]interface{}); ok {
-			for defName, defValue := range definitions {
-				allDefinitions[defName] = defValue
-			}
-		}
-
-		// Merge tags (deduplicate by name)
-		if tags, ok := spec["tags"].([]interface{}); ok {
-			for _, tag := range tags {
-				if tagMap, ok := tag.(map[string]interface{}); ok {
-					if name, ok := tagMap["name"].(string); ok {
-						if !seenTags[name] {
-							seenTags[name] = true
-							allTags = append(allTags, tag)
-						}
-					}
-				}
-			}
-		}
+		initializeMergedSpec(merged, spec, &allPaths, &allDefinitions, apiTitle)
+		mergePaths(spec, allPaths)
+		mergeDefinitions(spec, allDefinitions)
+		mergeTags(spec, seenTags, &allTags)
 	}
 
 	merged["paths"] = allPaths
@@ -208,9 +166,86 @@ func loadAndMergeSwaggerSpecs() (map[string]interface{}, error) {
 	return merged, nil
 }
 
+func loadSwaggerFile(file string) (map[string]interface{}, error) {
+	// #nosec G304 -- file path is controlled by filepath.Glob pattern
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	var spec map[string]interface{}
+	if err := json.Unmarshal(data, &spec); err != nil {
+		return nil, fmt.Errorf("failed to parse file: %w", err)
+	}
+
+	return spec, nil
+}
+
+func initializeMergedSpec(merged map[string]interface{}, spec map[string]interface{}, allPaths, allDefinitions *map[string]interface{}, apiTitle string) {
+	if merged["swagger"] == nil {
+		merged["swagger"] = spec["swagger"]
+		merged["consumes"] = spec["consumes"]
+		merged["produces"] = spec["produces"]
+		merged["info"] = map[string]interface{}{
+			"title":   apiTitle,
+			"version": "version not set",
+		}
+		*allPaths = make(map[string]interface{})
+		*allDefinitions = make(map[string]interface{})
+	}
+}
+
+func mergePaths(spec map[string]interface{}, allPaths map[string]interface{}) {
+	paths, ok := spec["paths"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	for path, pathItem := range paths {
+		allPaths[path] = pathItem
+	}
+}
+
+func mergeDefinitions(spec map[string]interface{}, allDefinitions map[string]interface{}) {
+	definitions, ok := spec["definitions"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	for defName, defValue := range definitions {
+		allDefinitions[defName] = defValue
+	}
+}
+
+func mergeTags(spec map[string]interface{}, seenTags map[string]bool, allTags *[]interface{}) {
+	tags, ok := spec["tags"].([]interface{})
+	if !ok {
+		return
+	}
+
+	for _, tag := range tags {
+		tagMap, ok := tag.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		name, ok := tagMap["name"].(string)
+		if !ok {
+			continue
+		}
+
+		if !seenTags[name] {
+			seenTags[name] = true
+
+			*allTags = append(*allTags, tag)
+		}
+	}
+}
+
 func loadModuleSwaggerSpec(moduleName string) (map[string]interface{}, error) {
 	swaggerPath := filepath.Join(swaggerBasePath, moduleName, "v1", fmt.Sprintf("%s.swagger.json", moduleName))
 
+	// #nosec G304 -- file path is constructed from module name, which is controlled
 	data, err := os.ReadFile(swaggerPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read swagger file: %w", err)
@@ -224,10 +259,11 @@ func loadModuleSwaggerSpec(moduleName string) (map[string]interface{}, error) {
 	return spec, nil
 }
 
-func enhanceSwaggerSpec(swagger map[string]interface{}) {
-	// Update version
+func enhanceSwaggerSpec(swagger map[string]interface{}, apiTitle string) {
+	// Update version and title
 	if info, ok := swagger["info"].(map[string]interface{}); ok {
 		info["version"] = version.Short()
+		info["title"] = apiTitle
 	}
 
 	// Add Bearer token security definition
@@ -251,4 +287,3 @@ func enhanceSwaggerSpec(swagger map[string]interface{}) {
 		}
 	}
 }
-

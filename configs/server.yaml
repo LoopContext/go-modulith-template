@@ -32,6 +32,9 @@ shutdown_timeout: 30s  # Graceful shutdown timeout
 # Internationalization
 default_locale: en     # Default locale for i18n (en, es)
 
+# Swagger/OpenAPI documentation
+# swagger_api_title: Modulith API  # API title shown in Swagger UI
+
 auth:
   jwt_secret: monolith-secret-key-at-least-32-bytes-long
   oauth:

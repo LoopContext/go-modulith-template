@@ -1,3 +1,4 @@
+// Package main provides a tool to convert OpenAPI/Swagger JSON files to GraphQL schemas.
 package main
 
 import (
@@ -26,23 +27,23 @@ type PathItem struct {
 }
 
 type Operation struct {
-	Summary     string                 `json:"summary"`
-	OperationID string                 `json:"operationId"`
-	Parameters  []Parameter            `json:"parameters"`
-	Responses   map[string]Response    `json:"responses"`
-	Tags        []string               `json:"tags"`
+	Summary     string              `json:"summary"`
+	OperationID string              `json:"operationId"`
+	Parameters  []Parameter         `json:"parameters"`
+	Responses   map[string]Response `json:"responses"`
+	Tags        []string            `json:"tags"`
 }
 
 type Parameter struct {
-	Name     string      `json:"name"`
-	In       string      `json:"in"`
-	Required bool        `json:"required"`
-	Schema   *SchemaRef  `json:"schema,omitempty"`
-	Type     string      `json:"type,omitempty"`
+	Name     string     `json:"name"`
+	In       string     `json:"in"`
+	Required bool       `json:"required"`
+	Schema   *SchemaRef `json:"schema,omitempty"`
+	Type     string     `json:"type,omitempty"`
 }
 
 type Response struct {
-	Description string    `json:"description"`
+	Description string     `json:"description"`
 	Schema      *SchemaRef `json:"schema,omitempty"`
 }
 
@@ -51,22 +52,25 @@ type SchemaRef struct {
 }
 
 type Schema struct {
-	Type       string             `json:"type"`
+	Type       string              `json:"type"`
 	Properties map[string]Property `json:"properties"`
-	Required   []string           `json:"required"`
+	Required   []string            `json:"required"`
 }
 
 type Property struct {
-	Type    string    `json:"type"`
-	Format  string    `json:"format,omitempty"`
-	Items   *SchemaRef `json:"items,omitempty"`
-	Ref     string    `json:"$ref,omitempty"`
+	Type   string     `json:"type"`
+	Format string     `json:"format,omitempty"`
+	Items  *SchemaRef `json:"items,omitempty"`
+	Ref    string     `json:"$ref,omitempty"`
 }
 
+const graphQLStringType = "String"
+
 func main() {
-	var moduleName = flag.String("module", "", "Module name (e.g., auth)")
-	var openAPIPath = flag.String("openapi", "", "Path to OpenAPI/Swagger JSON file")
-	var outputPath = flag.String("output", "", "Output path for GraphQL schema file")
+	moduleName := flag.String("module", "", "Module name (e.g., auth)")
+	openAPIPath := flag.String("openapi", "", "Path to OpenAPI/Swagger JSON file")
+	outputPath := flag.String("output", "", "Output path for GraphQL schema file")
+
 	flag.Parse()
 
 	if *moduleName == "" && *openAPIPath == "" {
@@ -74,25 +78,46 @@ func main() {
 		os.Exit(1)
 	}
 
-	var swaggerPath string
-	if *openAPIPath != "" {
-		swaggerPath = *openAPIPath
-	} else {
-		// Auto-detect from module name
-		swaggerPath = fmt.Sprintf("gen/openapiv2/proto/%s/v1/%s.swagger.json", *moduleName, *moduleName)
+	swaggerPath := determineSwaggerPath(*openAPIPath, *moduleName)
+	output := determineOutputPath(*outputPath, *moduleName)
+
+	openAPI := loadOpenAPIFile(swaggerPath)
+	schema := generateGraphQLSchema(openAPI, *moduleName)
+	writeSchemaFile(output, schema)
+
+	fmt.Printf("✅ Generated GraphQL schema: %s\n", output)
+}
+
+func determineSwaggerPath(openAPIPath, moduleName string) string {
+	switch {
+	case openAPIPath != "":
+		return openAPIPath
+	case moduleName != "":
+		return fmt.Sprintf("gen/openapiv2/proto/%s/v1/%s.swagger.json", moduleName, moduleName)
+	default:
+		fmt.Fprintf(os.Stderr, "Error: must specify either -module or -openapi\n")
+		os.Exit(1)
 	}
 
-	var output string
-	if *outputPath != "" {
-		output = *outputPath
-	} else if *moduleName != "" {
-		output = fmt.Sprintf("internal/graphql/schema/%s.graphql", *moduleName)
-	} else {
+	return ""
+}
+
+func determineOutputPath(outputPath, moduleName string) string {
+	switch {
+	case outputPath != "":
+		return outputPath
+	case moduleName != "":
+		return fmt.Sprintf("internal/graphql/schema/%s.graphql", moduleName)
+	default:
 		fmt.Fprintf(os.Stderr, "Error: must specify -output when using -openapi\n")
 		os.Exit(1)
 	}
 
-	// Read OpenAPI file
+	return ""
+}
+
+func loadOpenAPIFile(swaggerPath string) OpenAPI2 {
+	// #nosec G304 -- file path is controlled by user input or module name
 	data, err := os.ReadFile(swaggerPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading OpenAPI file: %v\n", err)
@@ -105,25 +130,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Generate GraphQL schema
-	schema := generateGraphQLSchema(openAPI, *moduleName)
+	return openAPI
+}
 
-	// Ensure output directory exists
+func writeSchemaFile(output, schema string) {
+	// #nosec G301 -- 0755 is appropriate for directory permissions
 	if err := os.MkdirAll(filepath.Dir(output), 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating output directory: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Write schema file
+	// #nosec G306 -- 0644 is appropriate for schema file permissions
 	if err := os.WriteFile(output, []byte(schema), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing schema file: %v\n", err)
 		os.Exit(1)
 	}
-
-	fmt.Printf("✅ Generated GraphQL schema: %s\n", output)
 }
 
-func generateGraphQLSchema(openAPI OpenAPI2, moduleName string) string {
+func generateGraphQLSchema(openAPI OpenAPI2, _ string) string {
 	var sb strings.Builder
 
 	// Header (GraphQL uses # for comments, not //)
@@ -140,6 +164,7 @@ func generateGraphQLSchema(openAPI OpenAPI2, moduleName string) string {
 	return sb.String()
 }
 
+//nolint:cyclop,funlen // Code generation logic has inherent complexity
 func generateTypes(sb *strings.Builder, defs map[string]Schema) {
 	// Separate request types (inputs) from response types (outputs)
 	requestTypes := make(map[string]bool)
@@ -150,8 +175,8 @@ func generateTypes(sb *strings.Builder, defs map[string]Schema) {
 		graphQLTypeName := toGraphQLTypeName(name)
 		// Request types, Input types, and Body types should be inputs
 		if strings.HasSuffix(graphQLTypeName, "Request") ||
-		   strings.HasSuffix(graphQLTypeName, "Input") ||
-		   strings.HasSuffix(graphQLTypeName, "Body") {
+			strings.HasSuffix(graphQLTypeName, "Input") ||
+			strings.HasSuffix(graphQLTypeName, "Body") {
 			requestTypes[name] = true
 		} else {
 			responseTypes[name] = true
@@ -169,10 +194,11 @@ func generateTypes(sb *strings.Builder, defs map[string]Schema) {
 		if !requestTypes[typeName] {
 			continue
 		}
+
 		schema := defs[typeName]
 		graphQLTypeName := toGraphQLTypeName(typeName)
 
-		sb.WriteString(fmt.Sprintf("input %s {\n", graphQLTypeName))
+		fmt.Fprintf(sb, "input %s {\n", graphQLTypeName)
 
 		if schema.Properties != nil {
 			for fieldName, prop := range schema.Properties {
@@ -185,7 +211,7 @@ func generateTypes(sb *strings.Builder, defs map[string]Schema) {
 					required = "!"
 				}
 
-				sb.WriteString(fmt.Sprintf("  %s: %s%s\n", graphQLFieldName, graphQLType, required))
+				fmt.Fprintf(sb, "  %s: %s%s\n", graphQLFieldName, graphQLType, required)
 			}
 		}
 
@@ -197,10 +223,11 @@ func generateTypes(sb *strings.Builder, defs map[string]Schema) {
 		if requestTypes[typeName] {
 			continue
 		}
+
 		schema := defs[typeName]
 		graphQLTypeName := toGraphQLTypeName(typeName)
 
-		sb.WriteString(fmt.Sprintf("type %s {\n", graphQLTypeName))
+		fmt.Fprintf(sb, "type %s {\n", graphQLTypeName)
 
 		if schema.Properties != nil {
 			for fieldName, prop := range schema.Properties {
@@ -213,7 +240,7 @@ func generateTypes(sb *strings.Builder, defs map[string]Schema) {
 					required = "!"
 				}
 
-				sb.WriteString(fmt.Sprintf("  %s: %s%s\n", graphQLFieldName, graphQLType, required))
+				fmt.Fprintf(sb, "  %s: %s%s\n", graphQLFieldName, graphQLType, required)
 			}
 		}
 
@@ -221,8 +248,10 @@ func generateTypes(sb *strings.Builder, defs map[string]Schema) {
 	}
 }
 
+//nolint:gocognit,cyclop // Code generation logic has inherent complexity
 func generateOperations(sb *strings.Builder, paths map[string]PathItem) {
 	var queries []string
+
 	var mutations []string
 
 	for path, item := range paths {
@@ -241,18 +270,21 @@ func generateOperations(sb *strings.Builder, paths map[string]PathItem) {
 				mutations = append(mutations, op)
 			}
 		}
+
 		if item.Put != nil {
 			op := generateOperation(item.Put, path, "mutation")
 			if op != "" {
 				mutations = append(mutations, op)
 			}
 		}
+
 		if item.Delete != nil {
 			op := generateOperation(item.Delete, path, "mutation")
 			if op != "" {
 				mutations = append(mutations, op)
 			}
 		}
+
 		if item.Patch != nil {
 			op := generateOperation(item.Patch, path, "mutation")
 			if op != "" {
@@ -264,30 +296,35 @@ func generateOperations(sb *strings.Builder, paths map[string]PathItem) {
 	// Generate extend type Query
 	if len(queries) > 0 {
 		sb.WriteString("extend type Query {\n")
+
 		for _, query := range queries {
 			sb.WriteString("  " + query + "\n")
 		}
+
 		sb.WriteString("}\n\n")
 	}
 
 	// Generate extend type Mutation
 	if len(mutations) > 0 {
 		sb.WriteString("extend type Mutation {\n")
+
 		for _, mutation := range mutations {
 			sb.WriteString("  " + mutation + "\n")
 		}
+
 		sb.WriteString("}\n\n")
 	}
 }
 
-func generateOperation(op *Operation, path string, opType string) string {
+func generateOperation(op *Operation, _ string, _ string) string {
 	opName := toGraphQLOperationName(op.OperationID)
 	if opName == "" {
 		return ""
 	}
 
 	// Determine input type
-	inputType := "String" // Default
+	inputType := graphQLStringType // Default
+
 	if len(op.Parameters) > 0 {
 		// Find body parameter
 		for _, param := range op.Parameters {
@@ -307,7 +344,8 @@ func generateOperation(op *Operation, path string, opType string) string {
 	return fmt.Sprintf("%s(input: %s): %s", opName, inputType, outputType)
 }
 
-func openAPITypeToGraphQL(prop Property, defs map[string]Schema) string {
+//nolint:cyclop // Type conversion logic has inherent complexity
+func openAPITypeToGraphQL(prop Property, _ map[string]Schema) string {
 	if prop.Ref != "" {
 		return refToGraphQLType(prop.Ref)
 	}
@@ -320,9 +358,10 @@ func openAPITypeToGraphQL(prop Property, defs map[string]Schema) string {
 	switch prop.Type {
 	case "string":
 		if prop.Format == "date-time" || prop.Format == "date" {
-			return "String" // Could be custom scalar
+			return graphQLStringType // Could be custom scalar
 		}
-		return "String"
+
+		return graphQLStringType
 	case "integer", "int32", "int64":
 		return "Int"
 	case "number", "float", "double":
@@ -334,16 +373,17 @@ func openAPITypeToGraphQL(prop Property, defs map[string]Schema) string {
 			itemType := refToGraphQLType(prop.Items.Ref)
 			return fmt.Sprintf("[%s!]", itemType)
 		}
-		return "[String!]"
+
+		return fmt.Sprintf("[%s!]", graphQLStringType)
 	default:
-		return "String"
+		return graphQLStringType
 	}
 }
 
 func refToGraphQLType(ref string) string {
 	// Convert "#/definitions/v1User" -> "User"
 	if ref == "" {
-		return "String"
+		return graphQLStringType
 	}
 
 	parts := strings.Split(ref, "/")
@@ -351,15 +391,18 @@ func refToGraphQLType(ref string) string {
 		typeName := parts[len(parts)-1]
 		// Remove "v1" prefix if present
 		typeName = strings.TrimPrefix(typeName, "v1")
+
 		return toGraphQLTypeName(typeName)
 	}
-	return "String"
+
+	return graphQLStringType
 }
 
 func toGraphQLTypeName(name string) string {
 	// Remove common prefixes
 	name = strings.TrimPrefix(name, "v1")
 	name = strings.TrimPrefix(name, "V1")
+
 	return name
 }
 
@@ -374,15 +417,14 @@ func toGraphQLFieldName(name string) string {
 	result := parts[0]
 
 	// Remove @ prefix if present
-	if strings.HasPrefix(result, "@") {
-		result = result[1:]
-	}
+	result = strings.TrimPrefix(result, "@")
 
 	for i := 1; i < len(parts); i++ {
 		if len(parts[i]) > 0 {
 			result += strings.ToUpper(parts[i][:1]) + parts[i][1:]
 		}
 	}
+
 	return result
 }
 
@@ -395,6 +437,7 @@ func toGraphQLOperationName(opID string) string {
 			return strings.ToLower(methodName[:1]) + methodName[1:]
 		}
 	}
+
 	return strings.ToLower(opID[:1]) + opID[1:]
 }
 
@@ -404,6 +447,6 @@ func isRequired(fieldName string, required []string) bool {
 			return true
 		}
 	}
+
 	return false
 }
-

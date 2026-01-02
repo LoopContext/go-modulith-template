@@ -55,6 +55,9 @@ type AppConfig struct {
 	// Internationalization
 	DefaultLocale string `yaml:"default_locale" env:"DEFAULT_LOCALE"` // Default locale for i18n (e.g., "en", "es")
 
+	// Swagger/OpenAPI documentation
+	SwaggerAPITitle string `yaml:"swagger_api_title" env:"SWAGGER_API_TITLE"` // API title shown in Swagger UI
+
 	// Module specific configs
 	Auth AuthConfig `yaml:"auth"`
 }
@@ -85,6 +88,7 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 		RequestTimeout:    "30s",
 		ShutdownTimeout:   "30s",
 		DefaultLocale:     "en",
+		SwaggerAPITitle:   "Modulith API",
 	}
 
 	// Track sources for each config value
@@ -122,6 +126,7 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 		"JWT_SECRET", fmt.Sprintf("[%d bytes] = %s", len(cfg.Auth.JWTSecret), getSource(sources, "JWT_SECRET")),
 		"RATE_LIMIT_ENABLED", fmt.Sprintf("%v = %s", cfg.RateLimitEnabled, getSource(sources, "RATE_LIMIT_ENABLED")),
 		"CORS_ALLOWED_ORIGINS", fmt.Sprintf("%v = %s", cfg.CORSAllowedOrigins, getSource(sources, "CORS_ALLOWED_ORIGINS")),
+		"SWAGGER_API_TITLE", fmt.Sprintf("%s = %s", cfg.SwaggerAPITitle, getSource(sources, "SWAGGER_API_TITLE")),
 	)
 
 	// Validation
@@ -257,6 +262,12 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 	if locale := os.Getenv("DEFAULT_LOCALE"); locale != "" {
 		c.DefaultLocale = locale
 		sources["DEFAULT_LOCALE"] = sourceName
+	}
+
+	// Swagger/OpenAPI
+	if title := os.Getenv("SWAGGER_API_TITLE"); title != "" {
+		c.SwaggerAPITitle = title
+		sources["SWAGGER_API_TITLE"] = sourceName
 	}
 
 	// OAuth configuration
@@ -422,6 +433,9 @@ func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]
 
 	// Internationalization from .env
 	c.overrideEnvVar("DEFAULT_LOCALE", func(val string) { c.DefaultLocale = val }, sources, systemEnvVars, sourceName)
+
+	// Swagger/OpenAPI from .env
+	c.overrideEnvVar("SWAGGER_API_TITLE", func(val string) { c.SwaggerAPITitle = val }, sources, systemEnvVars, sourceName)
 
 	// OAuth configuration from .env
 	c.overrideOAuthEnvFromDotenv(sources, systemEnvVars, sourceName)
@@ -701,6 +715,16 @@ func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 	if yamlOnly.RateLimitBurst > 0 {
 		cfg.RateLimitBurst = yamlOnly.RateLimitBurst
 		sources["RATE_LIMIT_BURST"] = sourceYAML
+	}
+
+	if yamlOnly.DefaultLocale != "" {
+		cfg.DefaultLocale = yamlOnly.DefaultLocale
+		sources["DEFAULT_LOCALE"] = sourceYAML
+	}
+
+	if yamlOnly.SwaggerAPITitle != "" {
+		cfg.SwaggerAPITitle = yamlOnly.SwaggerAPITitle
+		sources["SWAGGER_API_TITLE"] = sourceYAML
 	}
 
 	// Apply OAuth configuration from YAML

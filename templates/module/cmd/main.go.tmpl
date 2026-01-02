@@ -208,7 +208,7 @@ func setupGateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Regi
 
 	// Setup Swagger UI (dev only, not prod)
 	if cfg.Env == "dev" {
-		swagger.SetupForModule(mux, "{{.MODULE_NAME}}")
+		swagger.SetupForModule(mux, "{{.MODULE_NAME}}", cfg.SwaggerAPITitle)
 	}
 
 	return mux, conn, nil

@@ -582,7 +582,7 @@ func setupGateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Regi
 	}
 
 	if cfg.Env == "dev" {
-		swagger.Setup(mux)
+		swagger.Setup(mux, cfg.SwaggerAPITitle)
 	}
 
 	return mux, conn, nil
