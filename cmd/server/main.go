@@ -558,10 +558,23 @@ func setupGateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Regi
 	setupHealthChecks(mux, reg.DB(), wsHub, reg)
 	mux.Handle("/", rmux)
 
-	// Setup WebSocket endpoint
-	wsHandler := websocket.NewHandler(wsHub)
+	// Setup WebSocket endpoint with security
+	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTSecret)
+	if err != nil {
+		slog.Warn("Failed to create JWT verifier for WebSocket, connections will be unauthenticated",
+			"error", err)
+
+		verifier = nil
+	}
+
+	wsHandler := websocket.NewHandler(websocket.HandlerConfig{
+		Hub:            wsHub,
+		Verifier:      verifier,
+		AllowedOrigins: cfg.CORSAllowedOrigins,
+		Env:            cfg.Env,
+	})
 	mux.Handle("/ws", wsHandler)
-	slog.Info("WebSocket endpoint registered", "path", "/ws")
+	slog.Info("WebSocket endpoint registered", "path", "/ws", "auth_enabled", verifier != nil)
 
 	if h := getMetricsHandler(); h != nil {
 		mux.Handle("/metrics", h)

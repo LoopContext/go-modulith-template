@@ -106,6 +106,15 @@ Usa prefijos semánticos:
 - `test:` - Agregar o modificar tests
 - `chore:` - Cambios en build, deps, etc.
 
+### Actualizar CHANGELOG.md
+
+Cuando agregues features, fixes, o cambios importantes, actualiza `CHANGELOG.md`:
+
+1. Agrega tu cambio en la sección `[Unreleased]` apropiada
+2. Usa las categorías: Added, Changed, Deprecated, Removed, Fixed, Security
+3. Sigue el formato existente
+4. Los cambios se moverán a una versión específica en el próximo release
+
 ## 🐛 Reportar Bugs
 
 Cuando reportes un bug, incluye:

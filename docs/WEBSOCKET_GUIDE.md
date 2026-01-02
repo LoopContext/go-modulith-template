@@ -15,10 +15,11 @@ This document explains how to use the WebSocket infrastructure for real-time com
 ```
 
 **Key principles:**
-- ✅ Modules **DO NOT know** WebSocket exists
-- ✅ Modules only publish events to the bus (as always)
-- ✅ WebSocket subscriber listens to events and automatically forwards them
-- ✅ Total decoupling = easy testing and maintenance
+
+-   ✅ Modules **DO NOT know** WebSocket exists
+-   ✅ Modules only publish events to the bus (as always)
+-   ✅ WebSocket subscriber listens to events and automatically forwards them
+-   ✅ Total decoupling = easy testing and maintenance
 
 ## 📦 Components
 
@@ -27,12 +28,14 @@ This document explains how to use the WebSocket infrastructure for real-time com
 Manages all active WebSocket connections.
 
 **Responsibilities:**
-- Register/unregister clients
-- Broadcast to all clients
-- Directed sending to specific users
-- Tracking active connections
+
+-   Register/unregister clients
+-   Broadcast to all clients
+-   Directed sending to specific users
+-   Tracking active connections
 
 **Main API:**
+
 ```go
 hub := websocket.NewHub(ctx)
 go hub.Run()
@@ -59,24 +62,27 @@ users := hub.GetConnectedUsers()
 Represents an individual WebSocket connection.
 
 **Features:**
-- Unique ID per connection
-- User ID for targeting
-- Automatic ping/pong handling
-- Outgoing message buffer
-- Lifecycle management
+
+-   Unique ID per connection
+-   User ID for targeting
+-   Automatic ping/pong handling
+-   Outgoing message buffer
+-   Lifecycle management
 
 ### 3. Subscriber (`internal/websocket/subscriber.go`)
 
 Integrates the event bus with WebSocket.
 
 **Events subscribed by default:**
-- `*.created` (user.created, order.created, etc.)
-- `*.updated`
-- `*.deleted`
-- `notification.*`
-- `alert.*`
+
+-   `*.created` (user.created, order.created, etc.)
+-   `*.updated`
+-   `*.deleted`
+-   `notification.*`
+-   `alert.*`
 
 **Automatic user_id extraction:**
+
 ```go
 // If payload includes user_id, message is sent only to that user
 bus.Publish(ctx, events.Event{
@@ -96,8 +102,9 @@ HTTP handler for connection upgrade.
 **Endpoint:** `/ws`
 
 **Authentication:**
-- In development: `?user_id=xxx` in query string
-- In production: Extract from context (set by auth middleware)
+
+-   In development: `?user_id=xxx` in query string
+-   In production: Extract from context (set by auth middleware)
 
 ## 🚀 Usage from Modules
 
@@ -124,14 +131,15 @@ func (s *AuthService) CompleteLogin(ctx context.Context, req *pb.CompleteLoginRe
 ```
 
 **Result:** All connected clients receive:
+
 ```json
 {
-  "type": "user.created",
-  "payload": {
-    "user_id": "user-123",
-    "email": "user@example.com",
-    "created_at": "2025-12-31T20:00:00Z"
-  }
+    "type": "user.created",
+    "payload": {
+        "user_id": "user-123",
+        "email": "user@example.com",
+        "created_at": "2025-12-31T20:00:00Z"
+    }
 }
 ```
 
@@ -180,100 +188,124 @@ wsSubscriber.SubscribeToEvent("admin.alert")
 
 ### Basic Connection
 
+**Development Mode:**
+
 ```javascript
-// Development
-const ws = new WebSocket('ws://localhost:8080/ws?user_id=user-123');
+// Development - use user_id query parameter (dev only)
+const ws = new WebSocket("ws://localhost:8000/ws?user_id=user-123");
+```
 
-// Production (auth token in header not possible with standard WebSocket)
-// Option 1: Pass token in query string (less secure)
+**Production Mode - Option 1: Token in Query String**
+
+```javascript
+// Pass JWT token in query parameter
+const authToken = localStorage.getItem("auth_token");
 const ws = new WebSocket(`wss://api.example.com/ws?token=${authToken}`);
+```
 
-// Option 2: Use custom protocol (recommended)
-const ws = new WebSocket('wss://api.example.com/ws', [authToken]);
+**Production Mode - Option 2: Cookie (Recommended for Web Apps)**
+
+```javascript
+// Cookie is automatically sent by browser if SameSite is not Strict
+// Set cookie on login:
+document.cookie = `auth_token=${token}; path=/; secure; samesite=lax`;
+
+// Then connect (cookie sent automatically)
+const ws = new WebSocket("wss://api.example.com/ws");
+```
+
+**Production Mode - Option 3: Custom Protocol (Advanced)**
+
+```javascript
+// Some WebSocket libraries support custom headers/protocols
+// Check your library's documentation
+const ws = new WebSocket("wss://api.example.com/ws", ["bearer", authToken]);
 ```
 
 ### Message Handling
 
 ```javascript
 ws.onopen = () => {
-  console.log('WebSocket connected');
+    console.log("WebSocket connected");
 };
 
 ws.onmessage = (event) => {
-  const message = JSON.parse(event.data);
+    const message = JSON.parse(event.data);
 
-  switch(message.type) {
-    case 'user.created':
-      console.log('New user:', message.payload);
-      break;
+    switch (message.type) {
+        case "user.created":
+            console.log("New user:", message.payload);
+            break;
 
-    case 'order.created':
-      showNotification('New order created!', message.payload);
-      break;
+        case "order.created":
+            showNotification("New order created!", message.payload);
+            break;
 
-    case 'notification.sent':
-      displayNotification(message.payload);
-      break;
+        case "notification.sent":
+            displayNotification(message.payload);
+            break;
 
-    default:
-      console.log('Unknown message type:', message.type);
-  }
+        default:
+            console.log("Unknown message type:", message.type);
+    }
 };
 
 ws.onerror = (error) => {
-  console.error('WebSocket error:', error);
+    console.error("WebSocket error:", error);
 };
 
 ws.onclose = () => {
-  console.log('WebSocket disconnected');
-  // Implement automatic reconnection
-  setTimeout(() => connectWebSocket(), 5000);
+    console.log("WebSocket disconnected");
+    // Implement automatic reconnection
+    setTimeout(() => connectWebSocket(), 5000);
 };
 ```
 
 ### React Hook Example
 
 ```typescript
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 interface WebSocketMessage {
-  type: string;
-  payload: any;
+    type: string;
+    payload: any;
 }
 
 export function useWebSocket(userId: string) {
-  const [messages, setMessages] = useState<WebSocketMessage[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
+    const [messages, setMessages] = useState<WebSocketMessage[]>([]);
+    const [isConnected, setIsConnected] = useState(false);
 
-  useEffect(() => {
-    const ws = new WebSocket(`ws://localhost:8080/ws?user_id=${userId}`);
+    useEffect(() => {
+        const ws = new WebSocket(`ws://localhost:8080/ws?user_id=${userId}`);
 
-    ws.onopen = () => setIsConnected(true);
-    ws.onclose = () => setIsConnected(false);
+        ws.onopen = () => setIsConnected(true);
+        ws.onclose = () => setIsConnected(false);
 
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      setMessages(prev => [...prev, message]);
-    };
+        ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            setMessages((prev) => [...prev, message]);
+        };
 
-    return () => ws.close();
-  }, [userId]);
+        return () => ws.close();
+    }, [userId]);
 
-  return { messages, isConnected };
+    return { messages, isConnected };
 }
 
 // Uso en componente
 function Dashboard() {
-  const { messages, isConnected } = useWebSocket('user-123');
+    const { messages, isConnected } = useWebSocket("user-123");
 
-  return (
-    <div>
-      <div>Status: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}</div>
-      {messages.map((msg, i) => (
-        <div key={i}>{msg.type}: {JSON.stringify(msg.payload)}</div>
-      ))}
-    </div>
-  );
+    return (
+        <div>
+            <div>Status: {isConnected ? "🟢 Connected" : "🔴 Disconnected"}</div>
+            {messages.map((msg, i) => (
+                <div key={i}>
+                    {msg.type}: {JSON.stringify(msg.payload)}
+                </div>
+            ))}
+        </div>
+    );
 }
 ```
 
@@ -304,11 +336,12 @@ curl http://localhost:8080/healthz/ws
 ```
 
 **Respuesta:**
+
 ```json
 {
-  "status": "ok",
-  "connections": 42,
-  "users": 38
+    "status": "ok",
+    "connections": 42,
+    "users": 38
 }
 ```
 
@@ -324,58 +357,84 @@ DEBUG Event sent to user event=order.created user_id=user-456
 DEBUG Event broadcasted event=notification.sent
 ```
 
-## 🔐 Seguridad
+## 🔐 Security
 
-### Autenticación (Producción)
+### Authentication
 
-**TODO:** Implementar en `internal/websocket/handler.go`:
+The WebSocket handler now supports multiple authentication methods:
+
+1. **JWT Token in Authorization Header** (Recommended for production)
+
+    ```javascript
+    // Note: Standard WebSocket API doesn't support custom headers
+    // Use a library that supports it, or use one of the other methods
+    ```
+
+2. **JWT Token in Query Parameter**
+
+    ```javascript
+    const ws = new WebSocket(`wss://api.example.com/ws?token=${authToken}`);
+    ```
+
+3. **JWT Token in Cookie** (Recommended for web apps)
+
+    ```javascript
+    // Cookie is automatically sent by browser
+    const ws = new WebSocket("wss://api.example.com/ws");
+    ```
+
+4. **Development Mode: user_id Query Parameter** (Dev only)
+    ```javascript
+    // Only works when ENV=dev
+    const ws = new WebSocket("ws://localhost:8000/ws?user_id=test-user");
+    ```
+
+**Configuration:**
+
+The handler automatically uses the JWT secret from your configuration. Authentication is enabled by default when a JWT secret is configured.
+
+**Example:**
 
 ```go
-func getUserIDFromContext(r *http.Request) string {
-    // Opción 1: Token en query string (menos seguro)
-    token := r.URL.Query().Get("token")
-    claims, err := verifier.VerifyToken(token)
-    if err != nil {
-        return ""
-    }
-    return claims.Subject
-
-    // Opción 2: Cookie (recomendado)
-    cookie, err := r.Cookie("auth_token")
-    if err != nil {
-        return ""
-    }
-    claims, err := verifier.VerifyToken(cookie.Value)
-    if err != nil {
-        return ""
-    }
-    return claims.Subject
-}
+// In cmd/server/main.go - automatically configured
+wsHandler := websocket.NewHandler(websocket.HandlerConfig{
+    Hub:            wsHub,
+    Verifier:      jwtVerifier,  // Created from JWT_SECRET
+    AllowedOrigins: cfg.CORSAllowedOrigins,
+    Env:            cfg.Env,
+})
 ```
 
 ### Origin Checking
 
-**TODO:** Implementar en `internal/websocket/handler.go`:
+Origin checking is automatically configured based on your `CORSAllowedOrigins` setting:
 
-```go
-var upgrader = websocket.Upgrader{
-    CheckOrigin: func(r *http.Request) bool {
-        origin := r.Header.Get("Origin")
-        allowedOrigins := []string{
-            "https://app.example.com",
-            "https://admin.example.com",
-        }
+**Configuration in `configs/server.yaml`:**
 
-        for _, allowed := range allowedOrigins {
-            if origin == allowed {
-                return true
-            }
-        }
-
-        return false
-    },
-}
+```yaml
+cors_allowed_origins:
+    - "https://app.example.com"
+    - "https://admin.example.com"
+    # Or use "*" to allow all origins (not recommended for production)
 ```
+
+**Behavior:**
+
+-   **Development mode (`ENV=dev`)**: If no origins configured, allows all origins
+-   **Production mode (`ENV=prod`)**: If no origins configured, denies all connections (fail-secure)
+-   **Wildcard (`*`)**: Allows all origins (use with caution)
+
+**Example:**
+
+```yaml
+# configs/server.yaml
+env: prod
+cors_allowed_origins:
+    - "https://app.example.com"
+    - "https://admin.example.com"
+```
+
+The WebSocket handler will automatically reject connections from origins not in this list.
 
 ## 🚀 Escalabilidad
 
@@ -409,16 +468,17 @@ var upgrader = websocket.Upgrader{
 ```
 
 **Cambios necesarios:**
+
 1. Reemplazar `internal/events/bus.go` con Redis Pub/Sub
 2. Mantener el resto del código sin cambios
 3. Escalar horizontalmente
 
 ## 📚 Referencias
 
-- [Gorilla WebSocket Documentation](https://pkg.go.dev/github.com/gorilla/websocket)
-- [WebSocket RFC 6455](https://datatracker.ietf.org/doc/html/rfc6455)
-- [Event Bus Pattern](../internal/events/bus.go)
-- [Architecture Guide](./MODULITH_ARCHITECTURE.md)
+-   [Gorilla WebSocket Documentation](https://pkg.go.dev/github.com/gorilla/websocket)
+-   [WebSocket RFC 6455](https://datatracker.ietf.org/doc/html/rfc6455)
+-   [Event Bus Pattern](../internal/events/bus.go)
+-   [Architecture Guide](./MODULITH_ARCHITECTURE.md)
 
 ## 🐛 Troubleshooting
 
@@ -451,4 +511,3 @@ wsSubscriber.SubscribeToEvent("tu.evento.personalizado")
 ---
 
 **¿Preguntas?** Consulta el código en `internal/websocket/` o los tests para ejemplos completos.
-

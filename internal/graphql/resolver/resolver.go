@@ -1,6 +1,11 @@
 // Package resolver implements GraphQL resolvers.
-// This file is created by the add-graphql script.
-// This is a stub file - the actual implementation will be generated/created when GraphQL is initialized.
+// This package provides the root resolver structure that will be used by gqlgen
+// when GraphQL is initialized via `make add-graphql`.
+//
+// The resolver structure is ready to use and provides:
+// - Query resolver for read operations
+// - Mutation resolver for write operations
+// - Subscription resolver for real-time subscriptions via WebSocket
 package resolver
 
 import (
@@ -57,4 +62,3 @@ type subscriptionResolver struct {
 	eventBus *events.Bus
 	wsHub    *websocket.Hub
 }
-

@@ -467,6 +467,57 @@ Starting HTTP Gateway port=8000
 
 ---
 
+## Testing Your Module
+
+### Unit Tests
+
+Write unit tests for your service and repository layers:
+
+```bash
+# Run unit tests for your module
+go test ./modules/order/... -v
+
+# Run with coverage
+go test ./modules/order/... -cover
+```
+
+### Integration Tests
+
+For integration tests that require a real database, use testcontainers:
+
+```bash
+# Run integration tests (requires Docker)
+make test-integration
+
+# Or run specific integration tests
+go test -v -run Integration ./examples/...
+```
+
+**Example Integration Test:**
+
+See `examples/integration_test_example.go` for a complete example showing:
+- Setting up PostgreSQL with testcontainers
+- Running migrations in tests
+- Testing service methods end-to-end
+- Verifying event bus integration
+- Testing repository layer with real database
+
+**Key Points:**
+- Integration tests should be marked with `-run Integration` flag
+- Use `testing.Short()` to skip integration tests in short mode
+- Always clean up test data and containers in `defer` blocks
+- Use the `testutil` package for testcontainer setup
+
+### Test Coverage
+
+```bash
+# Generate coverage report
+make coverage-report
+
+# View HTML coverage report
+make coverage-html
+```
+
 ## Next Steps
 
 Now that you have a working module, you can:
