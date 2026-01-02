@@ -33,7 +33,7 @@ func NewGRPCTestServer(cfg *config.AppConfig, reg *registry.Registry) (*GRPCTest
 		cfg = TestConfig()
 	}
 
-	lis, err := net.Listen("tcp", ":0") // Use random port
+	lis, err := net.Listen("tcp", "127.0.0.1:0") // Use random port on localhost
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen: %w", err)
 	}
@@ -82,6 +82,7 @@ func (s *GRPCTestServer) Start() error {
 
 	// Create client connection
 	addr := s.listener.Addr().String()
+
 	conn, err := grpc.NewClient(
 		addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

@@ -4,25 +4,26 @@ This guide explains how to optionally add GraphQL to your project using [gqlgen]
 
 ## 🎯 Why Optional GraphQL?
 
-- ✅ **Flexibility**: Clients can choose between gRPC (efficient) or GraphQL (flexible)
-- ✅ **Frontend-friendly**: GraphQL is ideal for web/mobile applications
-- ✅ **Subscriptions**: Native integration with WebSocket for real-time
-- ✅ **Decoupled**: Modules continue using the event bus, GraphQL only exposes
+-   ✅ **Flexibility**: Clients can choose between gRPC (efficient) or GraphQL (flexible)
+-   ✅ **Frontend-friendly**: GraphQL is ideal for web/mobile applications
+-   ✅ **Subscriptions**: Native integration with WebSocket for real-time
+-   ✅ **Decoupled**: Modules continue using the event bus, GraphQL only exposes
 
 ## 📦 Quick Installation
 
 ### Option 1: Automatic Script (Recommended)
 
 ```bash
-make add-graphql
+make graphql-init
 ```
 
 This command:
-- ✅ Installs gqlgen and dependencies
-- ✅ Creates base GraphQL structure
-- ✅ Generates initial code
-- ✅ Integrates with existing server
-- ✅ Configures subscriptions with WebSocket
+
+-   ✅ Installs gqlgen and dependencies
+-   ✅ Creates base GraphQL structure
+-   ✅ Generates initial code
+-   ✅ Integrates with existing server
+-   ✅ Configures subscriptions with WebSocket
 
 ### Option 2: Manual
 
@@ -101,41 +102,42 @@ gqlgen **automatically combines** all schemas in `schema/*.graphql`:
 ```graphql
 # schema/schema.graphql (root)
 type Query {
-  _empty: String
+    _empty: String
 }
 
 type Mutation {
-  _empty: String
+    _empty: String
 }
 
 type Subscription {
-  _empty: String
+    _empty: String
 }
 
 # schema/auth.graphql (auth module)
 extend type Query {
-  me: User
+    me: User
 }
 
 extend type Mutation {
-  requestLogin(email: String): Boolean!
+    requestLogin(email: String): Boolean!
 }
 
 # schema/order.graphql (order module)
 extend type Query {
-  orders(userId: ID): [Order!]!
+    orders(userId: ID): [Order!]!
 }
 
 extend type Mutation {
-  createOrder(input: CreateOrderInput!): Order!
+    createOrder(input: CreateOrderInput!): Order!
 }
 ```
 
 **Final combined result:**
+
 ```graphql
 type Query {
-  me: User              # ← From auth.graphql
-  orders(userId: ID): [Order!]!  # ← From order.graphql
+    me: User # ← From auth.graphql
+    orders(userId: ID): [Order!]! # ← From order.graphql
 }
 ```
 
@@ -146,20 +148,20 @@ type Query {
 ```yaml
 # Base configuration automatically generated
 schema:
-  - internal/graphql/schema/*.graphql
+    - internal/graphql/schema/*.graphql
 
 exec:
-  filename: internal/graphql/generated/generated.go
-  package: generated
+    filename: internal/graphql/generated/generated.go
+    package: generated
 
 model:
-  filename: internal/graphql/generated/models_gen.go
-  package: generated
+    filename: internal/graphql/generated/models_gen.go
+    package: generated
 
 resolver:
-  layout: follow-schema
-  dir: internal/graphql/resolver
-  package: resolver
+    layout: follow-schema
+    dir: internal/graphql/resolver
+    package: resolver
 ```
 
 ## 📝 Example: Exposing Auth Module
@@ -174,36 +176,36 @@ resolver:
 
 # Extend Query root (defined in schema.graphql)
 extend type Query {
-  me: User
+    me: User
 }
 
 # Extend Mutation root
 extend type Mutation {
-  requestLogin(email: String, phone: String): Boolean!
-  completeLogin(email: String, phone: String, code: String!): AuthPayload!
+    requestLogin(email: String, phone: String): Boolean!
+    completeLogin(email: String, phone: String, code: String!): AuthPayload!
 }
 
 # Extend Subscription root
 extend type Subscription {
-  userEvents: UserEvent!
+    userEvents: UserEvent!
 }
 
 # Auth module-specific types
 type User {
-  id: ID!
-  email: String
-  phone: String
-  createdAt: String!
+    id: ID!
+    email: String
+    phone: String
+    createdAt: String!
 }
 
 type AuthPayload {
-  token: String!
-  user: User!
+    token: String!
+    user: User!
 }
 
 type UserEvent {
-  type: String!
-  user: User!
+    type: String!
+    user: User!
 }
 ```
 
@@ -400,32 +402,32 @@ if cfg.GraphQL.Enabled {
 
 ```graphql
 type Query {
-  orders(userId: ID): [Order!]!
+    orders(userId: ID): [Order!]!
 }
 
 type Mutation {
-  createOrder(input: CreateOrderInput!): Order!
+    createOrder(input: CreateOrderInput!): Order!
 }
 
 type Subscription {
-  orderUpdates: OrderUpdate!
+    orderUpdates: OrderUpdate!
 }
 
 type Order {
-  id: ID!
-  userId: ID!
-  amount: Float!
-  status: String!
+    id: ID!
+    userId: ID!
+    amount: Float!
+    status: String!
 }
 
 input CreateOrderInput {
-  userId: ID!
-  amount: Float!
+    userId: ID!
+    amount: Float!
 }
 
 type OrderUpdate {
-  order: Order!
-  event: String!
+    order: Order!
+    event: String!
 }
 ```
 
@@ -559,28 +561,28 @@ make graphql-validate
 
 ### ✅ Desacoplamiento Total
 
-- Los módulos **NO saben** que existe GraphQL
-- GraphQL solo **expone** lo que ya existe
-- Fácil de agregar/quitar sin afectar módulos
+-   Los módulos **NO saben** que existe GraphQL
+-   GraphQL solo **expone** lo que ya existe
+-   Fácil de agregar/quitar sin afectar módulos
 
 ### ✅ Reutilización
 
-- Mismo event bus para WebSocket y GraphQL subscriptions
-- Mismo WebSocket hub para ambos
-- Módulos siguen usando gRPC internamente
+-   Mismo event bus para WebSocket y GraphQL subscriptions
+-   Mismo WebSocket hub para ambos
+-   Módulos siguen usando gRPC internamente
 
 ### ✅ Flexibilidad
 
-- Clientes pueden elegir: gRPC (eficiente) o GraphQL (flexible)
-- GraphQL opcional: no afecta si no lo usas
-- Fácil de escalar horizontalmente
+-   Clientes pueden elegir: gRPC (eficiente) o GraphQL (flexible)
+-   GraphQL opcional: no afecta si no lo usas
+-   Fácil de escalar horizontalmente
 
 ## 📖 Referencias
 
-- [gqlgen Documentation](https://gqlgen.com/)
-- [gqlgen Examples](https://github.com/99designs/gqlgen/tree/master/_examples)
-- [GraphQL Subscriptions](https://gqlgen.com/reference/subscriptions/)
-- [WebSocket Transport](https://gqlgen.com/reference/transports/)
+-   [gqlgen Documentation](https://gqlgen.com/)
+-   [gqlgen Examples](https://github.com/99designs/gqlgen/tree/master/_examples)
+-   [GraphQL Subscriptions](https://gqlgen.com/reference/subscriptions/)
+-   [WebSocket Transport](https://gqlgen.com/reference/transports/)
 
 ## 🐛 Troubleshooting
 
@@ -591,6 +593,7 @@ make graphql-validate
 ### Subscriptions no funcionan
 
 **Verifica:**
+
 1. WebSocket transport está agregado al handler
 2. Resolver retorna un channel
 3. Event bus está suscrito correctamente
@@ -601,5 +604,4 @@ make graphql-validate
 
 ---
 
-**¿Listo para agregar GraphQL?** Ejecuta `make add-graphql` y sigue las instrucciones! 🚀
-
+**¿Listo para agregar GraphQL?** Ejecuta `make graphql-init` y sigue las instrucciones! 🚀

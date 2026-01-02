@@ -96,7 +96,7 @@ if [ -d "${GRAPHQL_SCHEMA_DIR}" ]; then
     fi
 else
     echo "  ℹ️  GraphQL not initialized - skipping GraphQL files"
-    echo "     Run 'make add-graphql' to enable GraphQL support"
+    echo "     Run 'make graphql-init' to enable GraphQL support"
 fi
 
 # Update sqlc.yaml
@@ -151,5 +151,5 @@ else
     echo "4. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
     echo "5. Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
     echo ""
-    echo "💡 Tip: Run 'make add-graphql' to enable GraphQL support for future modules."
+    echo "💡 Tip: Run 'make graphql-init' to enable GraphQL support for future modules."
 fi

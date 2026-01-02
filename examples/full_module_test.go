@@ -3,15 +3,18 @@ package examples
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
+	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
 )
 
-// ExampleFullModuleTest demonstrates a complete end-to-end test for a module.
+// TestExampleFullModule demonstrates a complete end-to-end test for a module.
 // This example shows:
 // - Database setup
 // - Migration execution
@@ -19,7 +22,7 @@ import (
 // - gRPC endpoint testing
 // - Event verification
 // - Cleanup
-func ExampleFullModuleTest(t *testing.T) {
+func TestExampleFullModule(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
@@ -27,47 +30,18 @@ func ExampleFullModuleTest(t *testing.T) {
 	ctx := context.Background()
 
 	// Step 1: Set up test database using testcontainers
-	pgContainer, err := testutil.NewPostgresContainer(ctx, t)
-	if err != nil {
-		t.Fatalf("Failed to create postgres container: %v", err)
-	}
-
-	defer func() {
-		if err := pgContainer.Close(ctx); err != nil {
-			t.Errorf("Failed to close container: %v", err)
-		}
-	}()
-
-	db, err := pgContainer.DB(ctx)
-	if err != nil {
-		t.Fatalf("Failed to connect to database: %v", err)
-	}
-
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("Failed to close database: %v", err)
-		}
-	}()
+	pgContainer, db := setupTestDatabaseFull(ctx, t)
+	defer cleanupTestDatabaseFull(ctx, t, pgContainer, db)
 
 	// Step 2: Create configuration
 	cfg := testutil.TestConfig()
 	cfg.DBDSN = pgContainer.DSN
 
 	// Step 3: Set up event bus and collector
-	eventBus := events.NewBus()
-	eventCollector := testutil.NewEventCollector()
-
-	// Subscribe to relevant events
-	eventCollector.Subscribe(eventBus, "user.created")
-	eventCollector.Subscribe(eventBus, "auth.magic_code_requested")
+	eventBus, eventCollector := setupEventBusFull()
 
 	// Step 4: Create registry with all dependencies
-	reg := testutil.NewTestRegistryBuilder().
-		WithDatabase(db).
-		WithConfig(cfg).
-		WithEventBus(eventBus).
-		WithModules(auth.NewModule()).
-		Build()
+	reg := setupRegistryFull(t, db, cfg, eventBus)
 
 	// Step 5: Initialize modules
 	if err := reg.InitializeAll(); err != nil {
@@ -80,20 +54,8 @@ func ExampleFullModuleTest(t *testing.T) {
 	}
 
 	// Step 7: Create gRPC test server
-	grpcServer, err := testutil.NewGRPCTestServer(cfg, reg)
-	if err != nil {
-		t.Fatalf("Failed to create gRPC test server: %v", err)
-	}
-
-	defer func() {
-		if err := grpcServer.Stop(); err != nil {
-			t.Errorf("Failed to stop gRPC server: %v", err)
-		}
-	}()
-
-	if err := grpcServer.Start(); err != nil {
-		t.Fatalf("Failed to start gRPC server: %v", err)
-	}
+	grpcServer := setupGRPCServerFull(t, cfg, reg)
+	defer cleanupGRPCServerFull(t, grpcServer)
 
 	// Step 8: Test gRPC endpoints
 	// Example: Test RequestLogin endpoint
@@ -142,5 +104,74 @@ func ExampleFullModuleTest(t *testing.T) {
 	}
 
 	t.Log("Full module integration test complete")
+}
+
+func setupTestDatabaseFull(ctx context.Context, t *testing.T) (*testutil.PostgresContainer, *sql.DB) {
+	pgContainer, err := testutil.NewPostgresContainer(ctx, t)
+	if err != nil {
+		t.Fatalf("Failed to create postgres container: %v", err)
+	}
+
+	db, err := pgContainer.DB(ctx)
+	if err != nil {
+		_ = pgContainer.Close(ctx)
+
+		t.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	return pgContainer, db
+}
+
+func cleanupTestDatabaseFull(ctx context.Context, t *testing.T, pgContainer *testutil.PostgresContainer, db *sql.DB) {
+	if err := db.Close(); err != nil {
+		t.Errorf("Failed to close database: %v", err)
+	}
+
+	if err := pgContainer.Close(ctx); err != nil {
+		t.Errorf("Failed to close container: %v", err)
+	}
+}
+
+func setupEventBusFull() (*events.Bus, *testutil.EventCollector) {
+	eventBus := events.NewBus()
+	eventCollector := testutil.NewEventCollector()
+
+	// Subscribe to relevant events
+	eventCollector.Subscribe(eventBus, "user.created")
+	eventCollector.Subscribe(eventBus, "auth.magic_code_requested")
+
+	return eventBus, eventCollector
+}
+
+func setupRegistryFull(_ *testing.T, db *sql.DB, cfg *config.AppConfig, eventBus *events.Bus) *registry.Registry {
+	reg := testutil.NewTestRegistryBuilder().
+		WithDatabase(db).
+		WithConfig(cfg).
+		WithEventBus(eventBus).
+		WithModules(auth.NewModule()).
+		Build()
+
+	return reg
+}
+
+func setupGRPCServerFull(t *testing.T, cfg *config.AppConfig, reg *registry.Registry) *testutil.GRPCTestServer {
+	grpcServer, err := testutil.NewGRPCTestServer(cfg, reg)
+	if err != nil {
+		t.Fatalf("Failed to create gRPC test server: %v", err)
+	}
+
+	if err := grpcServer.Start(); err != nil {
+		_ = grpcServer.Stop()
+
+		t.Fatalf("Failed to start gRPC server: %v", err)
+	}
+
+	return grpcServer
+}
+
+func cleanupGRPCServerFull(t *testing.T, grpcServer *testutil.GRPCTestServer) {
+	if err := grpcServer.Stop(); err != nil {
+		t.Errorf("Failed to stop gRPC server: %v", err)
+	}
 }
 

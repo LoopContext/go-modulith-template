@@ -76,6 +76,9 @@ func main() {
 
 	// Start and run the server
 	runServer(ctx, cfg, reg, stop)
+
+	// Exit with success code after graceful shutdown
+	os.Exit(0)
 }
 
 func handleSubcommand(args []string) {
@@ -144,7 +147,7 @@ func runServer(ctx context.Context, cfg *config.AppConfig, reg *registry.Registr
 		return
 	}
 
-	grpcServer, httpServer, gatewayConn := setup.SetupAndStartServers(ctx, cfg, reg, stop)
+	grpcServer, httpServer, gatewayConn := setup.AndStartServers(ctx, cfg, reg, stop)
 	if grpcServer == nil {
 		return
 	}
@@ -163,6 +166,7 @@ func runServer(ctx context.Context, cfg *config.AppConfig, reg *registry.Registr
 
 	<-ctx.Done()
 	setup.ShutdownServers(cfg, httpServer, grpcServer, reg.WebSocketHub())
+	// runServer returns after graceful shutdown, main() will exit with code 0
 }
 
 func closeGatewayConn(conn *grpc.ClientConn) {

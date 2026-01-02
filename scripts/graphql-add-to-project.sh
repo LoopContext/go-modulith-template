@@ -4,8 +4,8 @@
 # This script initializes GraphQL infrastructure without breaking existing functionality
 #
 # Usage:
-#   ./scripts/add-graphql.sh           # Setup only (no code generation)
-#   ./scripts/add-graphql.sh --generate # Setup + generate code for all modules
+#   ./scripts/graphql-add-to-project.sh           # Setup only (no code generation)
+#   ./scripts/graphql-add-to-project.sh --generate # Setup + generate code for all modules
 
 set -e
 
@@ -207,7 +207,7 @@ if [ ! -f "${RESOLVER_DIR}/resolver.go" ] || grep -q "This is a stub file" "${RE
     cat > "${RESOLVER_DIR}/resolver.go" <<'EOF'
 // Package resolver implements GraphQL resolvers.
 // This package provides the root resolver structure that will be used by gqlgen
-// when GraphQL is initialized via `make add-graphql`.
+// when GraphQL is initialized via `make graphql-init`.
 //
 // The resolver structure is ready to use and provides:
 // - Query resolver for read operations
@@ -383,7 +383,7 @@ else
     echo "   5. Access playground at http://localhost:8080/graphql/playground (dev mode)"
     echo ""
     echo "   ✅ GraphQL is already integrated into cmd/server/main.go"
-    echo "   💡 Tip: Run 'make add-graphql --generate' to generate code immediately"
+    echo "   💡 Tip: Run 'make graphql-init --generate' to generate code immediately"
 fi
 
 echo ""

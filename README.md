@@ -277,7 +277,7 @@ open gen/openapiv2/proto/auth/v1/auth.swagger.json
 
 ### GraphQL (Optional)
 
--   `make add-graphql`: Adds optional GraphQL support using gqlgen (only if you need it).
+-   `make graphql-init`: Adds optional GraphQL support using gqlgen (only if you need it).
 -   `make graphql-generate`: Generates GraphQL code from schema.
 -   `make graphql-validate`: Validates GraphQL schema.
 

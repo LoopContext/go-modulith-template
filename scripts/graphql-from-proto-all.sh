@@ -14,7 +14,7 @@ echo "🔄 Generating GraphQL schemas from OpenAPI definitions..."
 
 # Check if GraphQL is initialized
 if [ ! -d "${SCHEMA_DIR}" ]; then
-    echo "❌ GraphQL not initialized. Run: make add-graphql"
+    echo "❌ GraphQL not initialized. Run: make graphql-init"
     exit 1
 fi
 

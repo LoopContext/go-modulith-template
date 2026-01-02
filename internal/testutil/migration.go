@@ -3,14 +3,19 @@ package testutil
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/cmelgarejo/go-modulith-template/internal/migration"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 )
 
 // RunMigrationsForTest runs migrations for a test registry.
-func RunMigrationsForTest(ctx context.Context, dbDSN string, reg *registry.Registry) error {
+func RunMigrationsForTest(_ context.Context, dbDSN string, reg *registry.Registry) error {
 	runner := migration.NewRunner(dbDSN, reg)
-	return runner.RunAll()
+	if err := runner.RunAll(); err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	return nil
 }
 

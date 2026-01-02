@@ -17,7 +17,7 @@ MODULE_SCHEMA="${SCHEMA_DIR}/${MODULE_NAME}.graphql"
 
 # Check if GraphQL is initialized
 if [ ! -f "${PROJECT_ROOT}/gqlgen.yml" ]; then
-    echo "❌ GraphQL not initialized. Run: make add-graphql"
+    echo "❌ GraphQL not initialized. Run: make graphql-init"
     exit 1
 fi
 

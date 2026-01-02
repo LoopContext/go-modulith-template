@@ -163,7 +163,7 @@ When you create a new module with `make new-module <name>`, if GraphQL is initia
 
 ### "GraphQL not initialized"
 
-**Solution**: Run `make add-graphql` first to set up GraphQL infrastructure.
+**Solution**: Run `make graphql-init` first to set up GraphQL infrastructure.
 
 ### Schema validation errors
 

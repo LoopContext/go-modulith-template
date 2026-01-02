@@ -27,7 +27,7 @@ func NewEventCollector() *EventCollector {
 
 // Subscribe subscribes to events on the bus and collects them.
 func (c *EventCollector) Subscribe(bus *events.Bus, eventName string) {
-	bus.Subscribe(eventName, func(ctx context.Context, e events.Event) error {
+	bus.Subscribe(eventName, func(_ context.Context, e events.Event) error {
 		c.mu.Lock()
 		c.events = append(c.events, e)
 		c.mu.Unlock()

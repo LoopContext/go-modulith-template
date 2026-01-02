@@ -3,20 +3,23 @@ package examples
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
+	"github.com/cmelgarejo/go-modulith-template/internal/config"
+	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
 )
 
-// ExampleGRPCServiceTest demonstrates testing gRPC services end-to-end.
+// TestExampleGRPCService demonstrates testing gRPC services end-to-end.
 // This example shows:
 // - Setting up a test gRPC server
 // - Creating a gRPC client
 // - Testing authenticated endpoints
 // - Testing error handling
 // - Verifying responses
-func ExampleGRPCServiceTest(t *testing.T) {
+func TestExampleGRPCService(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
@@ -24,37 +27,14 @@ func ExampleGRPCServiceTest(t *testing.T) {
 	ctx := context.Background()
 
 	// Step 1: Set up test database
-	pgContainer, err := testutil.NewPostgresContainer(ctx, t)
-	if err != nil {
-		t.Fatalf("Failed to create postgres container: %v", err)
-	}
-
-	defer func() {
-		if err := pgContainer.Close(ctx); err != nil {
-			t.Errorf("Failed to close container: %v", err)
-		}
-	}()
-
-	db, err := pgContainer.DB(ctx)
-	if err != nil {
-		t.Fatalf("Failed to connect to database: %v", err)
-	}
-
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("Failed to close database: %v", err)
-		}
-	}()
+	pgContainer, db := setupTestDatabaseGRPC(ctx, t)
+	defer cleanupTestDatabaseGRPC(ctx, t, pgContainer, db)
 
 	// Step 2: Create registry and run migrations
 	cfg := testutil.TestConfig()
 	cfg.DBDSN = pgContainer.DSN
 
-	reg := testutil.NewTestRegistryBuilder().
-		WithDatabase(db).
-		WithConfig(cfg).
-		WithModules(auth.NewModule()).
-		Build()
+	reg := setupRegistryGRPC(t, db, cfg)
 
 	if err := reg.InitializeAll(); err != nil {
 		t.Fatalf("Failed to initialize modules: %v", err)
@@ -65,22 +45,71 @@ func ExampleGRPCServiceTest(t *testing.T) {
 	}
 
 	// Step 3: Create gRPC test server
+	grpcServer := setupGRPCServerGRPC(t, cfg, reg)
+	defer cleanupGRPCServerGRPC(t, grpcServer)
+
+	// Step 4: Test gRPC client connection
+	testGRPCClient(t, grpcServer)
+}
+
+func setupTestDatabaseGRPC(ctx context.Context, t *testing.T) (*testutil.PostgresContainer, *sql.DB) {
+	pgContainer, err := testutil.NewPostgresContainer(ctx, t)
+	if err != nil {
+		t.Fatalf("Failed to create postgres container: %v", err)
+	}
+
+	db, err := pgContainer.DB(ctx)
+	if err != nil {
+		_ = pgContainer.Close(ctx)
+
+		t.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	return pgContainer, db
+}
+
+func cleanupTestDatabaseGRPC(ctx context.Context, t *testing.T, pgContainer *testutil.PostgresContainer, db *sql.DB) {
+	if err := db.Close(); err != nil {
+		t.Errorf("Failed to close database: %v", err)
+	}
+
+	if err := pgContainer.Close(ctx); err != nil {
+		t.Errorf("Failed to close container: %v", err)
+	}
+}
+
+func setupRegistryGRPC(_ *testing.T, db *sql.DB, cfg *config.AppConfig) *registry.Registry {
+	reg := testutil.NewTestRegistryBuilder().
+		WithDatabase(db).
+		WithConfig(cfg).
+		WithModules(auth.NewModule()).
+		Build()
+
+	return reg
+}
+
+func setupGRPCServerGRPC(t *testing.T, cfg *config.AppConfig, reg *registry.Registry) *testutil.GRPCTestServer {
 	grpcServer, err := testutil.NewGRPCTestServer(cfg, reg)
 	if err != nil {
 		t.Fatalf("Failed to create gRPC test server: %v", err)
 	}
 
-	defer func() {
-		if err := grpcServer.Stop(); err != nil {
-			t.Errorf("Failed to stop gRPC server: %v", err)
-		}
-	}()
-
 	if err := grpcServer.Start(); err != nil {
+		_ = grpcServer.Stop()
+
 		t.Fatalf("Failed to start gRPC server: %v", err)
 	}
 
-	// Step 4: Test gRPC client connection
+	return grpcServer
+}
+
+func cleanupGRPCServerGRPC(t *testing.T, grpcServer *testutil.GRPCTestServer) {
+	if err := grpcServer.Stop(); err != nil {
+		t.Errorf("Failed to stop gRPC server: %v", err)
+	}
+}
+
+func testGRPCClient(t *testing.T, grpcServer *testutil.GRPCTestServer) {
 	client := grpcServer.Client()
 	if client == nil {
 		t.Fatal("gRPC client is nil")
@@ -101,8 +130,8 @@ func ExampleGRPCServiceTest(t *testing.T) {
 	t.Logf("Server address: %s", grpcServer.Address())
 }
 
-// ExampleGRPCErrorHandling demonstrates testing error handling in gRPC services.
-func ExampleGRPCErrorHandling(t *testing.T) {
+// TestExampleGRPCErrorHandling demonstrates testing error handling in gRPC services.
+func TestExampleGRPCErrorHandling(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
@@ -110,36 +139,13 @@ func ExampleGRPCErrorHandling(t *testing.T) {
 	ctx := context.Background()
 
 	// Set up test environment (similar to above)
-	pgContainer, err := testutil.NewPostgresContainer(ctx, t)
-	if err != nil {
-		t.Fatalf("Failed to create postgres container: %v", err)
-	}
-
-	defer func() {
-		if err := pgContainer.Close(ctx); err != nil {
-			t.Errorf("Failed to close container: %v", err)
-		}
-	}()
-
-	db, err := pgContainer.DB(ctx)
-	if err != nil {
-		t.Fatalf("Failed to connect to database: %v", err)
-	}
-
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("Failed to close database: %v", err)
-		}
-	}()
+	pgContainer, db := setupTestDatabaseGRPC(ctx, t)
+	defer cleanupTestDatabaseGRPC(ctx, t, pgContainer, db)
 
 	cfg := testutil.TestConfig()
 	cfg.DBDSN = pgContainer.DSN
 
-	reg := testutil.NewTestRegistryBuilder().
-		WithDatabase(db).
-		WithConfig(cfg).
-		WithModules(auth.NewModule()).
-		Build()
+	reg := setupRegistryGRPC(t, db, cfg)
 
 	if err := reg.InitializeAll(); err != nil {
 		t.Fatalf("Failed to initialize modules: %v", err)
@@ -149,20 +155,8 @@ func ExampleGRPCErrorHandling(t *testing.T) {
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
-	grpcServer, err := testutil.NewGRPCTestServer(cfg, reg)
-	if err != nil {
-		t.Fatalf("Failed to create gRPC test server: %v", err)
-	}
-
-	defer func() {
-		if err := grpcServer.Stop(); err != nil {
-			t.Errorf("Failed to stop gRPC server: %v", err)
-		}
-	}()
-
-	if err := grpcServer.Start(); err != nil {
-		t.Fatalf("Failed to start gRPC server: %v", err)
-	}
+	grpcServer := setupGRPCServerGRPC(t, cfg, reg)
+	defer cleanupGRPCServerGRPC(t, grpcServer)
 
 	// Example: Test invalid request
 	// This would test error handling:

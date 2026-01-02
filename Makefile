@@ -1,4 +1,4 @@
-.PHONY: help sqlc proto install-deps install-mocks generate-mocks test-unit graphql-init graphql-generate graphql-generate-module graphql-generate-all graphql-validate add-graphql graphql-from-proto
+.PHONY: help sqlc proto install-deps install-mocks generate-mocks test-unit graphql-init graphql-generate graphql-generate-module graphql-generate-all graphql-validate graphql-add graphql-from-proto
 .DEFAULT_GOAL := help
 
 help: ## Show available commands
@@ -159,7 +159,7 @@ clean: ## Clean build artifacts
 	rm -rf bin/
 
 run: ## Run the monolith server (without hot reload)
-	go run -ldflags "$(LDFLAGS)" cmd/server/main.go
+	go run -ldflags "$(LDFLAGS)" cmd/server/main.go || true
 
 dev: ## Run the monolith with live reload (requires Air)
 	@if command -v air > /dev/null; then \
@@ -247,11 +247,11 @@ new-module: ## Scaffold a new module (usage: make new-module MODULE_NAME)
 	./scripts/scaffold-module.sh $(MODULE_NAME)
 
 ##### GraphQL (Optional)
-add-graphql: ## Add optional GraphQL support using gqlgen (use ARGS="--generate" to also generate code)
-	./scripts/add-graphql.sh $(ARGS)
+graphql-add: ## Add optional GraphQL support using gqlgen (use ARGS="--generate" to also generate code)
+	./scripts/graphql-add-to-project.sh $(ARGS)
 
-graphql-init: ## Initialize GraphQL (alias for add-graphql)
-	$(MAKE) add-graphql
+graphql-init: ## Initialize GraphQL (alias for graphql-add)
+	$(MAKE) graphql-add
 
 graphql-generate: graphql-generate-all ## Generate GraphQL code for all modules (alias for graphql-generate-all)
 
@@ -271,7 +271,7 @@ graphql-validate: ## Validate GraphQL schema
 		exit 1; \
 	fi
 	@if [ ! -f "gqlgen.yml" ]; then \
-		echo "GraphQL not initialized. Run: make add-graphql"; \
+		echo "GraphQL not initialized. Run: make graphql-add"; \
 		exit 1; \
 	fi
 	gqlgen generate --verbose

@@ -622,7 +622,7 @@ The project supports **optional** GraphQL integration using `gqlgen`, providing 
 -   **Schema per Module:** Each module defines its own GraphQL schema (`internal/graphql/schema/{module}.graphql`).
 -   **Subscriptions:** Support for real-time subscriptions via WebSocket.
 -   **Event Bus Integration:** Subscriptions can listen to events from the internal bus.
--   **Automated Setup:** Installation and configuration script (`scripts/add-graphql.sh`).
+-   **Automated Setup:** Installation and configuration script (`scripts/graphql-add-to-project.sh`).
 
 ### Architecture
 
@@ -643,7 +643,7 @@ internal/graphql/
 
 ```bash
 # 1. Add GraphQL to project
-make add-graphql
+make graphql-init
 
 # 2. Define schemas per module in internal/graphql/schema/
 
