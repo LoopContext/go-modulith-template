@@ -322,6 +322,8 @@ In the microservices scenario, each module runs as an **independent process** (`
 -   ✅ **Durability:** Events persist in the broker
 -   ✅ **Scalable:** Multiple consumers can process events
 
+**For complete implementation guide, see [Distributed Events Documentation](DISTRIBUTED_EVENTS.md).**
+
 **Implementation:**
 
 The template includes an interface for distributed event bus:

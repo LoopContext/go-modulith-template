@@ -501,6 +501,7 @@ To avoid tight coupling between modules, we have an internal **Event Bus** (`int
 -   **Pub/Sub Pattern:** Modules subscribe to events (e.g. `user.created`) without knowing who emits them.
 -   **Non-Blocking:** Event publication occurs in separate goroutines to avoid penalizing gRPC/HTTP response time.
 -   **Extensibility:** Facilitates adding side effects (auditing, notifications) without modifying the original service.
+-   **Distributed Events:** For multi-instance deployments, see [Distributed Events Guide](DISTRIBUTED_EVENTS.md) for Kafka, Redis Pub/Sub, and other distributed implementations.
 
 ### Typed Events (`internal/events/types.go`)
 
