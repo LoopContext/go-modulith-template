@@ -200,4 +200,3 @@ func TestHasPermission(t *testing.T) {
 		}
 	})
 }
-

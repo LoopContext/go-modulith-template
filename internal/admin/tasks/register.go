@@ -13,4 +13,3 @@ func RegisterExampleTasks(runner *admin.Runner, db *sql.DB) {
 	runner.Register(NewCleanupExpiredSessionsTask(db))
 	runner.Register(NewCleanupExpiredMagicCodesTask(db))
 }
-

@@ -78,4 +78,3 @@ func NewOAuthAccountLinkedPayload(userID, provider, providerUserID string) Event
 		"provider_user_id": providerUserID,
 	}
 }
-

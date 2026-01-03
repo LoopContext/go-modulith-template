@@ -71,4 +71,3 @@ func TestT_MissingTranslation(t *testing.T) {
 		t.Errorf("expected key 'nonexistent.key' for missing translation, got '%s'", msg)
 	}
 }
-

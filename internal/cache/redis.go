@@ -134,4 +134,3 @@ func (rc *RedisCache) Ping(_ context.Context) error {
 	// return rc.client.Ping(ctx).Err()
 	return fmt.Errorf("redis cache not implemented: add github.com/redis/go-redis/v9 dependency")
 }
-

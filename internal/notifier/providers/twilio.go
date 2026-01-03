@@ -74,4 +74,3 @@ func (p *TwilioProvider) SendSMS(ctx context.Context, msg notifier.Message) erro
 
 	return nil
 }
-

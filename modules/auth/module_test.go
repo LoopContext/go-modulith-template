@@ -131,4 +131,3 @@ func TestInitialize_NilBus(t *testing.T) {
 
 	_ = Initialize(nil, grpcServer, nil, cfg)
 }
-

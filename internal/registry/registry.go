@@ -199,4 +199,3 @@ func (r *Registry) GetPublicEndpoints() map[string]struct{} {
 
 	return endpoints
 }
-

@@ -12,11 +12,11 @@ import (
 
 // CrossModuleTestSetup provides setup for testing cross-module interactions.
 type CrossModuleTestSetup struct {
-	Registry     *registry.Registry
-	GRPCServer   *grpc.Server
-	EventBus     *events.Bus
+	Registry       *registry.Registry
+	GRPCServer     *grpc.Server
+	EventBus       *events.Bus
 	EventCollector *EventCollector
-	Cleanup      func()
+	Cleanup        func()
 }
 
 // SetupCrossModuleTest creates a test setup with registry and gRPC server for cross-module testing.
@@ -90,5 +90,3 @@ func AssertEventPublished(
 
 	return fmt.Errorf("event %s was not published", eventName)
 }
-
-

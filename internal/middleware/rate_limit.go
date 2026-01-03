@@ -98,4 +98,3 @@ func getIPAddress(r *http.Request) string {
 	// Fall back to RemoteAddr
 	return r.RemoteAddr
 }
-

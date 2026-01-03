@@ -170,4 +170,3 @@ func (rb *RedisBusExample) Close() error {
 	return nil
 }
 */
-

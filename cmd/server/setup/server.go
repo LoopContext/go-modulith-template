@@ -189,7 +189,10 @@ func StartGRPCServer(cfg *config.AppConfig, grpcServer *grpc.Server, lis net.Lis
 }
 
 // ShutdownServers gracefully shuts down HTTP and gRPC servers.
-func ShutdownServers(cfg *config.AppConfig, httpServer *http.Server, grpcServer *grpc.Server, wsHub interface{ GetTotalConnections() int; Stop() }) {
+func ShutdownServers(cfg *config.AppConfig, httpServer *http.Server, grpcServer *grpc.Server, wsHub interface {
+	GetTotalConnections() int
+	Stop()
+}) {
 	slog.Info("Shutting down server")
 
 	// Parse shutdown timeout
@@ -232,4 +235,3 @@ func ShutdownServers(cfg *config.AppConfig, httpServer *http.Server, grpcServer 
 	// OpenTelemetry SDK handles this automatically via shutdown hooks
 	slog.Info("Server shutdown complete")
 }
-

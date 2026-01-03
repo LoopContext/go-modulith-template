@@ -137,11 +137,11 @@ func (c *CompositeNotifier) SendTemplatedSMS(ctx context.Context, to, templateNa
 // getSubjectFromTemplate returns an appropriate subject based on template name.
 func getSubjectFromTemplate(templateName string, data TemplateData) string {
 	subjects := map[string]string{
-		"magic_code_email":           "Your Login Code",
-		"welcome_email":              "Welcome to " + data.AppName,
-		"email_change_verification":  "Verify Your New Email",
-		"password_reset":             "Reset Your Password",
-		"account_security_alert":     "Security Alert",
+		"magic_code_email":          "Your Login Code",
+		"welcome_email":             "Welcome to " + data.AppName,
+		"email_change_verification": "Verify Your New Email",
+		"password_reset":            "Reset Your Password",
+		"account_security_alert":    "Security Alert",
 	}
 
 	if subject, ok := subjects[templateName]; ok {
@@ -150,4 +150,3 @@ func getSubjectFromTemplate(templateName string, data TemplateData) string {
 
 	return "Notification from " + data.AppName
 }
-

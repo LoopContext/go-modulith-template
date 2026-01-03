@@ -152,12 +152,12 @@ type Publisher struct {
 // This allows the publisher to work with any event bus implementation.
 type PublisherFunc func(ctx context.Context, eventName string, payload interface{})
 
-
 // NewPublisher creates a new outbox publisher.
 // The publisher function should publish events to the event bus.
-// Example: NewPublisher(repo, func(ctx context.Context, name string, payload interface{}) {
-//     bus.Publish(ctx, events.Event{Name: name, Payload: payload})
-// })
+//
+//	Example: NewPublisher(repo, func(ctx context.Context, name string, payload interface{}) {
+//	    bus.Publish(ctx, events.Event{Name: name, Payload: payload})
+//	})
 func NewPublisher(repo Repository, publisher PublisherFunc) *Publisher {
 	return &Publisher{
 		repo:      repo,
@@ -209,4 +209,3 @@ func (p *Publisher) Process(ctx context.Context) error {
 
 	return nil
 }
-

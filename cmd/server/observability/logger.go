@@ -87,4 +87,3 @@ func (h traceContextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 func (h traceContextHandler) WithGroup(name string) slog.Handler {
 	return traceContextHandler{next: h.next.WithGroup(name)}
 }
-

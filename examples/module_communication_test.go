@@ -133,4 +133,3 @@ func testEventPublishing(ctx context.Context, t *testing.T, eventBus *events.Bus
 	// 2. Use one module's service to call another module's service
 	// 3. Verify the interaction
 }
-

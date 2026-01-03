@@ -221,4 +221,3 @@ func createTestToken(t *testing.T, secret, subject, role string, expiresAt time.
 
 	return token
 }
-

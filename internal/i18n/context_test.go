@@ -34,4 +34,3 @@ func TestLocaleFromContext_NotSet(t *testing.T) {
 		t.Errorf("expected empty locale, got '%s'", locale)
 	}
 }
-

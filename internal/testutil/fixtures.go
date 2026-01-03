@@ -32,4 +32,3 @@ func TestConfig() *config.AppConfig {
 func TestJWTSecret() string {
 	return "test-secret-key-that-is-at-least-32-bytes-long-for-testing"
 }
-

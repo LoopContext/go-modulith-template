@@ -287,4 +287,3 @@ If you didn't request this change, please secure your account immediately.
 	// Phone change verification SMS
 	_ = tm.AddTextTemplate("phone_change_sms", `{{.AppName}}: Your phone verification code is {{.Code}}. Expires in {{.ExpiresIn}}.`)
 }
-

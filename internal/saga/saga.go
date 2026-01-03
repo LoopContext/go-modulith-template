@@ -6,12 +6,13 @@
 // durable, distributed saga orchestration with retries, timeouts, and state management.
 //
 // Usage:
-//   saga := saga.New()
-//   saga.AddStep("step1", executeStep1, compensateStep1)
-//   saga.AddStep("step2", executeStep2, compensateStep2)
-//   if err := saga.Execute(ctx); err != nil {
-//       // Compensation is automatically executed for completed steps
-//   }
+//
+//	saga := saga.New()
+//	saga.AddStep("step1", executeStep1, compensateStep1)
+//	saga.AddStep("step2", executeStep2, compensateStep2)
+//	if err := saga.Execute(ctx); err != nil {
+//	    // Compensation is automatically executed for completed steps
+//	}
 package saga
 
 import (
@@ -108,4 +109,3 @@ func (s *Saga) compensate(ctx context.Context, steps []Step) error {
 func (s *Saga) Steps() []Step {
 	return s.steps
 }
-

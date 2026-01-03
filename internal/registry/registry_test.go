@@ -229,4 +229,3 @@ func TestRegistry_RegisterGatewayAll_Error(t *testing.T) {
 		t.Error("expected error")
 	}
 }
-

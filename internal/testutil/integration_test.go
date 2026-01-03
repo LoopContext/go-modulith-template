@@ -56,4 +56,3 @@ func TestPostgresContainer(t *testing.T) {
 		t.Errorf("Expected result 1, got %d", result)
 	}
 }
-

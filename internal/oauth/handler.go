@@ -239,4 +239,3 @@ func GetGothProvider(name string) (goth.Provider, error) {
 
 	return provider, nil
 }
-

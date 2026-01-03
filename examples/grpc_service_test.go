@@ -177,4 +177,3 @@ func TestExampleGRPCErrorHandling(t *testing.T) {
 
 	t.Log("Error handling test setup complete")
 }
-

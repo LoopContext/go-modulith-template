@@ -140,8 +140,8 @@ func getRequestLoginTestCases() []struct {
 			wantErr: false,
 		},
 		{
-			name:        "user not found",
-			req:         &authv1.RequestLoginRequest{ContactInfo: &authv1.RequestLoginRequest_Phone{Phone: "+1234567890"}},
+			name: "user not found",
+			req:  &authv1.RequestLoginRequest{ContactInfo: &authv1.RequestLoginRequest_Phone{Phone: "+1234567890"}},
 			setupMock: func(m *mocks.MockRepository) {
 				m.EXPECT().GetUserByPhone(gomock.Any(), "+1234567890").Return(nil, sql.ErrNoRows).Times(1)
 			},

@@ -35,4 +35,3 @@ func GetSecretOrDefault(ctx context.Context, provider Provider, key, defaultValu
 
 	return value, nil
 }
-

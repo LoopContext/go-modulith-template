@@ -5,11 +5,11 @@ import (
 	"context"
 	"fmt"
 
+	"buf.build/go/protovalidate"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"buf.build/go/protovalidate"
 )
 
 var (
@@ -47,4 +47,3 @@ func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 		return handler(ctx, req)
 	}
 }
-

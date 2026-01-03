@@ -302,4 +302,3 @@ func verifyBearerTokenResult(t *testing.T, token string, err error, wantToken st
 		}
 	}
 }
-

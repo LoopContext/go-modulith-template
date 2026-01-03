@@ -187,4 +187,3 @@ func (cb *CompositeEventBus) Close() error {
 func (cb *CompositeEventBus) LocalBus() *Bus {
 	return cb.local
 }
-

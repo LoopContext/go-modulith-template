@@ -273,4 +273,3 @@ func TestSagaOrderCreation_PaymentFailure(t *testing.T) {
 	assert.Equal(t, 10, inventorySvc.GetStock(itemID)) // Stock should be restored
 	assert.False(t, paymentSvc.HasPayment(orderID))
 }
-

@@ -389,28 +389,28 @@ func ToGRPCWithContext(ctx context.Context, defaultLocale string, err error) err
 
 // mapErrorCodeToTranslationKey maps error codes to translation keys.
 var errorCodeToTranslationKey = map[ErrorCode]string{
-	CodeUserNotFound:         "errors.user_not_found",
-	CodeAuthInvalidCreds:     "errors.invalid_credentials",
-	CodeAuthMagicCodeExpired: "errors.magic_code_expired",
-	CodeAuthMagicCodeInvalid: "errors.magic_code_invalid",
-	CodeAuthRequired:         "errors.auth_required",
-	CodeAuthTokenExpired:     "errors.token_expired",
-	CodeAuthInvalidToken:     "errors.token_invalid",
-	CodeAuthSessionExpired:   "errors.session_expired",
-	CodeAuthSessionRevoked:   "errors.session_revoked",
-	CodeForbidden:            "errors.forbidden",
+	CodeUserNotFound:           "errors.user_not_found",
+	CodeAuthInvalidCreds:       "errors.invalid_credentials",
+	CodeAuthMagicCodeExpired:   "errors.magic_code_expired",
+	CodeAuthMagicCodeInvalid:   "errors.magic_code_invalid",
+	CodeAuthRequired:           "errors.auth_required",
+	CodeAuthTokenExpired:       "errors.token_expired",
+	CodeAuthInvalidToken:       "errors.token_invalid",
+	CodeAuthSessionExpired:     "errors.session_expired",
+	CodeAuthSessionRevoked:     "errors.session_revoked",
+	CodeForbidden:              "errors.forbidden",
 	CodeInsufficientPermission: "errors.insufficient_permission",
-	CodeNotOwner:             "errors.not_resource_owner",
-	CodeUserAlreadyExist:     "errors.user_already_exists",
-	CodeUserSuspended:        "errors.user_suspended",
-	CodeValidationFailed:     "errors.validation_failed",
-	CodeAlreadyExists:       "errors.already_exists",
-	CodeConflict:             "errors.conflict",
-	CodeUnavailable:          "errors.service_unavailable",
-	CodeRateLimited:           "errors.rate_limited",
-	CodeQuotaExceed:           "errors.quota_exceeded",
-	CodeInternalError:         "errors.internal_error",
-	CodeUnknown:               "errors.unknown",
+	CodeNotOwner:               "errors.not_resource_owner",
+	CodeUserAlreadyExist:       "errors.user_already_exists",
+	CodeUserSuspended:          "errors.user_suspended",
+	CodeValidationFailed:       "errors.validation_failed",
+	CodeAlreadyExists:          "errors.already_exists",
+	CodeConflict:               "errors.conflict",
+	CodeUnavailable:            "errors.service_unavailable",
+	CodeRateLimited:            "errors.rate_limited",
+	CodeQuotaExceed:            "errors.quota_exceeded",
+	CodeInternalError:          "errors.internal_error",
+	CodeUnknown:                "errors.unknown",
 }
 
 func mapErrorCodeToTranslationKey(code ErrorCode) string {
@@ -506,4 +506,3 @@ func IsValidation(err error) bool {
 
 	return false
 }
-

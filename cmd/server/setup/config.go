@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/i18n"
 	"github.com/cmelgarejo/go-modulith-template/internal/version"
-	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
 	"github.com/joho/godotenv"
 )
 
@@ -81,4 +81,3 @@ func CaptureSystemEnvVars() map[string]string {
 
 	return systemEnvVars
 }
-

@@ -41,4 +41,3 @@ func (e *EnvProvider) GetSecretJSON(ctx context.Context, key string, v interface
 
 	return nil
 }
-

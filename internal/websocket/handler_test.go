@@ -14,7 +14,7 @@ func TestNewHandler(t *testing.T) {
 		Hub:            hub,
 		Verifier:       nil,
 		AllowedOrigins: []string{"*"},
-		Env:             "dev",
+		Env:            "dev",
 	})
 
 	if handler == nil {
@@ -33,7 +33,7 @@ func TestHandler_AuthenticateRequest_DevMode(t *testing.T) {
 		Hub:            hub,
 		Verifier:       nil,
 		AllowedOrigins: []string{"*"},
-		Env:             "dev",
+		Env:            "dev",
 	})
 
 	tests := getDevModeAuthTestCases()
@@ -68,31 +68,31 @@ func TestHandler_AuthenticateRequest_DevMode(t *testing.T) {
 }
 
 type devModeAuthTestCase struct {
-	name          string
-	query         string
+	name           string
+	query          string
 	expectedUserID string
-	expectError   bool
+	expectError    bool
 }
 
 func getDevModeAuthTestCases() []devModeAuthTestCase {
 	return []devModeAuthTestCase{
 		{
-			name:          "with user_id parameter in dev",
-			query:         "user_id=test-user-123",
+			name:           "with user_id parameter in dev",
+			query:          "user_id=test-user-123",
 			expectedUserID: "test-user-123",
-			expectError:   false,
+			expectError:    false,
 		},
 		{
-			name:          "without user_id parameter in dev",
-			query:         "",
+			name:           "without user_id parameter in dev",
+			query:          "",
 			expectedUserID: "",
-			expectError:   false, // Dev mode allows anonymous
+			expectError:    false, // Dev mode allows anonymous
 		},
 		{
-			name:          "empty user_id",
-			query:         "user_id=",
+			name:           "empty user_id",
+			query:          "user_id=",
 			expectedUserID: "",
-			expectError:   false,
+			expectError:    false,
 		},
 	}
 }
@@ -104,7 +104,7 @@ func TestHandler_ServeHTTP_InvalidRequest(t *testing.T) {
 		Hub:            hub,
 		Verifier:       nil,
 		AllowedOrigins: []string{"*"},
-		Env:             "dev",
+		Env:            "dev",
 	})
 
 	// Create a regular HTTP request (not WebSocket upgrade)
@@ -126,7 +126,7 @@ func TestHandler_ServeHTTP_PostRequest(t *testing.T) {
 		Hub:            hub,
 		Verifier:       nil,
 		AllowedOrigins: []string{"*"},
-		Env:             "dev",
+		Env:            "dev",
 	})
 
 	// POST requests should also fail
@@ -249,4 +249,3 @@ func getEmptyOriginTestCases() []originTestCase {
 		},
 	}
 }
-

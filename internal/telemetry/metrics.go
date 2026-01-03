@@ -189,4 +189,3 @@ func Attr(key, value string) metric.AddOption {
 func RecordAttr(key, value string) metric.RecordOption {
 	return metric.WithAttributes(attribute.String(key, value))
 }
-

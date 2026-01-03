@@ -75,5 +75,3 @@ func bearerTokenFromMetadata(ctx context.Context) (string, error) {
 
 	return token, nil
 }
-
-

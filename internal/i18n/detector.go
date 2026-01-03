@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"google.golang.org/grpc/metadata"
 	"golang.org/x/text/language"
+	"google.golang.org/grpc/metadata"
 )
 
 // DetectLocale detects the locale from the context.
@@ -71,4 +71,3 @@ func normalizeLocale(locale string) string {
 		return DefaultLocale
 	}
 }
-

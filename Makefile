@@ -1,4 +1,4 @@
-.PHONY: help sqlc proto install-deps install-mocks generate-mocks test-unit graphql-init graphql-generate graphql-generate-module graphql-generate-all graphql-validate graphql-add graphql-from-proto validate-setup quickstart doctor
+.PHONY: help sqlc proto install-deps install-mocks generate-mocks generate-all test-unit graphql-init graphql-generate graphql-generate-module graphql-generate-all graphql-validate graphql-add graphql-from-proto validate-setup quickstart doctor format tidy pre-commit
 .DEFAULT_GOAL := help
 
 help: ## Show available commands
@@ -37,6 +37,8 @@ generate-mocks: ## Generate all mocks from interfaces
 	@echo "Generating mocks..."
 	@go generate ./modules/...
 	@echo "Mocks generated successfully"
+
+generate-all: sqlc proto generate-mocks ## Generate all code (sqlc + proto + mocks)
 
 docker-up: ## Run docker-compose
 	docker-compose up -d
@@ -79,6 +81,24 @@ coverage-html: ## Open coverage report in browser
 
 lint: ## Run linter
 	golangci-lint run
+
+format: ## Format code with gofmt (and goimports if available)
+	@echo "Formatting code with gofmt..."
+	@gofmt -w .
+	@if command -v goimports > /dev/null; then \
+		echo "Formatting imports with goimports..."; \
+		goimports -w .; \
+	else \
+		echo "💡 Tip: Install goimports for import formatting: go install golang.org/x/tools/cmd/goimports@latest"; \
+	fi
+	@echo "✅ Code formatted"
+
+tidy: ## Tidy Go module dependencies
+	@echo "Tidying Go module dependencies..."
+	@go mod tidy
+	@echo "✅ Dependencies tidied"
+
+pre-commit: format lint test-unit ## Run pre-commit checks (format + lint + test-unit)
 
 docker-down: ## Stop docker-compose services
 	docker-compose down

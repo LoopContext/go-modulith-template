@@ -52,4 +52,3 @@ func RegisterModules(reg *registry.Registry) {
 	// reg.Register(order.NewModule())
 	// reg.Register(payment.NewModule())
 }
-

@@ -236,4 +236,3 @@ func TestCrossModuleGRPC_ContextPropagation(t *testing.T) {
 // Note: These helper functions are examples showing the pattern.
 // In actual usage, you would reuse helpers from module_communication_test.go
 // or create shared test utilities in internal/testutil.
-

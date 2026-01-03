@@ -87,4 +87,3 @@ func TestLogNotifier_ImplementsInterfaces(_ *testing.T) {
 
 	var _ Notifier = (*LogNotifier)(nil)
 }
-

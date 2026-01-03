@@ -31,4 +31,3 @@ func InitObservability(ctx context.Context, cfg *config.AppConfig) (func(), erro
 		metricsShutdown()
 	}, nil
 }
-

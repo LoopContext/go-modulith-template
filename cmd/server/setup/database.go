@@ -71,4 +71,3 @@ func CloseDB(db *sql.DB) {
 		slog.Error("Failed to close DB", "error", err)
 	}
 }
-

@@ -101,4 +101,3 @@ func MustT(ctx context.Context, defaultLocale string, messageID string, template
 
 	return msg
 }
-

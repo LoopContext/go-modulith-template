@@ -180,4 +180,3 @@ func (kb *KafkaBusExample) Close() error {
 	return nil
 }
 */
-

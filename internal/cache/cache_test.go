@@ -228,4 +228,3 @@ func TestMemoryCache_ValueIsolation(t *testing.T) {
 		t.Errorf("cache value was modified: expected %q, got %q", original, got2)
 	}
 }
-

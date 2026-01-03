@@ -8,11 +8,11 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
+	"github.com/cmelgarejo/go-modulith-template/cmd/server/setup"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/migration"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
-	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
-	"github.com/cmelgarejo/go-modulith-template/cmd/server/setup"
 )
 
 // CommonSetup loads configuration, initializes database, and creates registry.
@@ -96,4 +96,3 @@ func (r *registryAdapter) Modules() []interface{} {
 
 	return result
 }
-

@@ -79,4 +79,3 @@ func (p *SESProvider) SendEmail(ctx context.Context, msg notifier.Message) error
 
 	return nil
 }
-

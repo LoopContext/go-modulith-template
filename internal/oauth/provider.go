@@ -65,4 +65,3 @@ type StateData struct {
 	Action      StateAction
 	ExpiresAt   time.Time
 }
-

@@ -89,4 +89,3 @@ func (m *StateManager) CreateStateData(provider, redirectURL, userID string, act
 		ExpiresAt:   time.Now().Add(DefaultStateExpiration),
 	}, nil
 }
-

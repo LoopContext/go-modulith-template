@@ -83,4 +83,3 @@ func TestCounterWithAttributes(t *testing.T) {
 	// Should not panic
 	counterWithAttrs.Inc(context.Background())
 }
-

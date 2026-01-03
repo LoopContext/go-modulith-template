@@ -75,4 +75,3 @@ func (c *PostgresContainer) DB(ctx context.Context) (*sql.DB, error) {
 
 	return db, nil
 }
-

@@ -154,4 +154,3 @@ func (c *Client) writeJSON(message *Message) error {
 
 	return nil
 }
-

@@ -186,4 +186,3 @@ func testEventCollector(ctx context.Context, t *testing.T, bus *events.Bus, coll
 		t.Errorf("Expected 1 event in AllEvents, got %d", len(allEvents))
 	}
 }
-

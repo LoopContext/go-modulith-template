@@ -47,4 +47,3 @@ func InitTracer(ctx context.Context, endpoint, serviceName string) func() {
 		}
 	}
 }
-

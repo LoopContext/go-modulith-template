@@ -210,4 +210,3 @@ func (h *Hub) shutdown() {
 
 	slog.Info("WebSocket hub stopped")
 }
-

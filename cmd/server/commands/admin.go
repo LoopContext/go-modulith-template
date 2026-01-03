@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/cmelgarejo/go-modulith-template/cmd/server/setup"
 	"github.com/cmelgarejo/go-modulith-template/internal/admin"
 	adminTasks "github.com/cmelgarejo/go-modulith-template/internal/admin/tasks"
-	"github.com/cmelgarejo/go-modulith-template/cmd/server/setup"
 )
 
 // RunAdminCommand runs the admin command.
@@ -49,4 +49,3 @@ func RunAdminCommand(taskName string) {
 	setup.CloseDB(db)
 	slog.Info("✅ Admin task completed successfully", "task", taskName)
 }
-

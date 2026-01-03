@@ -167,4 +167,3 @@ func TestTemplateManager_RenderText_NonexistentTemplate(t *testing.T) {
 		t.Error("expected error for nonexistent template")
 	}
 }
-

@@ -129,4 +129,3 @@ func Logging(config LoggingConfig) func(http.Handler) http.Handler {
 func LoggingWithDefaults() func(http.Handler) http.Handler {
 	return Logging(DefaultLoggingConfig())
 }
-

@@ -265,4 +265,3 @@ func captureSystemEnvVars() map[string]string {
 
 	return systemEnvVars
 }
-

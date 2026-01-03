@@ -102,7 +102,7 @@ func TestInMemoryManager_PercentageRollout(t *testing.T) {
 
 	for i := 0; i < totalUsers; i++ {
 		featureCtx := feature.Context{
-			UserID: string(rune('A' + i%26)) + string(rune('0'+i)),
+			UserID: string(rune('A'+i%26)) + string(rune('0'+i)),
 		}
 
 		if manager.IsEnabledFor(ctx, "partial_rollout", featureCtx) {
@@ -185,4 +185,3 @@ func TestInMemoryManager_ConsistentHashing(t *testing.T) {
 		}
 	}
 }
-

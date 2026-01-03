@@ -44,4 +44,3 @@ func InitMetrics() (http.Handler, func(), error) {
 		}
 	}, nil
 }
-

@@ -194,4 +194,3 @@ func testConcurrentTransactions(ctx context.Context, t *testing.T, db *sql.DB) {
 		t.Errorf("Expected 2 rows, got %d", count)
 	}
 }
-

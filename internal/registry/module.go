@@ -54,4 +54,3 @@ type ModuleAuth interface {
 	// Format: "/package.service/Method"
 	PublicEndpoints() []string
 }
-

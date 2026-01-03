@@ -46,4 +46,3 @@ func (t *CleanupExpiredMagicCodesTask) Execute(ctx context.Context) error {
 
 	return nil
 }
-

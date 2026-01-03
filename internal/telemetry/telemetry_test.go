@@ -232,4 +232,3 @@ func TestServiceSpan(t *testing.T) {
 		t.Error("expected layer=service attribute not found")
 	}
 }
-

@@ -18,4 +18,3 @@ func RunMigrationsForTest(_ context.Context, dbDSN string, reg *registry.Registr
 
 	return nil
 }
-

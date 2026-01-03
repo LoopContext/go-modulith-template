@@ -167,4 +167,3 @@ func RegisterRole(roleName string, permissions []Permission) {
 func GetRolePermissions(roleName string) []Permission {
 	return rolePermissions[roleName]
 }
-

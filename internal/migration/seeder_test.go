@@ -46,4 +46,3 @@ func TestSeeder_SeedAll_ModuleWithoutSeeder(t *testing.T) {
 		t.Errorf("SeedAll() with non-seeder module should not error, got: %v", err)
 	}
 }
-

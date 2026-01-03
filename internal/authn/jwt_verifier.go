@@ -57,5 +57,3 @@ func (v *JWTVerifier) VerifyToken(_ context.Context, tokenString string) (*Claim
 		Role:   role,
 	}, nil
 }
-
-

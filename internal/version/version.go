@@ -40,4 +40,3 @@ func Short() string {
 
 	return Version
 }
-

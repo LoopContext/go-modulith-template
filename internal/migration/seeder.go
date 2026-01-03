@@ -170,4 +170,3 @@ func (s *Seeder) executeSQLFile(ctx context.Context, filePath string) error {
 
 	return nil
 }
-

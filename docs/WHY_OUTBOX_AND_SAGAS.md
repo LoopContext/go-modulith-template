@@ -42,16 +42,18 @@ This document explains when and why you need the Outbox pattern and Saga pattern
 ```
 
 **Answer: You need Outbox if:**
-- ✅ Deploying multiple instances (horizontal scaling)
-- ✅ Events must be delivered reliably (critical business events)
-- ✅ Events must survive application restarts
-- ✅ Event ordering matters
+
+-   ✅ Deploying multiple instances (horizontal scaling)
+-   ✅ Events must be delivered reliably (critical business events)
+-   ✅ Events must survive application restarts
+-   ✅ Event ordering matters
 
 **Answer: You DON'T need Outbox if:**
-- ❌ Single instance deployment
-- ❌ Events are just notifications/logging (fire-and-forget is OK)
-- ❌ Event loss is acceptable
-- ❌ All event handlers are in-process
+
+-   ❌ Single instance deployment
+-   ❌ Events are just notifications/logging (fire-and-forget is OK)
+-   ❌ Event loss is acceptable
+-   ❌ All event handlers are in-process
 
 ### Do I Need Saga Pattern?
 
@@ -84,16 +86,18 @@ This document explains when and why you need the Outbox pattern and Saga pattern
 ```
 
 **Answer: You need Saga if:**
-- ✅ Operations span multiple modules
-- ✅ Need compensation (rollback) on failure
-- ✅ Need all-or-nothing semantics across modules
-- ✅ Complex multi-step workflows with dependencies
+
+-   ✅ Operations span multiple modules
+-   ✅ Need compensation (rollback) on failure
+-   ✅ Need all-or-nothing semantics across modules
+-   ✅ Complex multi-step workflows with dependencies
 
 **Answer: You DON'T need Saga if:**
-- ❌ Single-module operations
-- ❌ Simple transactions within one module
-- ❌ Eventual consistency is acceptable
-- ❌ No compensation needed
+
+-   ❌ Single-module operations
+-   ❌ Simple transactions within one module
+-   ❌ Eventual consistency is acceptable
+-   ❌ No compensation needed
 
 ## Outbox Pattern: When and Why
 
@@ -102,6 +106,7 @@ This document explains when and why you need the Outbox pattern and Saga pattern
 The Outbox pattern solves the **"dual-write problem"** in distributed systems:
 
 **Problem:** When you need to:
+
 1. Save data to database (in a transaction)
 2. Publish an event (to event bus)
 
@@ -126,16 +131,18 @@ func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLogin
 ```
 
 **Current Limitations:**
-- ❌ If `Publish()` fails, event is lost (but data is saved)
-- ❌ If application crashes between save and publish, event is lost
-- ❌ In multi-instance deployments, events only reach handlers in the same instance
-- ❌ No guarantee of event delivery
+
+-   ❌ If `Publish()` fails, event is lost (but data is saved)
+-   ❌ If application crashes between save and publish, event is lost
+-   ❌ In multi-instance deployments, events only reach handlers in the same instance
+-   ❌ No guarantee of event delivery
 
 **This is OK when:**
-- ✅ Single instance deployment
-- ✅ Events are notifications (not critical)
-- ✅ Event loss is acceptable
-- ✅ Event handlers are in-process
+
+-   ✅ Single instance deployment
+-   ✅ Events are notifications (not critical)
+-   ✅ Event loss is acceptable
+-   ✅ Event handlers are in-process
 
 ### When Outbox Becomes Necessary
 
@@ -228,6 +235,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *CreateOrderRequest)
 ### When to Enable Outbox
 
 **Enable Outbox when:**
+
 1. **Deploying multiple instances** (Kubernetes, auto-scaling, etc.)
 2. **Events are critical** (order created, payment processed, etc.)
 3. **Event durability required** (must survive restarts)
@@ -235,6 +243,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *CreateOrderRequest)
 5. **Audit/compliance** (events must be logged)
 
 **Keep it disabled when:**
+
 1. Single instance deployment
 2. Events are just notifications (fire-and-forget OK)
 3. Event loss is acceptable
@@ -247,9 +256,10 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *CreateOrderRequest)
 The Saga pattern solves the **"distributed transaction problem"** in microservices/moduliths:
 
 **Problem:** You can't use database transactions across multiple modules because:
-- Each module has its own database (in microservices)
-- Even in modulith, modules should be isolated
-- Network calls can't be part of a database transaction
+
+-   Each module has its own database (in microservices)
+-   Even in modulith, modules should be isolated
+-   Network calls can't be part of a database transaction
 
 ### Example: Order Creation Without Saga
 
@@ -276,10 +286,11 @@ func CreateOrder(ctx context.Context, req *CreateOrderRequest) {
 ```
 
 **Without Saga:**
-- ❌ No way to rollback across modules
-- ❌ Inconsistent state (order created, inventory reserved, payment failed)
-- ❌ Manual cleanup required
-- ❌ Complex error handling
+
+-   ❌ No way to rollback across modules
+-   ❌ Inconsistent state (order created, inventory reserved, payment failed)
+-   ❌ Manual cleanup required
+-   ❌ Complex error handling
 
 ### When Saga Becomes Necessary
 
@@ -400,12 +411,14 @@ If step 2 fails:
 ### When to Use Saga
 
 **Use Saga when:**
+
 1. **Multi-module operations** (order → inventory → payment)
 2. **Compensation needed** (rollback on failure)
 3. **All-or-nothing semantics** (strong consistency)
 4. **Complex workflows** (multi-step with dependencies)
 
 **Don't use Saga when:**
+
 1. **Single-module operations** (use simple transactions)
 2. **Eventual consistency OK** (order created, inventory reserved eventually)
 3. **No compensation needed** (operations are idempotent)
@@ -418,12 +431,14 @@ If step 2 fails:
 **Operation:** Customer places order
 
 **Modules Involved:**
-- Order module (create order)
-- Inventory module (reserve stock)
-- Payment module (charge card)
-- Notification module (send confirmation)
+
+-   Order module (create order)
+-   Inventory module (reserve stock)
+-   Payment module (charge card)
+-   Notification module (send confirmation)
 
 **Without Saga:**
+
 ```go
 // Manual, error-prone
 order := createOrder()
@@ -434,6 +449,7 @@ payment := chargeCard()  // Fails!
 ```
 
 **With Saga:**
+
 ```go
 saga := saga.New("order-creation").
     AddStep("create-order", createOrder, cancelOrder).
@@ -452,11 +468,13 @@ err := saga.Execute(ctx)
 **Operation:** New user signs up
 
 **Modules Involved:**
-- Auth module (create account)
-- Profile module (create profile)
-- Notification module (send welcome email)
+
+-   Auth module (create account)
+-   Profile module (create profile)
+-   Notification module (send welcome email)
 
 **Without Saga:**
+
 ```go
 // Simple case - eventual consistency OK
 user := authService.CreateUser()
@@ -465,6 +483,7 @@ notificationService.SendWelcomeEmail(user.ID)  // Can fail, that's OK
 ```
 
 **With Saga (if needed):**
+
 ```go
 // Only if you need all-or-nothing
 saga := saga.New("user-registration").
@@ -482,6 +501,7 @@ err := saga.Execute(ctx)
 **Operation:** Send magic code for login
 
 **Current Implementation:**
+
 ```go
 // Save magic code to database
 err = s.repo.CreateMagicCode(ctx, code, email, phone, expiresAt)
@@ -494,30 +514,35 @@ s.bus.Publish(ctx, events.Event{
 ```
 
 **Without Outbox:**
-- Event might be lost if publish fails
-- Event might be lost if app crashes
-- In multi-instance, only one instance gets event
+
+-   Event might be lost if publish fails
+-   Event might be lost if app crashes
+-   In multi-instance, only one instance gets event
 
 **With Outbox:**
-- Event guaranteed to be published
-- Event survives app restarts
-- Event reaches all instances
+
+-   Event guaranteed to be published
+-   Event survives app restarts
+-   Event reaches all instances
 
 **Decision:**
-- **Single instance:** ❌ **Don't need Outbox** - Event loss is acceptable for notifications
-- **Multiple instances:** ✅ **Need Outbox** - Event must reach notification handler
-- **Critical events:** ✅ **Need Outbox** - If magic code notification is critical
+
+-   **Single instance:** ❌ **Don't need Outbox** - Event loss is acceptable for notifications
+-   **Multiple instances:** ✅ **Need Outbox** - Event must reach notification handler
+-   **Critical events:** ✅ **Need Outbox** - If magic code notification is critical
 
 ### Scenario 4: Payment Processing
 
 **Operation:** Process payment for order
 
 **Modules Involved:**
-- Payment module (charge card)
-- Order module (update order status)
-- Notification module (send receipt)
+
+-   Payment module (charge card)
+-   Order module (update order status)
+-   Notification module (send receipt)
 
 **Without Outbox:**
+
 ```go
 // Payment processed
 payment := paymentService.ProcessPayment(orderID, amount)
@@ -530,6 +555,7 @@ notificationService.SendReceipt(orderID)  // If this fails, customer doesn't get
 ```
 
 **With Outbox:**
+
 ```go
 // In transaction
 tx.Begin()
@@ -552,18 +578,21 @@ tx.Commit()
 ### Phase 1: Start Simple (Current State)
 
 **Outbox:** Disabled
-- Single instance deployment
-- Fire-and-forget events
-- Event loss acceptable
+
+-   Single instance deployment
+-   Fire-and-forget events
+-   Event loss acceptable
 
 **Saga:** Not used
-- Single-module operations
-- Simple transactions
-- Eventual consistency OK
+
+-   Single-module operations
+-   Simple transactions
+-   Eventual consistency OK
 
 ### Phase 2: Scale Horizontally
 
 **Outbox:** Enable when deploying multiple instances
+
 ```go
 // Enable outbox
 outboxRepo := outbox.NewRepository(db)
@@ -580,6 +609,7 @@ reg := registry.New(
 ### Phase 3: Complex Workflows
 
 **Saga:** Enable when building multi-module operations
+
 ```go
 // Use saga for order creation
 saga := saga.New("order-creation").
@@ -593,42 +623,47 @@ err := saga.Execute(ctx)
 ### Phase 4: Production Scale
 
 **Saga:** Consider Temporal for production
-- Durable execution
-- Built-in retries
-- Better observability
-- Production-grade reliability
+
+-   Durable execution
+-   Built-in retries
+-   Better observability
+-   Production-grade reliability
 
 ## Common Misconceptions
 
 ### ❌ "I need Outbox for all events"
 
 **Reality:** Only needed for:
-- Critical business events
-- Multi-instance deployments
-- Events that must be durable
+
+-   Critical business events
+-   Multi-instance deployments
+-   Events that must be durable
 
 **Example:** Logging events don't need outbox.
 
 ### ❌ "I need Saga for all multi-module operations"
 
 **Reality:** Only needed when:
-- Compensation is required
-- All-or-nothing semantics needed
-- Eventual consistency is not acceptable
+
+-   Compensation is required
+-   All-or-nothing semantics needed
+-   Eventual consistency is not acceptable
 
 **Example:** User registration can use eventual consistency (create user, create profile eventually).
 
 ### ❌ "Outbox and Saga are the same thing"
 
 **Reality:**
-- **Outbox:** Ensures reliable event publishing
-- **Saga:** Orchestrates multi-step operations with compensation
+
+-   **Outbox:** Ensures reliable event publishing
+-   **Saga:** Orchestrates multi-step operations with compensation
 
 **They solve different problems and can be used together.**
 
 ### ❌ "I must use these patterns from day one"
 
 **Reality:** Start simple, add patterns as needed:
+
 1. Start with simple events and transactions
 2. Add Outbox when scaling horizontally
 3. Add Saga when building complex workflows
@@ -639,26 +674,30 @@ err := saga.Execute(ctx)
 ### Outbox Pattern
 
 **Optional when:**
-- Single instance
-- Fire-and-forget events
-- Event loss acceptable
+
+-   Single instance
+-   Fire-and-forget events
+-   Event loss acceptable
 
 **Necessary when:**
-- Multiple instances
-- Critical business events
-- Event durability required
+
+-   Multiple instances
+-   Critical business events
+-   Event durability required
 
 ### Saga Pattern
 
 **Optional when:**
-- Single-module operations
-- Eventual consistency OK
-- No compensation needed
+
+-   Single-module operations
+-   Eventual consistency OK
+-   No compensation needed
 
 **Necessary when:**
-- Multi-module operations
-- Compensation required
-- All-or-nothing semantics
+
+-   Multi-module operations
+-   Compensation required
+-   All-or-nothing semantics
 
 ### Decision Framework
 
@@ -668,4 +707,3 @@ err := saga.Execute(ctx)
 4. **Consider Temporal** - For production-scale saga orchestration
 
 Both patterns are **optional by default** but become **necessary** as your application grows in complexity and scale.
-

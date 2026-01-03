@@ -117,4 +117,3 @@ func (p *SendGridProvider) SendEmail(ctx context.Context, msg notifier.Message) 
 
 	return nil
 }
-

@@ -19,4 +19,3 @@ func RunSeedCommand() {
 
 	slog.Info("✅ Seed data completed successfully")
 }
-

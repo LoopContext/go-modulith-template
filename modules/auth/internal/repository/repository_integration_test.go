@@ -94,4 +94,3 @@ func verifyUserCreated(ctx context.Context, t *testing.T, db *sql.DB, userID, ex
 		t.Errorf("Expected email %s, got %s", expectedEmail, email)
 	}
 }
-

@@ -70,4 +70,3 @@ func (r *Runner) Has(name string) bool {
 	_, exists := r.tasks[name]
 	return exists
 }
-

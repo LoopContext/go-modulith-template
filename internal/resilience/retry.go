@@ -142,4 +142,3 @@ func ExponentialBackoff(attempt int, initialDelay, maxDelay time.Duration, multi
 
 	return time.Duration(delay)
 }
-

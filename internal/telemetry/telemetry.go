@@ -104,4 +104,3 @@ func ServiceSpan(ctx context.Context, moduleName, operation string) (context.Con
 		"operation": operation,
 	})
 }
-

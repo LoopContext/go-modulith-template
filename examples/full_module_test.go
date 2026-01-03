@@ -174,4 +174,3 @@ func cleanupGRPCServerFull(t *testing.T, grpcServer *testutil.GRPCTestServer) {
 		t.Errorf("Failed to stop gRPC server: %v", err)
 	}
 }
-

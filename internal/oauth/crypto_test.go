@@ -97,10 +97,10 @@ func TestTokenEncryptor_DifferentCiphertexts(t *testing.T) {
 
 func TestNewTokenEncryptor_InvalidKeySize(t *testing.T) {
 	invalidKeys := [][]byte{
-		{},                                                            // empty
-		[]byte("short"),                                               // too short
-		[]byte("1234567890123456"),                                    // 16 bytes (AES-128)
-		[]byte("123456789012345678901234"),                            // 24 bytes (AES-192)
+		{},                                 // empty
+		[]byte("short"),                    // too short
+		[]byte("1234567890123456"),         // 16 bytes (AES-128)
+		[]byte("123456789012345678901234"), // 24 bytes (AES-192)
 		[]byte("123456789012345678901234567890123456789012345678901"), // too long
 	}
 

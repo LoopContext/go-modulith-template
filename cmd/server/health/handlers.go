@@ -115,4 +115,3 @@ func SetupWebSocketHealthCheck(mux *http.ServeMux, wsHub *websocket.Hub) {
 		_, _ = w.Write([]byte(response))
 	})
 }
-

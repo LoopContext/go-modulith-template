@@ -308,4 +308,3 @@ func (s *RepositoryStateStore) DeleteState(ctx context.Context, state string) er
 
 	return nil
 }
-

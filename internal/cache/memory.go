@@ -187,4 +187,3 @@ func (mc *MemoryCache) deleteExpired() {
 		}
 	}
 }
-

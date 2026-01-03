@@ -97,4 +97,3 @@ func TestRunner_List(t *testing.T) {
 		t.Errorf("Expected 2 tasks, got %d", len(tasks))
 	}
 }
-

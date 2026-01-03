@@ -114,4 +114,3 @@ func TestUserIDFromContext_WrongType(t *testing.T) {
 		t.Errorf("expected empty user ID, got %s", userID)
 	}
 }
-

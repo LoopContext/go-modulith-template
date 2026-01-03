@@ -45,4 +45,3 @@ func GetRequestID(ctx context.Context) string {
 
 	return ""
 }
-

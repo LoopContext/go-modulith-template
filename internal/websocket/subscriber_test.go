@@ -247,4 +247,3 @@ func TestExtractUserID(t *testing.T) {
 		})
 	}
 }
-

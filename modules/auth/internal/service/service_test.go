@@ -17,13 +17,13 @@ import (
 )
 
 type mockRepository struct {
-	createUserFunc              func(ctx context.Context, id, email, phone string) error
-	getUserByEmailFunc          func(ctx context.Context, email string) (*store.User, error)
-	getUserByPhoneFunc          func(ctx context.Context, phone string) (*store.User, error)
-	createMagicCodeFunc         func(ctx context.Context, code, email, phone string, expiresAt time.Time) error
+	createUserFunc               func(ctx context.Context, id, email, phone string) error
+	getUserByEmailFunc           func(ctx context.Context, email string) (*store.User, error)
+	getUserByPhoneFunc           func(ctx context.Context, phone string) (*store.User, error)
+	createMagicCodeFunc          func(ctx context.Context, code, email, phone string, expiresAt time.Time) error
 	getValidMagicCodeByEmailFunc func(ctx context.Context, email, code string) (*store.MagicCode, error)
 	getValidMagicCodeByPhoneFunc func(ctx context.Context, phone, code string) (*store.MagicCode, error)
-	invalidateMagicCodesFunc    func(ctx context.Context, email, phone string) error
+	invalidateMagicCodesFunc     func(ctx context.Context, email, phone string) error
 }
 
 func (m *mockRepository) WithTx(_ context.Context, fn func(repository.Repository) error) error {
@@ -655,7 +655,6 @@ func TestVerifyMagicCodeByPhone_DatabaseError(t *testing.T) {
 		t.Fatal("expected error when database fails for phone verification")
 	}
 }
-
 
 // Additional mock methods for the extended Repository interface
 

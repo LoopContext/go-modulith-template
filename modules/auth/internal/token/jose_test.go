@@ -102,8 +102,6 @@ func TestCreateToken_EmptyUserID(t *testing.T) {
 		t.Fatalf("Failed to create token service: %v", err)
 	}
 
-
-
 	token, err := ts.CreateToken("", "user", time.Minute)
 	if err != nil {
 		t.Fatalf("Failed to create token: %v", err)
@@ -124,8 +122,6 @@ func TestCreateToken_EmptyRole(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create token service: %v", err)
 	}
-
-
 
 	token, err := ts.CreateToken("user-123", "", time.Minute)
 	if err != nil {
@@ -148,8 +144,6 @@ func TestVerifyToken_MalformedToken(t *testing.T) {
 		t.Fatalf("Failed to create token service: %v", err)
 	}
 
-
-
 	_, err = ts.VerifyToken("not.a.valid.token")
 	if err == nil {
 		t.Error("Expected error for malformed token")
@@ -161,8 +155,6 @@ func TestVerifyToken_EmptyToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create token service: %v", err)
 	}
-
-
 
 	_, err = ts.VerifyToken("")
 	if err == nil {

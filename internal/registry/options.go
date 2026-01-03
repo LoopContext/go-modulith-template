@@ -66,4 +66,3 @@ func WithMetricsHandler(h http.Handler) Option {
 		r.metricsHandler = h
 	}
 }
-

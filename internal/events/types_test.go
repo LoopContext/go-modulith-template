@@ -90,4 +90,3 @@ func TestEventPayloadHelpers(t *testing.T) {
 		}
 	})
 }
-

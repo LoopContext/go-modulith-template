@@ -11,10 +11,10 @@ import (
 
 // TestRegistryBuilder helps build test registries with common configurations.
 type TestRegistryBuilder struct {
-	db       *sql.DB
-	bus      *events.Bus
-	cfg      *config.AppConfig
-	modules  []registry.Module
+	db      *sql.DB
+	bus     *events.Bus
+	cfg     *config.AppConfig
+	modules []registry.Module
 }
 
 // NewTestRegistryBuilder creates a new test registry builder.
@@ -77,4 +77,3 @@ func (b *TestRegistryBuilder) Build() *registry.Registry {
 
 	return reg
 }
-

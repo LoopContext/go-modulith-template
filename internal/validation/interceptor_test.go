@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
+	authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
 )
 
 const testSuccessResponse = "success"
@@ -102,4 +102,3 @@ func TestUnaryServerInterceptor_RequestWithoutProto(t *testing.T) {
 		t.Errorf("expected response 'success', got %v", resp)
 	}
 }
-

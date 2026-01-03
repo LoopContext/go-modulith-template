@@ -45,4 +45,3 @@ type AppleOAuthConfig struct {
 	PrivateKeyPath string   `yaml:"private_key_path"` // Path to .p8 file
 	Scopes         []string `yaml:"scopes"`
 }
-

@@ -139,4 +139,3 @@ func TestLogging_WithRequestID(t *testing.T) {
 		t.Error("expected log to contain request_id")
 	}
 }
-

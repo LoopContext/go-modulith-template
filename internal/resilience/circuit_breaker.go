@@ -228,4 +228,3 @@ func (cb *CircuitBreaker) Reset() {
 	cb.halfOpenRequests = 0
 	cb.consecutiveSuccess = 0
 }
-

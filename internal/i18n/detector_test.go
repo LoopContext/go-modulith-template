@@ -95,4 +95,3 @@ func TestNormalizeLocale(t *testing.T) {
 		})
 	}
 }
-

@@ -220,4 +220,3 @@ func (r *Registry) IsEnabled() bool {
 func (r *Registry) AutoLinkByEmail() bool {
 	return r.cfg.AutoLinkByEmail
 }
-

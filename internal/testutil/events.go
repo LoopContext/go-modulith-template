@@ -86,4 +86,3 @@ func (c *EventCollector) Count() int {
 
 	return len(c.events)
 }
-

@@ -74,4 +74,3 @@ func (rw *timeoutResponseWriter) Write(b []byte) (int, error) {
 
 	return n, nil
 }
-

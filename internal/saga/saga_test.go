@@ -156,4 +156,3 @@ func TestSaga_Steps(t *testing.T) {
 	assert.Equal(t, "step1", steps[0].Name)
 	assert.Equal(t, "step2", steps[1].Name)
 }
-

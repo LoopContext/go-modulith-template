@@ -47,4 +47,3 @@ func (t *CleanupExpiredSessionsTask) Execute(ctx context.Context) error {
 
 	return nil
 }
-

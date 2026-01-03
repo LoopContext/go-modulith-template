@@ -19,4 +19,3 @@ func UnaryServerInterceptor(defaultLocale string) grpc.UnaryServerInterceptor {
 		return handler(ctx, req)
 	}
 }
-

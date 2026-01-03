@@ -121,4 +121,3 @@ func extractUserID(payload interface{}) string {
 
 	return ""
 }
-

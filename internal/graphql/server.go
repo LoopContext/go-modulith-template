@@ -27,4 +27,3 @@ func PlaygroundHandler() http.Handler {
 	// After running: make add-graphql, this will return a proper handler
 	return http.NotFoundHandler()
 }
-

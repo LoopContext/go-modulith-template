@@ -19,4 +19,3 @@ func RunMigrateCommand() {
 
 	slog.Info("✅ Migrations completed successfully")
 }
-

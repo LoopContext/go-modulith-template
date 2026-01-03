@@ -37,7 +37,7 @@ func TestEventDrivenWorkflow_PublishSubscribe(t *testing.T) {
 
 	// Publish event
 	eventBus.Publish(ctx, events.Event{
-		Name:    "user.created",
+		Name: "user.created",
 		Payload: map[string]interface{}{
 			"user_id": "user-123",
 			"email":   "test@example.com",
@@ -259,4 +259,3 @@ func TestEventDrivenWorkflow_MultipleSubscribers(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	assert.GreaterOrEqual(t, eventCollector.Count(), 1)
 }
-

@@ -91,4 +91,3 @@ func (sc *StringCache) Exists(ctx context.Context, key string) (bool, error) {
 func (sc *StringCache) Close() error {
 	return sc.cache.Close()
 }
-

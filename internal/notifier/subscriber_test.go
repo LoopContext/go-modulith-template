@@ -310,4 +310,3 @@ func TestSubscriber_HandleMagicCodeRequested_SMSError(t *testing.T) {
 		t.Fatal("expected error when SMS send fails")
 	}
 }
-

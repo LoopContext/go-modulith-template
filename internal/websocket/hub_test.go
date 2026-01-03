@@ -272,4 +272,3 @@ func TestHub_GracefulShutdown(t *testing.T) {
 		t.Errorf("Expected 0 connections after shutdown, got %d", hub.GetTotalConnections())
 	}
 }
-
