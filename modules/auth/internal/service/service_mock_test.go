@@ -134,21 +134,34 @@ func getRequestLoginTestCases() []struct {
 			name: "successful login request",
 			req:  &authv1.RequestLoginRequest{ContactInfo: &authv1.RequestLoginRequest_Email{Email: "test@example.com"}},
 			setupMock: func(m *mocks.MockRepository) {
+				m.EXPECT().GetUserByEmail(gomock.Any(), "test@example.com").Return(&store.User{ID: "user-123"}, nil).Times(1)
 				m.EXPECT().CreateMagicCode(gomock.Any(), gomock.Any(), "test@example.com", "", gomock.Any()).Return(nil).Times(1)
 			},
 			wantErr: false,
 		},
 		{
-			name:        "validation error",
-			req:         &authv1.RequestLoginRequest{},
-			setupMock:   func(_ *mocks.MockRepository) {},
+			name:        "user not found",
+			req:         &authv1.RequestLoginRequest{ContactInfo: &authv1.RequestLoginRequest_Phone{Phone: "+1234567890"}},
+			setupMock: func(m *mocks.MockRepository) {
+				m.EXPECT().GetUserByPhone(gomock.Any(), "+1234567890").Return(nil, sql.ErrNoRows).Times(1)
+			},
 			wantErr:     true,
-			errContains: "email or phone must be provided",
+			errContains: "user not found",
 		},
 		{
-			name: "repository error",
+			name: "repository error on user lookup",
 			req:  &authv1.RequestLoginRequest{ContactInfo: &authv1.RequestLoginRequest_Email{Email: "test@example.com"}},
 			setupMock: func(m *mocks.MockRepository) {
+				m.EXPECT().GetUserByEmail(gomock.Any(), "test@example.com").Return(nil, errors.New("database error")).Times(1)
+			},
+			wantErr:     true,
+			errContains: "internal server error",
+		},
+		{
+			name: "repository error on create magic code",
+			req:  &authv1.RequestLoginRequest{ContactInfo: &authv1.RequestLoginRequest_Email{Email: "test@example.com"}},
+			setupMock: func(m *mocks.MockRepository) {
+				m.EXPECT().GetUserByEmail(gomock.Any(), "test@example.com").Return(&store.User{ID: "user-123"}, nil).Times(1)
 				m.EXPECT().CreateMagicCode(gomock.Any(), gomock.Any(), "test@example.com", "", gomock.Any()).
 					Return(errors.New("database error")).Times(1)
 			},

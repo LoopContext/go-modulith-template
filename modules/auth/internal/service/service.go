@@ -47,31 +47,77 @@ func NewAuthService(repo repository.Repository, svc *token.Service, bus *events.
 	}
 }
 
-// RequestLogin generates a magic code and emits an event to send it to the user
+// RequestLogin generates a magic code and emits an event to send it to the user.
 // Note: Field format validation (email format, phone pattern) and oneof requirement
 // are handled by the validation interceptor. This method handles business logic only.
+// Only sends codes to existing users (returns NotFound if user doesn't exist).
 func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLoginRequest) (*authv1.RequestLoginResponse, error) {
+	// With oneof, exactly one field will be set (validated by protovalidate)
+	email := req.GetEmail()
+	phone := req.GetPhone()
+
+	// Check if user exists before sending code
+	if err := s.verifyUserExists(ctx, email, phone); err != nil {
+		return nil, err
+	}
+
 	// Generate 6 digit code
 	code, err := generateRandomCode(6)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to generate random code", "error", err)
+
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	expiresAt := time.Now().Add(15 * time.Minute)
 
-	// With oneof, exactly one field will be set (validated by protovalidate)
-	email := req.GetEmail()
-	phone := req.GetPhone()
-
 	err = s.repo.CreateMagicCode(ctx, code, email, phone, expiresAt)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create magic code", "error", err)
+
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	// Emit event for notification (decoupled/async)
-	// Include locale in payload for i18n support in notification subscriber
+	s.publishMagicCodeEvent(ctx, email, phone, code)
+
+	return &authv1.RequestLoginResponse{
+		Success: true,
+		Message: "Magic code sent",
+	}, nil
+}
+
+// verifyUserExists checks if a user exists by email or phone, returning NotFound if not found.
+func (s *AuthService) verifyUserExists(ctx context.Context, email, phone string) error {
+	var err error
+
+	if email != "" {
+		_, err = s.repo.GetUserByEmail(ctx, email)
+	} else {
+		_, err = s.repo.GetUserByPhone(ctx, phone)
+	}
+
+	if err != nil {
+		// Check for sql.ErrNoRows (works with wrapped errors via %w)
+		if errors.Is(err, sql.ErrNoRows) {
+			slog.InfoContext(ctx, "user not found for login request",
+				"email", email,
+				"phone", phone,
+			)
+
+			return status.Error(codes.NotFound, "user not found")
+		}
+
+		slog.ErrorContext(ctx, "failed to lookup user", "error", err)
+
+		return status.Error(codes.Internal, "internal server error")
+	}
+
+	return nil
+}
+
+// publishMagicCodeEvent publishes an event for magic code notification.
+func (s *AuthService) publishMagicCodeEvent(ctx context.Context, email, phone, code string) {
 	locale := i18n.LocaleFromContext(ctx)
 	if locale == "" {
 		// Detect locale if not already in context
@@ -89,11 +135,6 @@ func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLogin
 	})
 
 	slog.InfoContext(ctx, "magic code event published")
-
-	return &authv1.RequestLoginResponse{
-		Success: true,
-		Message: "Magic code sent",
-	}, nil
 }
 
 // CompleteLogin verifies the magic code and generates tokens for the user

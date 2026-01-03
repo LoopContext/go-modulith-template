@@ -12,6 +12,8 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/db/store"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/token"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type mockRepository struct {
@@ -150,15 +152,31 @@ func TestRequestLogin_Success_Phone(t *testing.T) {
 	}
 }
 
-func TestRequestLogin_MissingEmailAndPhone(t *testing.T) {
-	repo := &mockRepository{}
+func TestRequestLogin_UserNotFound(t *testing.T) {
+	repo := &mockRepository{
+		getUserByEmailFunc: func(_ context.Context, _ string) (*store.User, error) {
+			return nil, sql.ErrNoRows
+		},
+	}
 	svc := createTestService(t, repo)
 
-	req := &authv1.RequestLoginRequest{}
+	req := &authv1.RequestLoginRequest{
+		ContactInfo: &authv1.RequestLoginRequest_Email{Email: "nonexistent@example.com"},
+	}
 
 	_, err := svc.RequestLogin(context.Background(), req)
 	if err == nil {
-		t.Fatal("expected error when both email and phone are missing")
+		t.Fatal("expected error when user not found")
+	}
+
+	// Check that it's a NotFound error
+	st, ok := status.FromError(err)
+	if !ok {
+		t.Fatal("expected status error")
+	}
+
+	if st.Code() != codes.NotFound {
+		t.Errorf("expected NotFound error, got %v", st.Code())
 	}
 }
 
