@@ -1,4 +1,4 @@
-.PHONY: help sqlc proto install-deps install-mocks generate-mocks test-unit graphql-init graphql-generate graphql-generate-module graphql-generate-all graphql-validate graphql-add graphql-from-proto
+.PHONY: help sqlc proto install-deps install-mocks generate-mocks test-unit graphql-init graphql-generate graphql-generate-module graphql-generate-all graphql-validate graphql-add graphql-from-proto validate-setup quickstart doctor
 .DEFAULT_GOAL := help
 
 help: ## Show available commands
@@ -18,6 +18,15 @@ install-deps: ## Install developer tools
 install-mocks: ## Install gomock for test mocking
 	go install go.uber.org/mock/mockgen@latest
 
+validate-setup: ## Validate development environment setup
+	@./scripts/validate-setup.sh
+
+quickstart: ## Run complete setup process (install deps, start docker, run migrations)
+	@./scripts/quickstart.sh
+
+doctor: ## Run development environment diagnostics
+	@./scripts/doctor.sh
+
 sqlc: ## Generate type-safe Go code from SQL
 	sqlc generate
 
@@ -31,6 +40,9 @@ generate-mocks: ## Generate all mocks from interfaces
 
 docker-up: ## Run docker-compose
 	docker-compose up -d
+
+docker-up-minimal: ## Run docker-compose with minimal services (db + redis only)
+	docker-compose -f docker-compose.minimal.yaml up -d
 
 test: ## Run tests
 	go test -v -race -cover ./...
@@ -162,6 +174,7 @@ run: ## Run the monolith server (without hot reload)
 	go run -ldflags "$(LDFLAGS)" cmd/server/main.go || true
 
 dev: ## Run the monolith with live reload (requires Air)
+	@./scripts/preflight-check.sh || exit 1
 	@if command -v air > /dev/null; then \
 		air -c .air.toml; \
 	else \
@@ -169,6 +182,7 @@ dev: ## Run the monolith with live reload (requires Air)
 	fi
 
 dev-worker: ## Run the worker with live reload (requires Air)
+	@./scripts/preflight-check.sh || exit 1
 	@if command -v air > /dev/null; then \
 		air -c .air.worker.toml; \
 	else \
@@ -178,6 +192,7 @@ dev-worker: ## Run the worker with live reload (requires Air)
 dev-module: ## Run a specific module with live reload (usage: make dev-module MODULE_NAME)
 	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make dev-module MODULE_NAME"; exit 1; fi
 	@if [ ! -f ".air.$(MODULE_NAME).toml" ]; then echo "Error: Air config '.air.$(MODULE_NAME).toml' not found"; exit 1; fi
+	@./scripts/preflight-check.sh || exit 1
 	@if command -v air > /dev/null; then \
 		echo "Starting module: $(MODULE_NAME) with hot reload..."; \
 		air -c .air.$(MODULE_NAME).toml; \

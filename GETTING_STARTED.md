@@ -22,9 +22,9 @@ This guide will walk you through the complete process of cloning this repository
 
 Before you begin, ensure you have the following installed:
 
-- **Go 1.24+** - [Download Go](https://go.dev/dl/)
-- **Docker & Docker Compose** - [Install Docker](https://docs.docker.com/get-docker/)
-- **Git** - For cloning the repository
+-   **Go 1.24+** - [Download Go](https://go.dev/dl/)
+-   **Docker & Docker Compose** - [Install Docker](https://docs.docker.com/get-docker/)
+-   **Git** - For cloning the repository
 
 ---
 
@@ -48,7 +48,27 @@ git commit -m "Initial commit from go-modulith-template"
 
 ---
 
-## Step 2: Install Dependencies
+## Step 2: Setup Project
+
+### Option A: Quick Setup (Recommended)
+
+For the fastest setup, use the automated quickstart script:
+
+```bash
+make quickstart
+```
+
+This will automatically:
+
+-   Validate your environment
+-   Install missing development tools
+-   Start Docker infrastructure
+-   Run database migrations
+-   Optionally run seed data
+
+### Option B: Manual Setup
+
+#### 2.1 Install Dependencies
 
 Install all required development tools:
 
@@ -57,19 +77,23 @@ make install-deps
 ```
 
 This will install:
-- `migrate` - Database migration tool
-- `sqlc` - Type-safe SQL code generator
-- `buf` - Protocol buffer compiler
-- `air` - Hot reload tool for development
-- `golangci-lint` - Go linter
-- `gqlgen` - GraphQL code generator (optional)
-- `mockgen` - Mock generator for testing
+
+-   `migrate` - Database migration tool
+-   `sqlc` - Type-safe SQL code generator
+-   `buf` - Protocol buffer compiler
+-   `air` - Hot reload tool for development
+-   `golangci-lint` - Go linter
+-   `gqlgen` - GraphQL code generator (optional)
+-   `mockgen` - Mock generator for testing
 
 **Verify installations:**
 
 ```bash
 # Check that tools are installed
 which migrate sqlc buf air golangci-lint
+
+# Or run validation
+make validate-setup
 ```
 
 ---
@@ -91,6 +115,7 @@ Then update all imports in the codebase. You can use a find-and-replace tool or 
 ### 3.2 Configure Database and Environment
 
 The project uses a flexible configuration system with the following priority:
+
 1. Environment variables (highest priority)
 2. `.env` file
 3. `configs/server.yaml` (default configuration)
@@ -107,7 +132,7 @@ grpc_port: 9000
 db_dsn: postgres://postgres:postgres@localhost:5432/modulith_demo?sslmode=disable
 
 auth:
-  jwt_secret: your-secret-key-at-least-32-bytes-long-change-this
+    jwt_secret: your-secret-key-at-least-32-bytes-long-change-this
 ```
 
 **Option B: Use environment variables**
@@ -132,6 +157,8 @@ EOF
 
 ## Step 4: Start Infrastructure
 
+> **Note:** If you used `make quickstart`, this step is already complete. Skip to Step 5.
+
 Start the required infrastructure services (PostgreSQL, Redis, etc.):
 
 ```bash
@@ -139,21 +166,25 @@ make docker-up
 ```
 
 This starts:
-- **PostgreSQL** - Main database (port 5432)
-- **Redis** - Cache and session storage (port 6379)
-- **Jaeger** - Distributed tracing UI (http://localhost:16686)
-- **Prometheus** - Metrics collection (http://localhost:9090)
-- **Grafana** - Visualization dashboards (http://localhost:3000, user: `admin`, password: `admin`)
+
+-   **PostgreSQL** - Main database (port 5432)
+-   **Redis** - Cache and session storage (port 6379)
+-   **Jaeger** - Distributed tracing UI (http://localhost:16686)
+-   **Prometheus** - Metrics collection (http://localhost:9090)
+-   **Grafana** - Visualization dashboards (http://localhost:3000, user: `admin`, password: `admin`)
 
 **Verify services are running:**
 
 ```bash
 docker-compose ps
+
+# Or run comprehensive diagnostics
+make doctor
 ```
 
 You should see all services in "Up" status.
 
-> **Tip:** To start only the database, use `docker-compose up db`.
+> **Tip:** To start only the database and Redis (faster startup), use `make docker-up-minimal`.
 
 ---
 
@@ -166,12 +197,13 @@ make new-module order
 ```
 
 This command will:
-- Create the module directory structure
-- Generate boilerplate code from templates
-- Create migration files
-- Create proto definitions
-- Generate Air configuration for hot reload
-- Update `sqlc.yaml` with the new module
+
+-   Create the module directory structure
+-   Generate boilerplate code from templates
+-   Create migration files
+-   Create proto definitions
+-   Generate Air configuration for hot reload
+-   Update `sqlc.yaml` with the new module
 
 **Generated structure:**
 
@@ -268,9 +300,10 @@ make proto
 ```
 
 This will:
-- Generate gRPC service code from `proto/order/v1/order.proto`
-- Create client and server stubs
-- Generate OpenAPI/Swagger documentation in `gen/openapiv2/`
+
+-   Generate gRPC service code from `proto/order/v1/order.proto`
+-   Create client and server stubs
+-   Generate OpenAPI/Swagger documentation in `gen/openapiv2/`
 
 ### 7.2 Generate SQL Code
 
@@ -281,9 +314,10 @@ make sqlc
 ```
 
 This will:
-- Generate Go code from SQL queries in `modules/order/internal/db/query/`
-- Create type-safe database access code in `modules/order/internal/db/store/`
-- Generate repository interfaces
+
+-   Generate Go code from SQL queries in `modules/order/internal/db/query/`
+-   Create type-safe database access code in `modules/order/internal/db/store/`
+-   Generate repository interfaces
 
 **Verify generated code:**
 
@@ -310,9 +344,10 @@ go run cmd/server/main.go -migrate
 ```
 
 This will:
-- Discover all modules with migrations
-- Run migrations in order
-- Create database tables for your new module
+
+-   Discover all modules with migrations
+-   Run migrations in order
+-   Create database tables for your new module
 
 **Verify migrations:**
 
@@ -382,10 +417,11 @@ make dev
 ```
 
 This will:
-- Start the gRPC server (port 9000)
-- Start the HTTP gateway (port 8000)
-- Automatically reload on code changes
-- Monitor changes in `.go`, `.yaml`, `.env`, `.proto`, and `.sql` files
+
+-   Start the gRPC server (port 9000)
+-   Start the HTTP gateway (port 8000)
+-   Automatically reload on code changes
+-   Monitor changes in `.go`, `.yaml`, `.env`, `.proto`, and `.sql` files
 
 ### Option B: Run a Specific Module Standalone
 
@@ -451,12 +487,14 @@ You can explore and test your API endpoints here.
 ### 10.4 Check Logs
 
 The server logs will show:
-- Module initialization
-- Migration status
-- Server startup
-- Request logs
+
+-   Module initialization
+-   Migration status
+-   Server startup
+-   Request logs
 
 Look for messages like:
+
 ```
 Starting application version=...
 Module 'order' initialized successfully
@@ -496,17 +534,19 @@ go test -v -run Integration ./examples/...
 **Example Integration Test:**
 
 See `examples/integration_test_example.go` for a complete example showing:
-- Setting up PostgreSQL with testcontainers
-- Running migrations in tests
-- Testing service methods end-to-end
-- Verifying event bus integration
-- Testing repository layer with real database
+
+-   Setting up PostgreSQL with testcontainers
+-   Running migrations in tests
+-   Testing service methods end-to-end
+-   Verifying event bus integration
+-   Testing repository layer with real database
 
 **Key Points:**
-- Integration tests should be marked with `-run Integration` flag
-- Use `testing.Short()` to skip integration tests in short mode
-- Always clean up test data and containers in `defer` blocks
-- Use the `testutil` package for testcontainer setup
+
+-   Integration tests should be marked with `-run Integration` flag
+-   Use `testing.Short()` to skip integration tests in short mode
+-   Always clean up test data and containers in `defer` blocks
+-   Use the `testutil` package for testcontainer setup
 
 ### Test Coverage
 
@@ -523,40 +563,59 @@ make coverage-html
 Now that you have a working module, you can:
 
 1. **Customize the Module**
-   - Edit `modules/order/internal/service/service.go` to add business logic
-   - Update `modules/order/internal/repository/repository.go` for data access
-   - Add more SQL queries in `modules/order/internal/db/query/`
+
+    - Edit `modules/order/internal/service/service.go` to add business logic
+    - Update `modules/order/internal/repository/repository.go` for data access
+    - Add more SQL queries in `modules/order/internal/db/query/`
 
 2. **Add More Methods**
-   - Update `proto/order/v1/order.proto` to add new RPC methods
-   - Run `make proto` to regenerate code
-   - Implement the methods in your service
+
+    - Update `proto/order/v1/order.proto` to add new RPC methods
+    - Run `make proto` to regenerate code
+    - Implement the methods in your service
 
 3. **Add Database Migrations**
-   ```bash
-   make migrate-create MODULE=order NAME=add_indexes
-   ```
-   This creates new migration files in `modules/order/resources/db/migration/`
+
+    ```bash
+    make migrate-create MODULE=order NAME=add_indexes
+    ```
+
+    This creates new migration files in `modules/order/resources/db/migration/`
 
 4. **Add Seed Data**
-   - Edit `modules/order/resources/db/seed/001_example_data.sql`
-   - Run `make seed` or `go run cmd/server/main.go seed`
+
+    - Edit `modules/order/resources/db/seed/001_example_data.sql`
+    - Run `make seed` or `go run cmd/server/main.go seed`
 
 5. **Add Tests**
-   - Write unit tests in `modules/order/internal/service/service_test.go`
-   - Write integration tests using testcontainers
+
+    - Write unit tests in `modules/order/internal/service/service_test.go`
+    - Write integration tests using testcontainers
 
 6. **Configure Module Settings**
-   - Edit `configs/order.yaml` for module-specific configuration
-   - Access configuration in your module via `registry.Config()`
+    - Edit `configs/order.yaml` for module-specific configuration
+    - Access configuration in your module via `registry.Config()`
 
 ---
 
 ## Troubleshooting
 
+### Diagnostic Tools
+
+Before troubleshooting, run diagnostic tools:
+
+```bash
+# Comprehensive environment diagnostics
+make doctor
+
+# Validate setup and prerequisites
+make validate-setup
+```
+
 ### Issue: Module not found after registration
 
 **Solution:** Make sure you:
+
 1. Added the import for your module
 2. Called `reg.Register(order.NewModule())` in `registerModules`
 3. Ran `go mod tidy` to update dependencies
@@ -564,37 +623,53 @@ Now that you have a working module, you can:
 ### Issue: Migrations fail
 
 **Solution:**
-- Check database connection string in `configs/server.yaml`
-- Ensure PostgreSQL is running: `docker-compose ps`
-- Check migration files are valid SQL
+
+-   Check database connection string in `configs/server.yaml`
+-   Ensure PostgreSQL is running: `docker-compose ps` or `make doctor`
+-   Check migration files are valid SQL
+-   Verify database container is healthy: `docker ps`
 
 ### Issue: Proto generation fails
 
 **Solution:**
-- Verify `buf` is installed: `which buf`
-- Check `buf.yaml` and `buf.gen.yaml` are correct
-- Ensure proto files are valid: `buf lint`
+
+-   Verify `buf` is installed: `which buf` or `make validate-setup`
+-   Check `buf.yaml` and `buf.gen.yaml` are correct
+-   Ensure proto files are valid: `buf lint`
 
 ### Issue: SQLC generation fails
 
 **Solution:**
-- Check `sqlc.yaml` has correct paths
-- Verify SQL queries are valid
-- Ensure migration files exist for schema
+
+-   Check `sqlc.yaml` has correct paths
+-   Verify SQL queries are valid
+-   Ensure migration files exist for schema
 
 ### Issue: Server won't start
 
 **Solution:**
-- Check logs for specific errors
-- Verify all required environment variables are set
-- Ensure database is accessible
-- Check ports 8000 and 9000 are not in use
+
+-   Run `make doctor` to check environment health
+-   Check logs for specific errors
+-   Verify all required environment variables are set
+-   Ensure database is accessible: `make doctor` will check this
+-   Check ports 8000 and 9000 are not in use: `make validate-setup` shows port status
+-   Verify Docker containers are running: `docker-compose ps`
+
+### Issue: Port conflicts
+
+**Solution:**
+
+-   Run `make doctor` to identify which ports are in use
+-   Stop conflicting services or change ports in `configs/server.yaml`
+-   Check `docker-compose ps` for running containers
 
 ---
 
 ## Summary
 
 You've successfully:
+
 1. ✅ Cloned the repository
 2. ✅ Installed all dependencies
 3. ✅ Configured the project
@@ -609,7 +684,7 @@ You've successfully:
 Your modulith application is now running with your new module! 🎉
 
 For more information, see:
-- [Architecture Guide](docs/MODULITH_ARCHITECTURE.md)
-- [Module Communication](docs/MODULE_COMMUNICATION.md)
-- [API Documentation](README.md#api-documentation)
 
+-   [Architecture Guide](docs/MODULITH_ARCHITECTURE.md)
+-   [Module Communication](docs/MODULE_COMMUNICATION.md)
+-   [API Documentation](README.md#api-documentation)

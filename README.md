@@ -48,13 +48,41 @@ This is a professional template for building Go applications following the **Mod
 
 ## 🚀 Quick Start
 
-### 1. Install dependencies
+### Quick Setup (Recommended)
+
+The fastest way to get started is using the automated quickstart script:
+
+```bash
+make quickstart
+```
+
+This will:
+
+1. Validate your environment setup
+2. Install missing development tools
+3. Start Docker infrastructure
+4. Run database migrations
+5. Optionally run seed data
+
+> 💡 **Tip**: For a minimal setup (database + Redis only), use `make docker-up-minimal`.
+
+### Manual Setup
+
+#### 1. Validate Setup (Optional but Recommended)
+
+Check that all prerequisites are installed:
+
+```bash
+make validate-setup
+```
+
+#### 2. Install dependencies
 
 ```bash
 make install-deps
 ```
 
-### 2. Start Complete Infrastructure
+#### 3. Start Complete Infrastructure
 
 The template includes a complete observability stack for local development:
 
@@ -70,9 +98,9 @@ This starts:
 -   **Prometheus**: Metrics and alerts (UI at http://localhost:9090)
 -   **Grafana**: Visualization dashboards (UI at http://localhost:3000, user: `admin`, password: `admin`)
 
-> 💡 **Tip**: To start only the database, use `docker-compose up db`.
+> 💡 **Tip**: To start only the database and Redis, use `make docker-up-minimal`.
 
-### 3. Configure (Optional)
+#### 4. Configure (Optional)
 
 The project supports multiple configuration sources with clear precedence:
 
@@ -84,19 +112,13 @@ The project supports multiple configuration sources with clear precedence:
 
 **Priority:** `PORT > YAML > .env > system ENV vars > defaults`
 
-```bash
-# Copy the example file for environment variables
-cp .env.example .env
-
-# Edit .env with your values (DB, JWT secret, OAuth, etc.)
-# Or configure directly in configs/server.yaml
-```
+Edit `configs/server.yaml` with your configuration values (DB connection, JWT secret, OAuth, etc.).
 
 On startup, you'll see a log showing the source of each configuration variable.
 
 > 💡 **OAuth Tip**: To enable OAuth providers (Google, GitHub, etc.), configure credentials in `configs/server.yaml` or in your `.env` file. See [complete OAuth guide](docs/OAUTH_INTEGRATION.md).
 
-### 4. Run in Development (Hot Reload)
+#### 5. Run in Development (Hot Reload)
 
 ```bash
 make dev
@@ -239,8 +261,17 @@ open gen/openapiv2/proto/auth/v1/auth.swagger.json
 -   `make build-all`: Compiles all binaries (server + all modules).
 -   `make clean`: Removes all build artifacts (`bin/` directory).
 
+### Setup & Validation
+
+-   `make quickstart`: Automated setup process (installs deps, starts docker, runs migrations).
+-   `make validate-setup`: Validates development environment setup (prerequisites, tools, ports).
+-   `make doctor`: Comprehensive development environment diagnostics (containers, connectivity, configuration).
+
 ### Docker
 
+-   `make docker-up`: Starts all infrastructure services (PostgreSQL, Redis, Jaeger, Prometheus, Grafana).
+-   `make docker-up-minimal`: Starts minimal services (PostgreSQL + Redis only) for faster startup.
+-   `make docker-down`: Stops Docker containers.
 -   `make docker-build`: Builds the server Docker image (`modulith-server:latest`).
 -   `make docker-build-module MODULE_NAME`: Builds the Docker image for a specific module (e.g.: `make docker-build-module auth`).
 
@@ -263,8 +294,6 @@ open gen/openapiv2/proto/auth/v1/auth.swagger.json
 
 ### Database
 
--   `make docker-up`: Starts infrastructure (PostgreSQL) with Docker Compose.
--   `make docker-down`: Stops Docker containers.
 -   `make migrate-up` / `make migrate`: Runs migrations for all modules (the modulith discovers them automatically).
 -   `make migrate-down MODULE=auth`: Reverts the last migration for a specific module.
 -   `make migrate-create MODULE=auth NAME=add_users`: Creates a new migration for a specific module.
@@ -296,6 +325,23 @@ open gen/openapiv2/proto/auth/v1/auth.swagger.json
 1. Run `make lint` and fix **all** errors (0 issues).
 2. Run `make test` to verify you didn't break anything.
 3. **NEVER** modify `.golangci.yaml` to ignore errors - implement proper fixes.
+
+### Troubleshooting
+
+If you encounter issues with your development environment:
+
+1. **Run diagnostics**: `make doctor` - Comprehensive health check of your environment
+2. **Validate setup**: `make validate-setup` - Check prerequisites and configuration
+3. **Check containers**: `docker-compose ps` - Verify Docker containers are running
+4. **View logs**: `docker-compose logs [service]` - Check service logs
+5. **Reset database**: `make db-reset` - Drop and recreate database (destructive)
+
+Common issues:
+
+-   **Port conflicts**: Use `make doctor` to identify which ports are in use
+-   **Docker not running**: Start Docker Desktop or docker service
+-   **Database connection errors**: Ensure containers are running with `make docker-up`
+-   **Missing tools**: Run `make install-deps` to install all development tools
 
 ---
 
