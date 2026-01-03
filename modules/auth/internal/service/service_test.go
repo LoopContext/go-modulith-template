@@ -115,7 +115,7 @@ func TestRequestLogin_Success_Email(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.RequestLoginRequest{
-		Email: "user@example.com",
+		ContactInfo: &authv1.RequestLoginRequest_Email{Email: "user@example.com"},
 	}
 
 	resp, err := svc.RequestLogin(context.Background(), req)
@@ -137,7 +137,7 @@ func TestRequestLogin_Success_Phone(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.RequestLoginRequest{
-		Phone: "+1234567890",
+		ContactInfo: &authv1.RequestLoginRequest_Phone{Phone: "+1234567890"},
 	}
 
 	resp, err := svc.RequestLogin(context.Background(), req)
@@ -171,7 +171,7 @@ func TestRequestLogin_CreateMagicCodeError(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.RequestLoginRequest{
-		Email: "user@example.com",
+		ContactInfo: &authv1.RequestLoginRequest_Email{Email: "user@example.com"},
 	}
 
 	_, err := svc.RequestLogin(context.Background(), req)
@@ -195,8 +195,8 @@ func TestCompleteLogin_Success_ExistingUser(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Email: "user@example.com",
-		Code:  "123456",
+		ContactInfo: &authv1.CompleteLoginRequest_Email{Email: "user@example.com"},
+		Code:        "123456",
 	}
 
 	resp, err := svc.CompleteLogin(context.Background(), req)
@@ -244,8 +244,8 @@ func TestCompleteLogin_Success_NewUser(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Email: "newuser@example.com",
-		Code:  "123456",
+		ContactInfo: &authv1.CompleteLoginRequest_Email{Email: "newuser@example.com"},
+		Code:        "123456",
 	}
 
 	resp, err := svc.CompleteLogin(context.Background(), req)
@@ -285,8 +285,8 @@ func TestCompleteLogin_InvalidMagicCode(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Email: "user@example.com",
-		Code:  "wrong-code",
+		ContactInfo: &authv1.CompleteLoginRequest_Email{Email: "user@example.com"},
+		Code:        "wrong-code",
 	}
 
 	_, err := svc.CompleteLogin(context.Background(), req)
@@ -310,8 +310,8 @@ func TestCompleteLogin_WithPhone(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Phone: "+1234567890",
-		Code:  "123456",
+		ContactInfo: &authv1.CompleteLoginRequest_Phone{Phone: "+1234567890"},
+		Code:        "123456",
 	}
 
 	resp, err := svc.CompleteLogin(context.Background(), req)
@@ -403,8 +403,8 @@ func TestCompleteLogin_DatabaseError(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Email: "user@example.com",
-		Code:  "123456",
+		ContactInfo: &authv1.CompleteLoginRequest_Email{Email: "user@example.com"},
+		Code:        "123456",
 	}
 
 	_, err := svc.CompleteLogin(context.Background(), req)
@@ -425,8 +425,8 @@ func TestCompleteLogin_GetUserError(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Email: "user@example.com",
-		Code:  "123456",
+		ContactInfo: &authv1.CompleteLoginRequest_Email{Email: "user@example.com"},
+		Code:        "123456",
 	}
 
 	_, err := svc.CompleteLogin(context.Background(), req)
@@ -460,8 +460,8 @@ func TestCompleteLogin_NewUser_WithPhone(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Phone: "+1234567890",
-		Code:  "123456",
+		ContactInfo: &authv1.CompleteLoginRequest_Phone{Phone: "+1234567890"},
+		Code:        "123456",
 	}
 
 	resp, err := svc.CompleteLogin(context.Background(), req)
@@ -493,8 +493,8 @@ func TestCompleteLogin_CreateUserError(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Email: "newuser@example.com",
-		Code:  "123456",
+		ContactInfo: &authv1.CompleteLoginRequest_Email{Email: "newuser@example.com"},
+		Code:        "123456",
 	}
 
 	_, err := svc.CompleteLogin(context.Background(), req)
@@ -525,8 +525,8 @@ func TestCompleteLogin_FetchUserAfterCreateError(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Email: "newuser@example.com",
-		Code:  "123456",
+		ContactInfo: &authv1.CompleteLoginRequest_Email{Email: "newuser@example.com"},
+		Code:        "123456",
 	}
 
 	_, err := svc.CompleteLogin(context.Background(), req)
@@ -557,8 +557,8 @@ func TestCompleteLogin_FetchUserByPhoneAfterCreateError(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Phone: "+1234567890",
-		Code:  "123456",
+		ContactInfo: &authv1.CompleteLoginRequest_Phone{Phone: "+1234567890"},
+		Code:        "123456",
 	}
 
 	_, err := svc.CompleteLogin(context.Background(), req)
@@ -585,8 +585,8 @@ func TestCompleteLogin_InvalidateMagicCodesError(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Email: "user@example.com",
-		Code:  "123456",
+		ContactInfo: &authv1.CompleteLoginRequest_Email{Email: "user@example.com"},
+		Code:        "123456",
 	}
 
 	// Should still succeed even if invalidation fails (it's logged but not fatal)
@@ -609,8 +609,8 @@ func TestVerifyMagicCodeByPhone_InvalidCode(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Phone: "+1234567890",
-		Code:  "wrong-code",
+		ContactInfo: &authv1.CompleteLoginRequest_Phone{Phone: "+1234567890"},
+		Code:        "wrong-code",
 	}
 
 	_, err := svc.CompleteLogin(context.Background(), req)
@@ -628,8 +628,8 @@ func TestVerifyMagicCodeByPhone_DatabaseError(t *testing.T) {
 	svc := createTestService(t, repo)
 
 	req := &authv1.CompleteLoginRequest{
-		Phone: "+1234567890",
-		Code:  "123456",
+		ContactInfo: &authv1.CompleteLoginRequest_Phone{Phone: "+1234567890"},
+		Code:        "123456",
 	}
 
 	_, err := svc.CompleteLogin(context.Background(), req)

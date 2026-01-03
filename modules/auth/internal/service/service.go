@@ -48,13 +48,9 @@ func NewAuthService(repo repository.Repository, svc *token.Service, bus *events.
 }
 
 // RequestLogin generates a magic code and emits an event to send it to the user
-// Note: Field format validation (email format, phone pattern) is handled by the validation interceptor.
-// This method handles business logic validation (one of email or phone must be provided).
+// Note: Field format validation (email format, phone pattern) and oneof requirement
+// are handled by the validation interceptor. This method handles business logic only.
 func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLoginRequest) (*authv1.RequestLoginResponse, error) {
-	if req.Email == "" && req.Phone == "" {
-		return nil, status.Error(codes.InvalidArgument, "email or phone must be provided")
-	}
-
 	// Generate 6 digit code
 	code, err := generateRandomCode(6)
 	if err != nil {
@@ -64,7 +60,11 @@ func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLogin
 
 	expiresAt := time.Now().Add(15 * time.Minute)
 
-	err = s.repo.CreateMagicCode(ctx, code, req.Email, req.Phone, expiresAt)
+	// With oneof, exactly one field will be set (validated by protovalidate)
+	email := req.GetEmail()
+	phone := req.GetPhone()
+
+	err = s.repo.CreateMagicCode(ctx, code, email, phone, expiresAt)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create magic code", "error", err)
 		return nil, status.Error(codes.Internal, "internal server error")
@@ -81,8 +81,8 @@ func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLogin
 	s.bus.Publish(ctx, events.Event{
 		Name: notifier.EventMagicCodeRequested,
 		Payload: map[string]interface{}{
-			"email":  req.Email,
-			"phone":  req.Phone,
+			"email":  email,
+			"phone":  phone,
 			"code":   code,
 			"locale": locale,
 		},
@@ -102,13 +102,17 @@ func (s *AuthService) CompleteLogin(ctx context.Context, req *authv1.CompleteLog
 		return nil, err
 	}
 
-	user, err := s.getOrCreateUser(ctx, req.Email, req.Phone)
+	// With oneof, exactly one field will be set (validated by protovalidate)
+	email := req.GetEmail()
+	phone := req.GetPhone()
+
+	user, err := s.getOrCreateUser(ctx, email, phone)
 	if err != nil {
 		return nil, err
 	}
 
 	// Clean up codes
-	if err := s.repo.InvalidateMagicCodes(ctx, req.Email, req.Phone); err != nil {
+	if err := s.repo.InvalidateMagicCodes(ctx, email, phone); err != nil {
 		slog.ErrorContext(ctx, "failed to invalidate magic codes", "error", err)
 	}
 
@@ -117,17 +121,15 @@ func (s *AuthService) CompleteLogin(ctx context.Context, req *authv1.CompleteLog
 
 // verifyLoginRequest validates the login request.
 // Note: Field format validation is handled by the validation interceptor.
-// This method handles business logic validation (one of email or phone, magic code verification).
+// This method handles business logic validation (magic code verification).
+// Note: The oneof requirement (email or phone) is handled by the validation interceptor.
 func (s *AuthService) verifyLoginRequest(ctx context.Context, req *authv1.CompleteLoginRequest) error {
-	if req.Email == "" && req.Phone == "" {
-		return status.Error(codes.InvalidArgument, "email or phone required")
+	// With oneof, exactly one field will be set (validated by protovalidate)
+	if req.GetEmail() != "" {
+		return s.verifyMagicCodeByEmail(ctx, req.GetEmail(), req.Code)
 	}
 
-	if req.Email != "" {
-		return s.verifyMagicCodeByEmail(ctx, req.Email, req.Code)
-	}
-
-	return s.verifyMagicCodeByPhone(ctx, req.Phone, req.Code)
+	return s.verifyMagicCodeByPhone(ctx, req.GetPhone(), req.Code)
 }
 
 func (s *AuthService) verifyMagicCodeByEmail(ctx context.Context, email, code string) error {

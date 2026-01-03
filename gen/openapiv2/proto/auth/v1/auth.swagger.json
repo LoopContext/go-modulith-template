@@ -70,6 +70,7 @@
         "parameters": [
           {
             "name": "body",
+            "description": "CompleteLoginRequest completes the login process by verifying the magic code.\nProvide either email OR phone (exactly one is required), plus the 6-digit code.",
             "in": "body",
             "required": true,
             "schema": {
@@ -103,6 +104,7 @@
         "parameters": [
           {
             "name": "body",
+            "description": "RequestLoginRequest initiates the login process by sending a magic code.\nProvide either email OR phone (exactly one is required).",
             "in": "body",
             "required": true,
             "schema": {
@@ -634,15 +636,18 @@
       "properties": {
         "email": {
           "type": "string",
-          "title": "One of email or phone must be provided (handled in service layer)\nFormat validation only applies when field is set (non-empty)"
+          "description": "Email address. One of email or phone must be provided."
         },
         "phone": {
-          "type": "string"
+          "type": "string",
+          "description": "Phone number in E.164 format, e.g., +1234567890. One of email or phone must be provided."
         },
         "code": {
-          "type": "string"
+          "type": "string",
+          "description": "6-digit magic code received via email or SMS."
         }
-      }
+      },
+      "description": "CompleteLoginRequest completes the login process by verifying the magic code.\nProvide either email OR phone (exactly one is required), plus the 6-digit code."
     },
     "v1CompleteLoginResponse": {
       "type": "object",
@@ -857,12 +862,14 @@
       "properties": {
         "email": {
           "type": "string",
-          "title": "One of email or phone must be provided (handled in service layer)\nFormat validation only applies when field is set (non-empty)"
+          "description": "Email address. One of email or phone must be provided."
         },
         "phone": {
-          "type": "string"
+          "type": "string",
+          "description": "Phone number in E.164 format, e.g., +1234567890. One of email or phone must be provided."
         }
-      }
+      },
+      "description": "RequestLoginRequest initiates the login process by sending a magic code.\nProvide either email OR phone (exactly one is required)."
     },
     "v1RequestLoginResponse": {
       "type": "object",

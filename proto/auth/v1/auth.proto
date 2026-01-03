@@ -145,12 +145,15 @@ service AuthService {
 // --- Login Messages ---
 
 // RequestLoginRequest initiates the login process by sending a magic code.
-// Provide either email OR phone (at least one is required).
+// Provide either email OR phone (exactly one is required).
 message RequestLoginRequest {
-  // Email address (optional). One of email or phone must be provided.
-  string email = 1 [(buf.validate.field).string.email = true];
-  // Phone number in E.164 format, e.g., +1234567890 (optional). One of email or phone must be provided.
-  string phone = 2 [(buf.validate.field).string.pattern = "^\\+?[1-9]\\d{1,14}$"];
+  oneof contact_info {
+    option (buf.validate.oneof).required = true;
+    // Email address. One of email or phone must be provided.
+    string email = 1 [(buf.validate.field).string.email = true];
+    // Phone number in E.164 format, e.g., +1234567890. One of email or phone must be provided.
+    string phone = 2 [(buf.validate.field).string.pattern = "^\\+?[1-9]\\d{1,14}$"];
+  }
 }
 
 message RequestLoginResponse {
@@ -159,12 +162,15 @@ message RequestLoginResponse {
 }
 
 // CompleteLoginRequest completes the login process by verifying the magic code.
-// Provide either email OR phone (at least one is required), plus the 6-digit code.
+// Provide either email OR phone (exactly one is required), plus the 6-digit code.
 message CompleteLoginRequest {
-  // Email address (optional). One of email or phone must be provided.
-  string email = 1 [(buf.validate.field).string.email = true];
-  // Phone number in E.164 format, e.g., +1234567890 (optional). One of email or phone must be provided.
-  string phone = 2 [(buf.validate.field).string.pattern = "^\\+?[1-9]\\d{1,14}$"];
+  oneof contact_info {
+    option (buf.validate.oneof).required = true;
+    // Email address. One of email or phone must be provided.
+    string email = 1 [(buf.validate.field).string.email = true];
+    // Phone number in E.164 format, e.g., +1234567890. One of email or phone must be provided.
+    string phone = 2 [(buf.validate.field).string.pattern = "^\\+?[1-9]\\d{1,14}$"];
+  }
   // 6-digit magic code received via email or SMS.
   string code = 3 [(buf.validate.field).string = {
     len: 6,
@@ -245,7 +251,6 @@ message ChangeEmailResponse {
 message ChangePhoneRequest {
   string new_phone = 1 [(buf.validate.field).string = {
     pattern: "^\\+?[1-9]\\d{1,14}$",
-    min_len: 1
   }];
 }
 

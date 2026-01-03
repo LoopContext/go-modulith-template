@@ -24,12 +24,15 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// RequestLoginRequest initiates the login process by sending a magic code.
+// Provide either email OR phone (exactly one is required).
 type RequestLoginRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// One of email or phone must be provided (handled in service layer)
-	// Format validation only applies when field is set (non-empty)
-	Email         string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	Phone         string `protobuf:"bytes,2,opt,name=phone,proto3" json:"phone,omitempty"`
+	// Types that are valid to be assigned to ContactInfo:
+	//
+	//	*RequestLoginRequest_Email
+	//	*RequestLoginRequest_Phone
+	ContactInfo   isRequestLoginRequest_ContactInfo `protobuf_oneof:"contact_info"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -64,19 +67,48 @@ func (*RequestLoginRequest) Descriptor() ([]byte, []int) {
 	return file_proto_auth_v1_auth_proto_rawDescGZIP(), []int{0}
 }
 
+func (x *RequestLoginRequest) GetContactInfo() isRequestLoginRequest_ContactInfo {
+	if x != nil {
+		return x.ContactInfo
+	}
+	return nil
+}
+
 func (x *RequestLoginRequest) GetEmail() string {
 	if x != nil {
-		return x.Email
+		if x, ok := x.ContactInfo.(*RequestLoginRequest_Email); ok {
+			return x.Email
+		}
 	}
 	return ""
 }
 
 func (x *RequestLoginRequest) GetPhone() string {
 	if x != nil {
-		return x.Phone
+		if x, ok := x.ContactInfo.(*RequestLoginRequest_Phone); ok {
+			return x.Phone
+		}
 	}
 	return ""
 }
+
+type isRequestLoginRequest_ContactInfo interface {
+	isRequestLoginRequest_ContactInfo()
+}
+
+type RequestLoginRequest_Email struct {
+	// Email address. One of email or phone must be provided.
+	Email string `protobuf:"bytes,1,opt,name=email,proto3,oneof"`
+}
+
+type RequestLoginRequest_Phone struct {
+	// Phone number in E.164 format, e.g., +1234567890. One of email or phone must be provided.
+	Phone string `protobuf:"bytes,2,opt,name=phone,proto3,oneof"`
+}
+
+func (*RequestLoginRequest_Email) isRequestLoginRequest_ContactInfo() {}
+
+func (*RequestLoginRequest_Phone) isRequestLoginRequest_ContactInfo() {}
 
 type RequestLoginResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -130,12 +162,16 @@ func (x *RequestLoginResponse) GetMessage() string {
 	return ""
 }
 
+// CompleteLoginRequest completes the login process by verifying the magic code.
+// Provide either email OR phone (exactly one is required), plus the 6-digit code.
 type CompleteLoginRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// One of email or phone must be provided (handled in service layer)
-	// Format validation only applies when field is set (non-empty)
-	Email         string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	Phone         string `protobuf:"bytes,2,opt,name=phone,proto3" json:"phone,omitempty"`
+	// Types that are valid to be assigned to ContactInfo:
+	//
+	//	*CompleteLoginRequest_Email
+	//	*CompleteLoginRequest_Phone
+	ContactInfo isCompleteLoginRequest_ContactInfo `protobuf_oneof:"contact_info"`
+	// 6-digit magic code received via email or SMS.
 	Code          string `protobuf:"bytes,3,opt,name=code,proto3" json:"code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -171,16 +207,27 @@ func (*CompleteLoginRequest) Descriptor() ([]byte, []int) {
 	return file_proto_auth_v1_auth_proto_rawDescGZIP(), []int{2}
 }
 
+func (x *CompleteLoginRequest) GetContactInfo() isCompleteLoginRequest_ContactInfo {
+	if x != nil {
+		return x.ContactInfo
+	}
+	return nil
+}
+
 func (x *CompleteLoginRequest) GetEmail() string {
 	if x != nil {
-		return x.Email
+		if x, ok := x.ContactInfo.(*CompleteLoginRequest_Email); ok {
+			return x.Email
+		}
 	}
 	return ""
 }
 
 func (x *CompleteLoginRequest) GetPhone() string {
 	if x != nil {
-		return x.Phone
+		if x, ok := x.ContactInfo.(*CompleteLoginRequest_Phone); ok {
+			return x.Phone
+		}
 	}
 	return ""
 }
@@ -191,6 +238,24 @@ func (x *CompleteLoginRequest) GetCode() string {
 	}
 	return ""
 }
+
+type isCompleteLoginRequest_ContactInfo interface {
+	isCompleteLoginRequest_ContactInfo()
+}
+
+type CompleteLoginRequest_Email struct {
+	// Email address. One of email or phone must be provided.
+	Email string `protobuf:"bytes,1,opt,name=email,proto3,oneof"`
+}
+
+type CompleteLoginRequest_Phone struct {
+	// Phone number in E.164 format, e.g., +1234567890. One of email or phone must be provided.
+	Phone string `protobuf:"bytes,2,opt,name=phone,proto3,oneof"`
+}
+
+func (*CompleteLoginRequest_Email) isCompleteLoginRequest_ContactInfo() {}
+
+func (*CompleteLoginRequest_Phone) isCompleteLoginRequest_ContactInfo() {}
 
 type CompleteLoginResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2011,18 +2076,20 @@ var File_proto_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_proto_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x18proto/auth/v1/auth.proto\x12\aauth.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"e\n" +
-	"\x13RequestLoginRequest\x12\x1d\n" +
-	"\x05email\x18\x01 \x01(\tB\a\xbaH\x04r\x02`\x01R\x05email\x12/\n" +
-	"\x05phone\x18\x02 \x01(\tB\x19\xbaH\x16r\x142\x12^\\+?[1-9]\\d{1,14}$R\x05phone\"J\n" +
+	"\x18proto/auth/v1/auth.proto\x12\aauth.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\x80\x01\n" +
+	"\x13RequestLoginRequest\x12\x1f\n" +
+	"\x05email\x18\x01 \x01(\tB\a\xbaH\x04r\x02`\x01H\x00R\x05email\x121\n" +
+	"\x05phone\x18\x02 \x01(\tB\x19\xbaH\x16r\x142\x12^\\+?[1-9]\\d{1,14}$H\x00R\x05phoneB\x15\n" +
+	"\fcontact_info\x12\x05\xbaH\x02\b\x01\"J\n" +
 	"\x14RequestLoginResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x90\x01\n" +
-	"\x14CompleteLoginRequest\x12\x1d\n" +
-	"\x05email\x18\x01 \x01(\tB\a\xbaH\x04r\x02`\x01R\x05email\x12/\n" +
-	"\x05phone\x18\x02 \x01(\tB\x19\xbaH\x16r\x142\x12^\\+?[1-9]\\d{1,14}$R\x05phone\x12(\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xab\x01\n" +
+	"\x14CompleteLoginRequest\x12\x1f\n" +
+	"\x05email\x18\x01 \x01(\tB\a\xbaH\x04r\x02`\x01H\x00R\x05email\x121\n" +
+	"\x05phone\x18\x02 \x01(\tB\x19\xbaH\x16r\x142\x12^\\+?[1-9]\\d{1,14}$H\x00R\x05phone\x12(\n" +
 	"\x04code\x18\x03 \x01(\tB\x14\xbaH\x11r\x0f2\n" +
-	"^[0-9]{6}$\x98\x01\x06R\x04code\"~\n" +
+	"^[0-9]{6}$\x98\x01\x06R\x04codeB\x15\n" +
+	"\fcontact_info\x12\x05\xbaH\x02\b\x01\"~\n" +
 	"\x15CompleteLoginResponse\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x1d\n" +
@@ -2065,9 +2132,9 @@ const file_proto_auth_v1_auth_proto_rawDesc = "" +
 	"\tnew_email\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01`\x01R\bnewEmail\"I\n" +
 	"\x13ChangeEmailResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"N\n" +
-	"\x12ChangePhoneRequest\x128\n" +
-	"\tnew_phone\x18\x01 \x01(\tB\x1b\xbaH\x18r\x16\x10\x012\x12^\\+?[1-9]\\d{1,14}$R\bnewPhone\"I\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"L\n" +
+	"\x12ChangePhoneRequest\x126\n" +
+	"\tnew_phone\x18\x01 \x01(\tB\x19\xbaH\x16r\x142\x12^\\+?[1-9]\\d{1,14}$R\bnewPhone\"I\n" +
 	"\x13ChangePhoneResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\xf3\x01\n" +
@@ -2274,6 +2341,14 @@ func init() { file_proto_auth_v1_auth_proto_init() }
 func file_proto_auth_v1_auth_proto_init() {
 	if File_proto_auth_v1_auth_proto != nil {
 		return
+	}
+	file_proto_auth_v1_auth_proto_msgTypes[0].OneofWrappers = []any{
+		(*RequestLoginRequest_Email)(nil),
+		(*RequestLoginRequest_Phone)(nil),
+	}
+	file_proto_auth_v1_auth_proto_msgTypes[2].OneofWrappers = []any{
+		(*CompleteLoginRequest_Email)(nil),
+		(*CompleteLoginRequest_Phone)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

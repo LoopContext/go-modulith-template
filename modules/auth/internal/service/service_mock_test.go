@@ -92,12 +92,11 @@ func TestCompleteLogin_WithMock(t *testing.T) {
 	// Execute
 	ctx := context.Background()
 	req := &authv1.CompleteLoginRequest{
-		Email: email,
-		Code:  code,
+		ContactInfo: &authv1.CompleteLoginRequest_Email{Email: email},
+		Code:        code,
 	}
 
 	resp, err := authSvc.CompleteLogin(ctx, req)
-
 	// Assert
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -133,7 +132,7 @@ func getRequestLoginTestCases() []struct {
 	}{
 		{
 			name: "successful login request",
-			req:  &authv1.RequestLoginRequest{Email: "test@example.com"},
+			req:  &authv1.RequestLoginRequest{ContactInfo: &authv1.RequestLoginRequest_Email{Email: "test@example.com"}},
 			setupMock: func(m *mocks.MockRepository) {
 				m.EXPECT().CreateMagicCode(gomock.Any(), gomock.Any(), "test@example.com", "", gomock.Any()).Return(nil).Times(1)
 			},
@@ -148,7 +147,7 @@ func getRequestLoginTestCases() []struct {
 		},
 		{
 			name: "repository error",
-			req:  &authv1.RequestLoginRequest{Email: "test@example.com"},
+			req:  &authv1.RequestLoginRequest{ContactInfo: &authv1.RequestLoginRequest_Email{Email: "test@example.com"}},
 			setupMock: func(m *mocks.MockRepository) {
 				m.EXPECT().CreateMagicCode(gomock.Any(), gomock.Any(), "test@example.com", "", gomock.Any()).
 					Return(errors.New("database error")).Times(1)
@@ -218,4 +217,3 @@ func findSubstring(s, substr string) bool {
 
 	return false
 }
-
