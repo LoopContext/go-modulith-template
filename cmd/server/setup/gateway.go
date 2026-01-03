@@ -7,14 +7,15 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/cmelgarejo/go-modulith-template/cmd/server/health"
+	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
 	"github.com/cmelgarejo/go-modulith-template/internal/authn"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
+	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	graphqlServer "github.com/cmelgarejo/go-modulith-template/internal/graphql"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/swagger"
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
-	graphqlServer "github.com/cmelgarejo/go-modulith-template/internal/graphql"
-	"github.com/cmelgarejo/go-modulith-template/cmd/server/health"
-	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -51,7 +52,15 @@ func Gateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry,
 	health.SetupHealthChecks(mux, reg.DB(), wsHub, reg)
 	mux.Handle("/", rmux)
 
-	// Setup WebSocket endpoint with security
+	setupWebSocket(mux, cfg, wsHub)
+	setupGraphQL(ctx, mux, cfg, reg.EventBus(), wsHub)
+	setupObservabilityEndpoints(mux, cfg)
+
+	return mux, conn, nil
+}
+
+// setupWebSocket configures the WebSocket endpoint with authentication.
+func setupWebSocket(mux *http.ServeMux, cfg *config.AppConfig, wsHub *websocket.Hub) {
 	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTSecret)
 	if err != nil {
 		slog.Warn("Failed to create JWT verifier for WebSocket, connections will be unauthenticated",
@@ -68,20 +77,28 @@ func Gateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry,
 	})
 	mux.Handle("/ws", wsHandler)
 	slog.Info("WebSocket endpoint registered", "path", "/ws", "auth_enabled", verifier != nil)
+}
 
-	// Setup GraphQL endpoint
-	if graphqlHandler := graphqlServer.Setup(ctx, reg.EventBus(), wsHub); graphqlHandler != nil {
-		mux.Handle("/graphql", graphqlHandler)
-
-		if cfg.Env == "dev" {
-			playgroundHandler := graphqlServer.PlaygroundHandler()
-			mux.Handle("/graphql/playground", playgroundHandler)
-			slog.Info("GraphQL playground enabled", "path", "/graphql/playground")
-		}
-
-		slog.Info("GraphQL endpoint enabled", "path", "/graphql")
+// setupGraphQL configures GraphQL endpoints including the playground in dev mode.
+func setupGraphQL(ctx context.Context, mux *http.ServeMux, cfg *config.AppConfig, eventBus *events.Bus, wsHub *websocket.Hub) {
+	graphqlHandler := graphqlServer.Setup(ctx, eventBus, wsHub)
+	if graphqlHandler == nil {
+		return
 	}
 
+	mux.Handle("/graphql", graphqlHandler)
+
+	if cfg.Env == "dev" {
+		playgroundHandler := graphqlServer.PlaygroundHandler()
+		mux.Handle("/graphql/playground", playgroundHandler)
+		slog.Info("GraphQL playground enabled", "path", "/graphql/playground")
+	}
+
+	slog.Info("GraphQL endpoint enabled", "path", "/graphql")
+}
+
+// setupObservabilityEndpoints configures metrics and Swagger endpoints.
+func setupObservabilityEndpoints(mux *http.ServeMux, cfg *config.AppConfig) {
 	if h := observability.GetMetricsHandler(); h != nil {
 		mux.Handle("/metrics", h)
 	}
@@ -89,7 +106,4 @@ func Gateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry,
 	if cfg.Env == "dev" {
 		swagger.Setup(mux, cfg.SwaggerAPITitle)
 	}
-
-	return mux, conn, nil
 }
-
