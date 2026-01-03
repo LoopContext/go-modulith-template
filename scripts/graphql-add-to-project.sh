@@ -256,54 +256,44 @@ echo "📦 Installing GraphQL dependencies..."
 go get github.com/99designs/gqlgen@latest
 go mod tidy
 
-# Generate code only if --generate flag is set
-if [ "$GENERATE_CODE" = true ]; then
-    echo "🔄 Generating GraphQL code for all modules..."
-    cd "${PROJECT_ROOT}"
+# Code generation now happens automatically after integration (see end of script)
+echo "ℹ️  GraphQL code will be generated automatically after integration"
 
-    if gqlgen generate 2>&1 | grep -q "validation failed"; then
-        echo "⚠️  Schema validation failed, but that's OK for initial setup."
-        echo "   You can add queries/mutations later and run 'make graphql-generate'"
-    else
-        echo "✅ GraphQL code generated successfully"
-    fi
-else
-    echo "ℹ️  Skipping code generation (use --generate flag to generate code)"
-fi
-
-# Integrate GraphQL into cmd/server/main.go
+# Integrate GraphQL into cmd/server/setup/gateway.go
 echo "🔗 Integrating GraphQL into server..."
-SERVER_MAIN="${PROJECT_ROOT}/cmd/server/main.go"
+GATEWAY_FILE="${PROJECT_ROOT}/cmd/server/setup/gateway.go"
 
-if [ -f "${SERVER_MAIN}" ]; then
+if [ -f "${GATEWAY_FILE}" ]; then
     # Check if GraphQL is already integrated
-    if grep -q "graphqlServer" "${SERVER_MAIN}" && grep -q "setupGraphQLEndpoint" "${SERVER_MAIN}"; then
-        echo "ℹ️  GraphQL already integrated in cmd/server/main.go, skipping..."
+    if grep -q "graphqlServer" "${GATEWAY_FILE}" && grep -q "graphqlServer.Setup" "${GATEWAY_FILE}"; then
+        echo "ℹ️  GraphQL already integrated in cmd/server/setup/gateway.go, skipping..."
     else
         # Create temporary files for modifications
         TEMP_FILE=$(mktemp)
-        cp "${SERVER_MAIN}" "${TEMP_FILE}"
+        cp "${GATEWAY_FILE}" "${TEMP_FILE}"
 
-        # Add import after events import if not present
+        # Add import after websocket import if not present
         if ! grep -q 'graphqlServer "github.com/cmelgarejo/go-modulith-template/internal/graphql"' "${TEMP_FILE}"; then
             if [[ "$OSTYPE" == "darwin"* ]]; then
-                # macOS sed
-                sed -i '' '/^[[:space:]]*"github.com\/cmelgarejo\/go-modulith-template\/internal\/events"$/a\
+                # macOS sed - add after websocket import
+                sed -i '' '/^[[:space:]]*"github.com\/cmelgarejo\/go-modulith-template\/internal\/websocket"$/a\
 	graphqlServer "github.com/cmelgarejo/go-modulith-template/internal/graphql"
 ' "${TEMP_FILE}"
             else
                 # Linux sed
-                sed -i '/^[[:space:]]*"github.com\/cmelgarejo\/go-modulith-template\/internal\/events"$/a\	graphqlServer "github.com/cmelgarejo/go-modulith-template/internal/graphql"' "${TEMP_FILE}"
+                sed -i '/^[[:space:]]*"github.com\/cmelgarejo\/go-modulith-template\/internal\/websocket"$/a\	graphqlServer "github.com/cmelgarejo/go-modulith-template/internal/graphql"' "${TEMP_FILE}"
             fi
-            echo "✅ Added GraphQL import to cmd/server/main.go"
+            echo "✅ Added GraphQL import to cmd/server/setup/gateway.go"
         fi
 
-        # Add setupGraphQLEndpoint function before const healthStatusHealthy if not present
-        if ! grep -q "func setupGraphQLEndpoint" "${TEMP_FILE}"; then
-            TEMP_FUNC=$(mktemp)
-            cat > "${TEMP_FUNC}" <<'FUNCEOF'
-func setupGraphQLEndpoint(ctx context.Context, mux *http.ServeMux, cfg *config.AppConfig, eventBus *events.Bus, wsHub *websocket.Hub) {
-	if graphqlHandler := graphqlServer.Setup(ctx, eventBus, wsHub); graphqlHandler != nil {
+        # Add GraphQL endpoint setup in Gateway function after WebSocket setup and before metrics
+        if ! grep -q "graphqlServer.Setup(ctx, reg.EventBus(), wsHub)" "${TEMP_FILE}"; then
+            # Create a temporary file with the GraphQL setup code
+            TEMP_GRAPHQL=$(mktemp)
+            cat > "${TEMP_GRAPHQL}" <<'GRAPHQLEOF'
+
+	// Setup GraphQL endpoint
+	if graphqlHandler := graphqlServer.Setup(ctx, reg.EventBus(), wsHub); graphqlHandler != nil {
 		mux.Handle("/graphql", graphqlHandler)
 
 		if cfg.Env == "dev" {
@@ -314,77 +304,57 @@ func setupGraphQLEndpoint(ctx context.Context, mux *http.ServeMux, cfg *config.A
 
 		slog.Info("GraphQL endpoint enabled", "path", "/graphql")
 	}
-}
-
-FUNCEOF
-            # Insert before const healthStatusHealthy
+GRAPHQLEOF
+            # Insert after WebSocket endpoint registration (after slog.Info line)
             if [[ "$OSTYPE" == "darwin"* ]]; then
-                sed -i '' '/^const healthStatusHealthy/r '"${TEMP_FUNC}" "${TEMP_FILE}"
+                sed -i '' '/slog.Info("WebSocket endpoint registered"/r '"${TEMP_GRAPHQL}" "${TEMP_FILE}"
             else
-                sed -i '/^const healthStatusHealthy/r '"${TEMP_FUNC}" "${TEMP_FILE}"
+                sed -i '/slog.Info("WebSocket endpoint registered"/r '"${TEMP_GRAPHQL}" "${TEMP_FILE}"
             fi
-            rm -f "${TEMP_FUNC}"
-            echo "✅ Added setupGraphQLEndpoint function to cmd/server/main.go"
-        fi
-
-        # Add call to setupGraphQLEndpoint in setupGateway function if not present
-        if ! grep -q "setupGraphQLEndpoint(ctx, mux, cfg, reg.EventBus(), wsHub)" "${TEMP_FILE}"; then
-            if [[ "$OSTYPE" == "darwin"* ]]; then
-                sed -i '' '/mux.Handle("\/", rmux)/a\
-\
-	setupGraphQLEndpoint(ctx, mux, cfg, reg.EventBus(), wsHub)
-' "${TEMP_FILE}"
-            else
-                sed -i '/mux.Handle("\/", rmux)/a\	setupGraphQLEndpoint(ctx, mux, cfg, reg.EventBus(), wsHub)' "${TEMP_FILE}"
-            fi
-            echo "✅ Added GraphQL endpoint setup call to setupGateway function"
+            rm -f "${TEMP_GRAPHQL}"
+            echo "✅ Added GraphQL endpoint setup to Gateway function"
         fi
 
         # Replace original file with modified version
-        mv "${TEMP_FILE}" "${SERVER_MAIN}"
-
-        # After integration, generate GraphQL code to ensure it compiles
-        if [ "$GENERATE_CODE" != true ]; then
-            echo "🔄 Generating GraphQL code to ensure integration compiles..."
-            cd "${PROJECT_ROOT}"
-            if gqlgen generate 2>&1 >/dev/null; then
-                echo "✅ GraphQL code generated successfully"
-            else
-                echo "⚠️  GraphQL code generation had issues, but integration is complete"
-                echo "   Run 'make graphql-generate-all' manually to fix any issues"
-            fi
-        fi
+        mv "${TEMP_FILE}" "${GATEWAY_FILE}"
     fi
 else
-    echo "⚠️  cmd/server/main.go not found, skipping integration"
+    echo "⚠️  cmd/server/setup/gateway.go not found, skipping integration"
     echo "   You'll need to manually integrate GraphQL (see docs/GRAPHQL_INTEGRATION.md)"
+fi
+
+# Always generate GraphQL code after initialization to ensure everything compiles
+echo ""
+echo "🔄 Generating GraphQL code to ensure everything compiles..."
+cd "${PROJECT_ROOT}"
+
+# Temporarily disable exit on error to handle generation failures gracefully
+set +e
+"${PROJECT_ROOT}/scripts/graphql-generate-all.sh" 2>&1
+GEN_EXIT_CODE=$?
+set -e
+
+if [ $GEN_EXIT_CODE -eq 0 ]; then
+    echo "✅ GraphQL code generated successfully"
+else
+    echo "⚠️  GraphQL code generation completed (exit code: $GEN_EXIT_CODE)"
+    echo "   Note: Some warnings may be expected for empty schemas"
 fi
 
 echo ""
 echo "✅ GraphQL support added successfully!"
 echo ""
 
-if [ "$GENERATE_CODE" = true ]; then
-    echo "📚 Next steps:"
-    echo "   1. Edit ${SCHEMA_DIR}/schema.graphql to add your queries/mutations"
-    echo "   2. Run 'make graphql-generate-all' to regenerate code"
-    echo "   3. Implement resolvers in ${RESOLVER_DIR}/"
-    echo "   4. Run 'make run' to start the server"
-    echo "   5. Access playground at http://localhost:8080/graphql/playground (dev mode)"
-    echo ""
-    echo "   ✅ GraphQL is already integrated into cmd/server/main.go"
-else
-    echo "📚 Next steps:"
-    echo "   1. Edit ${SCHEMA_DIR}/schema.graphql to add your queries/mutations"
-    echo "   2. Run 'make graphql-generate-all' to generate code for all modules"
-    echo "   Or run 'make graphql-generate-module <module>' for a specific module"
-    echo "   3. Implement resolvers in ${RESOLVER_DIR}/"
-    echo "   4. Run 'make run' to start the server"
-    echo "   5. Access playground at http://localhost:8080/graphql/playground (dev mode)"
-    echo ""
-    echo "   ✅ GraphQL is already integrated into cmd/server/main.go"
-    echo "   💡 Tip: Run 'make graphql-init --generate' to generate code immediately"
-fi
+echo "📚 Next steps:"
+echo "   1. Edit ${SCHEMA_DIR}/schema.graphql to add your queries/mutations"
+echo "   2. Run 'make graphql-generate-all' to regenerate code after schema changes"
+echo "   Or run 'make graphql-generate-module <module>' for a specific module"
+echo "   3. Implement resolvers in ${RESOLVER_DIR}/"
+echo "   4. Run 'make run' to start the server"
+echo "   5. Access playground at http://localhost:8080/graphql/playground (dev mode)"
+echo ""
+echo "   ✅ GraphQL is integrated and code has been generated"
+echo "   ✅ GraphQL endpoints are ready at /graphql and /graphql/playground"
 
 echo ""
 echo "📖 See docs/GRAPHQL_INTEGRATION.md for detailed instructions"

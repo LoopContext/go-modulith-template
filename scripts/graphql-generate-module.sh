@@ -27,11 +27,48 @@ if ! command -v gqlgen > /dev/null; then
     exit 1
 fi
 
-# Check if module schema exists
+# Check if module schema exists, if not try to generate from proto
 if [ ! -f "${MODULE_SCHEMA}" ]; then
-    echo "❌ Module schema not found: ${MODULE_SCHEMA}"
-    echo "   Run 'make new-module ${MODULE_NAME}' to create it, or create the schema manually."
-    exit 1
+    echo "⚠️  Module schema not found: ${MODULE_SCHEMA}"
+    echo "   Attempting to generate from proto/OpenAPI definitions..."
+
+    # Check if graphql-from-proto tool exists
+    TOOL_PATH="${PROJECT_ROOT}/scripts/graphql-from-proto/graphql-from-proto"
+    OPENAPI_FILE="${PROJECT_ROOT}/gen/openapiv2/proto/${MODULE_NAME}/v1/${MODULE_NAME}.swagger.json"
+
+    if [ ! -f "${TOOL_PATH}" ]; then
+        echo "🔨 Building graphql-from-proto tool..."
+        cd "${PROJECT_ROOT}/scripts/graphql-from-proto"
+        if ! go build -o graphql-from-proto main.go 2>&1; then
+            echo "❌ Failed to build graphql-from-proto tool"
+            echo "   Please ensure Go is installed and the script directory is accessible"
+            exit 1
+        fi
+        cd "${PROJECT_ROOT}"
+    fi
+
+    # Check if OpenAPI file exists
+    if [ ! -f "${OPENAPI_FILE}" ]; then
+        echo "❌ OpenAPI file not found: ${OPENAPI_FILE}"
+        echo "   Run 'make proto' first to generate OpenAPI definitions,"
+        echo "   or run 'make new-module ${MODULE_NAME}' to create the schema manually."
+        exit 1
+    fi
+
+    # Generate schema from proto
+    echo "🔄 Generating GraphQL schema from OpenAPI definition..."
+    if "${TOOL_PATH}" -module "${MODULE_NAME}" 2>&1; then
+        if [ -f "${MODULE_SCHEMA}" ]; then
+            echo "✅ Generated GraphQL schema: ${MODULE_SCHEMA}"
+        else
+            echo "❌ Schema generation completed but file was not created"
+            exit 1
+        fi
+    else
+        echo "❌ Failed to generate schema from proto"
+        echo "   Please check the OpenAPI file and try again"
+        exit 1
+    fi
 fi
 
 echo "🔄 Generating GraphQL code for module: ${MODULE_NAME}..."

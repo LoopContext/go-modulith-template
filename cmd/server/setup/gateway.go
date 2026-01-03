@@ -12,6 +12,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/swagger"
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
+	graphqlServer "github.com/cmelgarejo/go-modulith-template/internal/graphql"
 	"github.com/cmelgarejo/go-modulith-template/cmd/server/health"
 	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -67,6 +68,19 @@ func Gateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry,
 	})
 	mux.Handle("/ws", wsHandler)
 	slog.Info("WebSocket endpoint registered", "path", "/ws", "auth_enabled", verifier != nil)
+
+	// Setup GraphQL endpoint
+	if graphqlHandler := graphqlServer.Setup(ctx, reg.EventBus(), wsHub); graphqlHandler != nil {
+		mux.Handle("/graphql", graphqlHandler)
+
+		if cfg.Env == "dev" {
+			playgroundHandler := graphqlServer.PlaygroundHandler()
+			mux.Handle("/graphql/playground", playgroundHandler)
+			slog.Info("GraphQL playground enabled", "path", "/graphql/playground")
+		}
+
+		slog.Info("GraphQL endpoint enabled", "path", "/graphql")
+	}
 
 	if h := observability.GetMetricsHandler(); h != nil {
 		mux.Handle("/metrics", h)
