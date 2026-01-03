@@ -81,8 +81,8 @@ if [ -d "${GRAPHQL_SCHEMA_DIR}" ]; then
         echo "  ✅ Created ${GRAPHQL_SCHEMA_FILE}"
         echo ""
         echo "  💡 Tip: After defining your proto file and running 'make proto',"
-        echo "     you can auto-generate the GraphQL schema with:"
-        echo "     make graphql-from-proto-module MODULE_NAME=${MODULE_NAME}"
+        echo "     run 'make graphql-generate-module MODULE_NAME=${MODULE_NAME}'"
+        echo "     which will auto-generate the schema from proto if missing"
     else
         echo "  ℹ️  ${GRAPHQL_SCHEMA_FILE} already exists, skipping..."
     fi
@@ -141,13 +141,13 @@ if [ -d "${GRAPHQL_SCHEMA_DIR}" ]; then
     echo "4. Run 'make graphql-generate-module MODULE_NAME=${MODULE_NAME}' to generate GraphQL code for this module."
     echo "   Or run 'make graphql-generate-all' to generate for all modules."
     echo "5. Implement resolvers in ${GRAPHQL_RESOLVER_FILE}."
-    echo "6. Update cmd/server/main.go to register the new module:"
-    echo "   Add: reg.Register(${MODULE_NAME}.NewModule())"
+    echo "6. Register the new module in cmd/server/setup/registry.go:"
+    echo "   Add: reg.Register(${MODULE_NAME}.NewModule()) in RegisterModules() function"
     echo "7. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
     echo "8. Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
 else
-    echo "3. Update cmd/server/main.go to register the new module:"
-    echo "   Add: reg.Register(${MODULE_NAME}.NewModule())"
+    echo "3. Register the new module in cmd/server/setup/registry.go:"
+    echo "   Add: reg.Register(${MODULE_NAME}.NewModule()) in RegisterModules() function"
     echo "4. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
     echo "5. Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
     echo ""

@@ -25,15 +25,27 @@ make graphql-from-proto
 ```
 
 This will:
-- Discover all modules with OpenAPI definitions in `gen/openapiv2/proto/`
-- Generate GraphQL schema files in `internal/graphql/schema/`
-- Create one schema file per module (e.g., `auth.graphql`, `order.graphql`)
+
+-   Discover all modules with OpenAPI definitions in `gen/openapiv2/proto/`
+-   Generate GraphQL schema files in `internal/graphql/schema/`
+-   Create one schema file per module (e.g., `auth.graphql`, `order.graphql`)
 
 ### Generate Schema for a Specific Module
 
+**Auto-generation when generating code (Recommended)**
+
+The `graphql-generate-module` command now automatically generates schemas from proto if they're missing:
+
 ```bash
-make graphql-from-proto-module MODULE_NAME=auth
+# This will automatically generate the schema from proto if auth.graphql doesn't exist
+make graphql-generate-module MODULE_NAME=auth
 ```
+
+This workflow:
+
+1. Checks if `internal/graphql/schema/auth.graphql` exists
+2. If not, automatically generates it from `gen/openapiv2/proto/auth/v1/auth.swagger.json`
+3. Then generates the GraphQL resolver code
 
 ### Complete Workflow
 
@@ -44,13 +56,17 @@ make graphql-from-proto-module MODULE_NAME=auth
 # 2. Generate gRPC and OpenAPI code
 make proto
 
-# 3. Generate GraphQL schemas from OpenAPI
+# 3. Generate GraphQL schemas and code (automatic!)
+# Option A: Generate schemas for all modules
 make graphql-from-proto
+
+# Option B: Generate for one module (auto-generates schema if missing)
+make graphql-generate-module MODULE_NAME=auth
 
 # 4. Review and customize schemas (optional)
 # Edit internal/graphql/schema/auth.graphql if needed
 
-# 5. Generate GraphQL resolver code
+# 5. Generate GraphQL resolver code (if using Option A)
 make graphql-generate-all
 
 # 6. Implement resolvers
@@ -64,6 +80,7 @@ make graphql-generate-all
 All proto message types are converted to GraphQL types:
 
 **Proto:**
+
 ```protobuf
 message User {
   string id = 1;
@@ -73,11 +90,12 @@ message User {
 ```
 
 **Generated GraphQL:**
+
 ```graphql
 type User {
-  id: String!
-  email: String!
-  createdAt: String!
+    id: String!
+    email: String!
+    createdAt: String!
 }
 ```
 
@@ -85,10 +103,11 @@ type User {
 
 gRPC service methods are converted to GraphQL queries and mutations:
 
-- **GET operations** → GraphQL Queries
-- **POST/PUT/DELETE operations** → GraphQL Mutations
+-   **GET operations** → GraphQL Queries
+-   **POST/PUT/DELETE operations** → GraphQL Mutations
 
 **Proto:**
+
 ```protobuf
 service AuthService {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
@@ -97,28 +116,29 @@ service AuthService {
 ```
 
 **Generated GraphQL:**
+
 ```graphql
 extend type Query {
-  getProfile(input: GetProfileRequest): GetProfileResponse
+    getProfile(input: GetProfileRequest): GetProfileResponse
 }
 
 extend type Mutation {
-  updateProfile(input: UpdateProfileRequest): UpdateProfileResponse
+    updateProfile(input: UpdateProfileRequest): UpdateProfileResponse
 }
 ```
 
 ## Type Mappings
 
-| Proto Type | GraphQL Type |
-|------------|--------------|
-| `string` | `String` |
-| `int32`, `int64` | `Int` |
-| `float`, `double` | `Float` |
-| `bool` | `Boolean` |
-| `bytes` | `String` (Base64) |
-| `google.protobuf.Timestamp` | `String` |
-| `repeated T` | `[T!]` (array) |
-| Message types | Custom type (e.g., `User`) |
+| Proto Type                  | GraphQL Type               |
+| --------------------------- | -------------------------- |
+| `string`                    | `String`                   |
+| `int32`, `int64`            | `Int`                      |
+| `float`, `double`           | `Float`                    |
+| `bool`                      | `Boolean`                  |
+| `bytes`                     | `String` (Base64)          |
+| `google.protobuf.Timestamp` | `String`                   |
+| `repeated T`                | `[T!]` (array)             |
+| Message types               | Custom type (e.g., `User`) |
 
 ## Customization
 
@@ -127,25 +147,27 @@ extend type Mutation {
 The generated schemas are meant to be a starting point. You can:
 
 1. **Edit the schema files** to:
-   - Add descriptions
-   - Adjust field types
-   - Add custom scalars
-   - Remove unwanted operations
+
+    - Add descriptions
+    - Adjust field types
+    - Add custom scalars
+    - Remove unwanted operations
 
 2. **Customize resolvers** to:
-   - Add business logic
-   - Transform data
-   - Add authentication/authorization
-   - Handle errors
+    - Add business logic
+    - Transform data
+    - Add authentication/authorization
+    - Handle errors
 
 ### Regeneration
 
 ⚠️ **Important**: The generated schema files have a header indicating they're auto-generated. If you make manual changes, they will be overwritten when you regenerate.
 
 **Best Practice**:
-- Keep generated schemas as-is for basic CRUD operations
-- Create separate custom schema files for complex operations
-- Or use gqlgen's `# +genql` directives to preserve custom code
+
+-   Keep generated schemas as-is for basic CRUD operations
+-   Create separate custom schema files for complex operations
+-   Or use gqlgen's `# +genql` directives to preserve custom code
 
 ## Integration with Module Scaffolding
 
@@ -153,7 +175,7 @@ When you create a new module with `make new-module <name>`, if GraphQL is initia
 
 1. Create a basic GraphQL schema template
 2. After you define your proto file and run `make proto`
-3. You can then run `make graphql-from-proto-module MODULE_NAME=<name>` to generate the full schema
+3. You can then run `make graphql-generate-module MODULE_NAME=<name>` which will automatically generate the schema from proto if missing, then generate the GraphQL code
 
 ## Troubleshooting
 
@@ -168,6 +190,7 @@ When you create a new module with `make new-module <name>`, if GraphQL is initia
 ### Schema validation errors
 
 **Solution**:
+
 1. Check that your proto files are valid
 2. Ensure OpenAPI generation succeeded (`make proto`)
 3. Review the generated schema for any issues
@@ -177,9 +200,9 @@ When you create a new module with `make new-module <name>`, if GraphQL is initia
 
 Some proto types don't map perfectly to GraphQL. Common issues:
 
-- **Timestamps**: Converted to `String` - consider using a custom scalar
-- **Enums**: Converted to `String` - consider defining GraphQL enums manually
-- **Oneof fields**: Not directly supported - may need manual schema definition
+-   **Timestamps**: Converted to `String` - consider using a custom scalar
+-   **Enums**: Converted to `String` - consider defining GraphQL enums manually
+-   **Oneof fields**: Not directly supported - may need manual schema definition
 
 ## Advanced Usage
 
@@ -193,7 +216,6 @@ Use gqlgen's model generation features to preserve custom resolver implementatio
 
 ## See Also
 
-- [GraphQL Integration Guide](./GRAPHQL_INTEGRATION.md)
-- [Modulith Architecture](./MODULITH_ARCHITECTURE.md)
-- [gqlgen Documentation](https://gqlgen.com/)
-
+-   [GraphQL Integration Guide](./GRAPHQL_INTEGRATION.md)
+-   [Modulith Architecture](./MODULITH_ARCHITECTURE.md)
+-   [gqlgen Documentation](https://gqlgen.com/)

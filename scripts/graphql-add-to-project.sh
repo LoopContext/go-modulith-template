@@ -1,19 +1,9 @@
 #!/bin/bash
 
 # Script to add optional GraphQL support using gqlgen
-# This script initializes GraphQL infrastructure without breaking existing functionality
-#
-# Usage:
-#   ./scripts/graphql-add-to-project.sh           # Setup only (no code generation)
-#   ./scripts/graphql-add-to-project.sh --generate # Setup + generate code for all modules
+# This script initializes GraphQL infrastructure and automatically generates code
 
 set -e
-
-# Check for --generate flag
-GENERATE_CODE=false
-if [ "$1" = "--generate" ] || [ "$1" = "-g" ]; then
-    GENERATE_CODE=true
-fi
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GRAPHQL_DIR="${PROJECT_ROOT}/internal/graphql"

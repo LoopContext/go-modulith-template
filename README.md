@@ -24,6 +24,7 @@ This is a professional template for building Go applications following the **Mod
 -   🔑 **Complete Auth**: Passwordless login, sessions, refresh tokens, revocation, and profile management.
 -   🔗 **OAuth/Social Login**: Authentication with Google, Facebook, GitHub, Apple, Microsoft, and Twitter/X.
 -   🧪 **Mocking with gomock**: Automatic generation of type-safe mocks for efficient unit testing.
+-   🧪 **Test Utilities**: Comprehensive testing utilities (`internal/testutil`) for integration tests, gRPC servers, event bus, and test registries.
 -   🛡️ **Observability**: Native integration with OpenTelemetry (Tracing & Metrics), Prometheus, and Health Checks with context handling.
 -   ⚡ **Error Handling**: Domain error system with automatic mapping to gRPC codes.
 -   📡 **Telemetry Helpers**: Integrated helpers for consistent tracing across all modules.
@@ -62,11 +63,12 @@ make docker-up
 ```
 
 This starts:
-- **PostgreSQL**: Main database
-- **Redis**: Cache and session storage
-- **Jaeger**: Distributed tracing (UI at http://localhost:16686)
-- **Prometheus**: Metrics and alerts (UI at http://localhost:9090)
-- **Grafana**: Visualization dashboards (UI at http://localhost:3000, user: `admin`, password: `admin`)
+
+-   **PostgreSQL**: Main database
+-   **Redis**: Cache and session storage
+-   **Jaeger**: Distributed tracing (UI at http://localhost:16686)
+-   **Prometheus**: Metrics and alerts (UI at http://localhost:9090)
+-   **Grafana**: Visualization dashboards (UI at http://localhost:3000, user: `admin`, password: `admin`)
 
 > 💡 **Tip**: To start only the database, use `docker-compose up db`.
 
@@ -120,8 +122,8 @@ make build-worker && ./bin/worker
 
 The template includes an abstraction for secrets management that allows using different providers:
 
-- **Development**: Environment variables (`EnvProvider` implementation)
-- **Production**: HashiCorp Vault, AWS Secrets Manager, etc. (extensible)
+-   **Development**: Environment variables (`EnvProvider` implementation)
+-   **Production**: HashiCorp Vault, AWS Secrets Manager, etc. (extensible)
 
 See [environment variables documentation](docs/ENVIRONMENT.md) for more details.
 
@@ -129,10 +131,10 @@ See [environment variables documentation](docs/ENVIRONMENT.md) for more details.
 
 The template follows the **stateless processes** principle:
 
-- ✅ **No local state:** No temporary files are written or state stored on disk
-- ✅ **State in external services:** Sessions in PostgreSQL, optional cache in Redis
-- ✅ **Horizontal scaling:** Any instance can handle any request
-- ⚠️ **WebSocket:** Requires sticky sessions for scaling (see documentation)
+-   ✅ **No local state:** No temporary files are written or state stored on disk
+-   ✅ **State in external services:** Sessions in PostgreSQL, optional cache in Redis
+-   ✅ **Horizontal scaling:** Any instance can handle any request
+-   ⚠️ **WebSocket:** Requires sticky sessions for scaling (see documentation)
 
 **See complete documentation:** `docs/MODULITH_ARCHITECTURE.md` (section 20: Stateless Processes)
 
@@ -140,22 +142,22 @@ The template follows the **stateless processes** principle:
 
 The server exposes health check endpoints for integration with orchestrators (Kubernetes, Docker Swarm, etc.):
 
-- **`/livez`**: Liveness probe - always returns 200 if the process is alive
-- **`/readyz`**: Readiness probe - checks dependencies (DB, modules, event bus, WebSocket)
-- **`/healthz`**: Legacy endpoint (backward compatibility, same as `/livez`)
-- **`/healthz/ws`**: WebSocket connection status (active connections and connected users)
+-   **`/livez`**: Liveness probe - always returns 200 if the process is alive
+-   **`/readyz`**: Readiness probe - checks dependencies (DB, modules, event bus, WebSocket)
+-   **`/healthz`**: Legacy endpoint (backward compatibility, same as `/livez`)
+-   **`/healthz/ws`**: WebSocket connection status (active connections and connected users)
 
 The `/readyz` endpoint returns detailed JSON with the status of each dependency:
 
 ```json
 {
-  "status": "ready",
-  "checks": {
-    "modules": "healthy",
-    "database": "healthy",
-    "event_bus": "healthy",
-    "websocket": "healthy"
-  }
+    "status": "ready",
+    "checks": {
+        "modules": "healthy",
+        "database": "healthy",
+        "event_bus": "healthy",
+        "websocket": "healthy"
+    }
 }
 ```
 
@@ -166,10 +168,12 @@ If any dependency is unhealthy, the endpoint returns `503 Service Unavailable`.
 The template includes an administrative task system for maintenance operations:
 
 **Available tasks:**
-- `cleanup-sessions`: Cleans expired user sessions
-- `cleanup-magic-codes`: Cleans expired magic codes
+
+-   `cleanup-sessions`: Cleans expired user sessions
+-   `cleanup-magic-codes`: Cleans expired magic codes
 
 **Usage:**
+
 ```bash
 # Run an administrative task
 make admin TASK=cleanup-sessions
@@ -183,10 +187,11 @@ make admin TASK=cleanup-sessions
 ```
 
 Administrative tasks run as independent commands and are useful for:
-- Periodic cleanup of expired data
-- Database maintenance
-- Data migration operations
-- Audit tasks
+
+-   Periodic cleanup of expired data
+-   Database maintenance
+-   Data migration operations
+-   Audit tasks
 
 ## 📖 Complete Documentation
 
@@ -211,6 +216,7 @@ The project automatically generates OpenAPI/Swagger documentation:
 -   **Usage**: Import `.swagger.json` files into [Swagger Editor](https://editor.swagger.io/) or any compatible tool
 
 Example for the auth module:
+
 ```bash
 # Generate documentation
 make proto
@@ -277,8 +283,10 @@ open gen/openapiv2/proto/auth/v1/auth.swagger.json
 
 ### GraphQL (Optional)
 
--   `make graphql-init`: Adds optional GraphQL support using gqlgen (only if you need it).
--   `make graphql-generate`: Generates GraphQL code from schema.
+-   `make graphql-init`: Adds optional GraphQL support using gqlgen and automatically generates code (one command does everything).
+-   `make graphql-generate-all`: Generates GraphQL code from schemas for all modules.
+-   `make graphql-generate-module MODULE_NAME=<name>`: Generates GraphQL code for a specific module (auto-generates schema from proto if missing).
+-   `make graphql-from-proto`: Generates GraphQL schemas from OpenAPI/Swagger definitions for all modules.
 -   `make graphql-validate`: Validates GraphQL schema.
 
 ### ⚠️ Quality Workflow

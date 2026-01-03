@@ -4,7 +4,7 @@ This document explains how to use the WebSocket infrastructure for real-time com
 
 ## 🎯 Architecture
 
-```
+```bash
 ┌─────────────┐
 │Auth Module  │ ──┐
 └─────────────┘   │
@@ -173,7 +173,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *pb.CreateOrderReque
 If you need events that aren't in the default patterns:
 
 ```go
-// In cmd/server/main.go (during initialization)
+// In cmd/server/setup/registry.go (during registry creation)
 
 wsSubscriber := websocket.NewSubscriber(wsHub, ebus)
 wsSubscriber.Subscribe()  // Default patterns
@@ -396,7 +396,7 @@ The handler automatically uses the JWT secret from your configuration. Authentic
 **Example:**
 
 ```go
-// In cmd/server/main.go - automatically configured
+// In cmd/server/setup/gateway.go - automatically configured
 wsHandler := websocket.NewHandler(websocket.HandlerConfig{
     Hub:            wsHub,
     Verifier:      jwtVerifier,  // Created from JWT_SECRET

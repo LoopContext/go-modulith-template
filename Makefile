@@ -215,11 +215,6 @@ ifeq (graphql-generate-module,$(firstword $(MAKECMDGOALS)))
   $(eval $(MODULE_NAME):;@:)
 endif
 
-# Handle positional arguments for graphql-from-proto-module (if we add it back)
-ifeq (graphql-from-proto-module,$(firstword $(MAKECMDGOALS)))
-  MODULE_NAME := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-  $(eval $(MODULE_NAME):;@:)
-endif
 
 ##### Docker
 docker-build: ## Build docker image for server
@@ -247,8 +242,8 @@ new-module: ## Scaffold a new module (usage: make new-module MODULE_NAME)
 	./scripts/scaffold-module.sh $(MODULE_NAME)
 
 ##### GraphQL (Optional)
-graphql-add: ## Add optional GraphQL support using gqlgen (use ARGS="--generate" to also generate code)
-	./scripts/graphql-add-to-project.sh $(ARGS)
+graphql-add: ## Add optional GraphQL support using gqlgen (automatically generates code)
+	./scripts/graphql-add-to-project.sh
 
 graphql-init: ## Initialize GraphQL (alias for graphql-add)
 	$(MAKE) graphql-add

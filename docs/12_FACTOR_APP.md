@@ -259,7 +259,7 @@ autoscaling:
 shutdown_timeout: 30s # Tiempo máximo para shutdown graceful
 ```
 
-**Ver también:** `cmd/server/main.go` (función `shutdownServers`)
+**Ver también:** `cmd/server/setup/server.go` (función `ShutdownServers`)
 
 ---
 
@@ -313,7 +313,7 @@ log_level: info # debug, info, warn, error
 -   **Dev:** Text format (legible)
 -   **Prod:** JSON format (parseable)
 
-**Ver también:** `cmd/server/main.go` (función `initLogger`)
+**Ver también:** `cmd/server/observability/logger.go` (función `InitLogger`)
 
 ---
 
@@ -338,7 +338,7 @@ log_level: info # debug, info, warn, error
 make admin TASK=cleanup-sessions
 ```
 
-**Ver también:** `internal/admin/`, `cmd/server/main.go` (función `runAdminCommand`)
+**Ver también:** `cmd/server/commands/admin.go` (función `RunAdminCommand`)
 
 ---
 

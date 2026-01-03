@@ -11,35 +11,26 @@ This guide explains how to optionally add GraphQL to your project using [gqlgen]
 
 ## 📦 Quick Installation
 
-### Option 1: Automatic Script (Recommended)
+### Automatic Installation (Recommended)
 
 ```bash
 make graphql-init
 ```
 
-This command:
+This command automatically:
 
 -   ✅ Installs gqlgen and dependencies
--   ✅ Creates base GraphQL structure
--   ✅ Generates initial code
--   ✅ Integrates with existing server
+-   ✅ Creates base GraphQL structure (schemas, resolvers, server)
+-   ✅ **Generates GraphQL code automatically** (no separate step needed)
+-   ✅ Integrates with existing server in `cmd/server/setup/gateway.go`
 -   ✅ Configures subscriptions with WebSocket
+-   ✅ Everything compiles and is ready to use
 
-### Option 2: Manual
+After running `make graphql-init`, you can immediately:
 
-```bash
-# 1. Install gqlgen
-go install github.com/99designs/gqlgen@latest
-
-# 2. Initialize GraphQL
-make graphql-init
-
-# 3. Generate code
-make graphql-generate
-
-# 4. Integrate in server
-# (See integration section)
-```
+-   Start the server with `make run`
+-   Access GraphQL playground at `http://localhost:8000/graphql/playground` (dev mode)
+-   Access GraphQL endpoint at `http://localhost:8000/graphql`
 
 ## 🏗️ Architecture
 
@@ -79,8 +70,8 @@ go-modulith-template/
 │       ├── generated/
 │       │   └── (generated code)
 │       └── server.go
-├── gqlgen.yml           # ← gqlgen configuration
-└── cmd/server/main.go   # ← Optional integration
+├── gqlgen.yml                    # ← gqlgen configuration
+└── cmd/server/setup/gateway.go   # ← GraphQL integration (automatic)
 ```
 
 ## 🎯 Strategy: Schema per Module
@@ -353,48 +344,46 @@ func NewGraphQLServer(schema generated.ExecutableSchema, wsHub *websocket.Hub) h
 }
 ```
 
-## 🚀 Integración en cmd/server/main.go
+## 🚀 Integration in cmd/server/setup/gateway.go
 
-### Opción A: Siempre Habilitado (si GraphQL está instalado)
+GraphQL integration is **automatically handled** when you run `make graphql-init`. The script automatically:
+
+1. Adds the GraphQL import to `cmd/server/setup/gateway.go`
+2. Integrates GraphQL endpoint setup in the `Gateway()` function
+3. Generates all GraphQL code automatically
+
+### Automatic Integration (via make graphql-init)
+
+The integration happens in `cmd/server/setup/gateway.go`:
 
 ```go
-// cmd/server/main.go
+// cmd/server/setup/gateway.go
 
 import (
     graphqlServer "github.com/cmelgarejo/go-modulith-template/internal/graphql"
 )
 
-func setupGateway(ctx context.Context, cfg *config.AppConfig, db *sql.DB, wsHub *websocket.Hub) (*http.ServeMux, *grpc.ClientConn, error) {
-    // ... código existente ...
+func Gateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry, wsHub *websocket.Hub) (*http.ServeMux, *grpc.ClientConn, error) {
+    // ... existing gateway setup code ...
 
-    mux := http.NewServeMux()
-    setupHealthChecks(mux, db, wsHub)
-    mux.Handle("/", rmux)
-
-    // GraphQL (opcional, solo si existe)
-    if graphqlHandler := graphqlServer.Setup(ctx, db, ebus, wsHub); graphqlHandler != nil {
+    // Setup GraphQL endpoint (automatically added by make graphql-init)
+    if graphqlHandler := graphqlServer.Setup(ctx, reg.EventBus(), wsHub); graphqlHandler != nil {
         mux.Handle("/graphql", graphqlHandler)
-        mux.Handle("/graphql/playground", playground.Handler("GraphQL Playground", "/graphql"))
-        slog.Info("GraphQL enabled", "endpoint", "/graphql", "playground", "/graphql/playground")
+
+        if cfg.Env == "dev" {
+            playgroundHandler := graphqlServer.PlaygroundHandler()
+            mux.Handle("/graphql/playground", playgroundHandler)
+            slog.Info("GraphQL playground enabled", "path", "/graphql/playground")
+        }
+
+        slog.Info("GraphQL endpoint enabled", "path", "/graphql")
     }
 
-    // ... resto del código ...
+    // ... rest of gateway code ...
 }
 ```
 
-### Opción B: Feature Flag
-
-```go
-// configs/server.yaml
-graphql:
-  enabled: true  # o false para deshabilitar
-
-// cmd/server/main.go
-if cfg.GraphQL.Enabled {
-    graphqlHandler := graphqlServer.Setup(ctx, db, ebus, wsHub)
-    mux.Handle("/graphql", graphqlHandler)
-}
-```
+**Note:** You don't need to manually edit this file - `make graphql-init` handles everything automatically!
 
 ## 📊 Ejemplo Completo: Query + Mutation + Subscription
 
@@ -539,9 +528,13 @@ func TestRequestLogin(t *testing.T) {
 make graphql-init
 
 # Generar código desde schema
-make graphql-generate
+# Generate code for all modules
+make graphql-generate-all
 
-# Validar schema
+# Or generate for a specific module (auto-generates schema from proto if missing)
+make graphql-generate-module MODULE_NAME=auth
+
+# Validate schema
 make graphql-validate
 
 # Ver playground (requiere servidor corriendo)
@@ -551,7 +544,8 @@ make graphql-validate
 ## 🔄 Flujo de Desarrollo
 
 1. **Definir Schema** (`internal/graphql/schema/*.graphql`)
-2. **Generar Código** (`make graphql-generate`)
+2. **Generar Código** (`make graphql-generate-all` or `make graphql-generate-module MODULE_NAME=<module>`)
+    - Note: `graphql-generate-module` automatically generates schemas from proto if they're missing
 3. **Implementar Resolvers** (`internal/graphql/resolver/*.go`)
 4. **Conectar con Módulos** (vía gRPC clients)
 5. **Agregar Subscriptions** (vía event bus)
@@ -588,7 +582,7 @@ make graphql-validate
 
 ### Error: "schema not found"
 
-**Solución:** Ejecuta `make graphql-generate` después de crear/modificar schemas.
+**Solución:** Ejecuta `make graphql-generate-all` después de crear/modificar schemas. O usa `make graphql-generate-module MODULE_NAME=<module>` para un módulo específico.
 
 ### Subscriptions no funcionan
 
@@ -600,7 +594,7 @@ make graphql-validate
 
 ### Tipos no coinciden
 
-**Solución:** Regenera código con `make graphql-generate` después de cambios en schema.
+**Solución:** Regenera código con `make graphql-generate-all` después de cambios en schema.
 
 ---
 

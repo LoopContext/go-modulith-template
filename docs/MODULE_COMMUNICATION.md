@@ -17,7 +17,7 @@ The template supports two deployment modes:
 
 ### Architecture
 
-In the modulith scenario, all modules run in a **single process** (`cmd/server/main.go`).
+In the modulith scenario, all modules run in a **single process** (`cmd/server/main.go`), with setup logic organized in `cmd/server/setup/`.
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -60,58 +60,61 @@ In the modulith scenario, all modules run in a **single process** (`cmd/server/m
 1. **Module registration:**
 
     ```go
-    // cmd/server/main.go
-    func registerModules(reg *registry.Registry) {
+    // cmd/server/setup/registry.go
+    func RegisterModules(reg *registry.Registry) {
         reg.Register(auth.NewModule())
         reg.Register(order.NewModule())
         reg.Register(payment.NewModule())
     }
+
+    // Called from cmd/server/main.go
+    setup.RegisterModules(reg)
     ```
 
 2. **Register with gRPC Server:**
 
-     ```go
-     // All modules register with the same gRPC server
-     grpcServer := grpc.NewServer(...)
-     reg.RegisterGRPCAll(grpcServer)  // Registers all modules
-     ```
+    ```go
+    // All modules register with the same gRPC server
+    grpcServer := grpc.NewServer(...)
+    reg.RegisterGRPCAll(grpcServer)  // Registers all modules
+    ```
 
 3. **Inter-module call:**
 
-     ```go
-     // In the Order module, calling the Auth module
-     // modules/order/internal/service/order_service.go
+    ```go
+    // In the Order module, calling the Auth module
+    // modules/order/internal/service/order_service.go
 
-     import (
-         authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
-         "google.golang.org/grpc"
-     )
+    import (
+        authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
+        "google.golang.org/grpc"
+    )
 
-     func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
-         // Create gRPC client for Auth
-         // In modulith, this connects to the in-process server
-         conn, err := grpc.NewClient(
-             "127.0.0.1:9050",  // Local gRPC server
-             grpc.WithTransportCredentials(insecure.NewCredentials()),
-         )
-         if err != nil {
-             return nil, err
-         }
-         defer conn.Close()
+    func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
+        // Create gRPC client for Auth
+        // In modulith, this connects to the in-process server
+        conn, err := grpc.NewClient(
+            "127.0.0.1:9050",  // Local gRPC server
+            grpc.WithTransportCredentials(insecure.NewCredentials()),
+        )
+        if err != nil {
+            return nil, err
+        }
+        defer conn.Close()
 
-         authClient := authv1.NewAuthServiceClient(conn)
+        authClient := authv1.NewAuthServiceClient(conn)
 
-         // Call Auth module (in-process, no network)
-         user, err := authClient.GetUser(ctx, &authv1.GetUserRequest{
-             UserId: req.UserId,
-         })
-         if err != nil {
-             return nil, err
-         }
+        // Call Auth module (in-process, no network)
+        user, err := authClient.GetUser(ctx, &authv1.GetUserRequest{
+            UserId: req.UserId,
+        })
+        if err != nil {
+            return nil, err
+        }
 
-         // Continue with business logic...
-     }
-     ```
+        // Continue with business logic...
+    }
+    ```
 
 **Important note:** Although technically a gRPC connection is created to `127.0.0.1`, the gRPC server is in the same process, so communication is **in-process** and very efficient.
 
@@ -245,73 +248,73 @@ In the microservices scenario, each module runs as an **independent process** (`
 
 3. **Inter-service call:**
 
-     ```go
-     // In the Order module, calling the Auth service
-     // modules/order/internal/service/order_service.go
+    ```go
+    // In the Order module, calling the Auth service
+    // modules/order/internal/service/order_service.go
 
-     func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
-         // Create gRPC client for Auth (via network)
-         // In microservices, this connects to another service
-         conn, err := grpc.NewClient(
-             "auth-service:9050",  // Service discovery (Kubernetes DNS)
-             grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})),  // TLS in prod
-         )
-         if err != nil {
-             return nil, err
-         }
-         defer conn.Close()
+    func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
+        // Create gRPC client for Auth (via network)
+        // In microservices, this connects to another service
+        conn, err := grpc.NewClient(
+            "auth-service:9050",  // Service discovery (Kubernetes DNS)
+            grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})),  // TLS in prod
+        )
+        if err != nil {
+            return nil, err
+        }
+        defer conn.Close()
 
-         authClient := authv1.NewAuthServiceClient(conn)
+        authClient := authv1.NewAuthServiceClient(conn)
 
-         // Call Auth service (via network, with latency)
-         user, err := authClient.GetUser(ctx, &authv1.GetUserRequest{
-             UserId: req.UserId,
-         })
-         if err != nil {
-             // Handle network errors, timeouts, etc.
-             return nil, err
-         }
+        // Call Auth service (via network, with latency)
+        user, err := authClient.GetUser(ctx, &authv1.GetUserRequest{
+            UserId: req.UserId,
+        })
+        if err != nil {
+            // Handle network errors, timeouts, etc.
+            return nil, err
+        }
 
-         // Continue with business logic...
-     }
-     ```
+        // Continue with business logic...
+    }
+    ```
 
 **Important considerations:**
 
 1. **Resilience:**
 
-     ```go
-     // Use circuit breaker and retries
-     import "github.com/cmelgarejo/go-modulith-template/internal/resilience"
+    ```go
+    // Use circuit breaker and retries
+    import "github.com/cmelgarejo/go-modulith-template/internal/resilience"
 
-     cb := resilience.NewCircuitBreaker("auth-service", ...)
-     retry := resilience.NewRetry(3, time.Second)
+    cb := resilience.NewCircuitBreaker("auth-service", ...)
+    retry := resilience.NewRetry(3, time.Second)
 
-     user, err := retry.Do(ctx, func() (interface{}, error) {
-         return cb.Execute(func() (interface{}, error) {
-             return authClient.GetUser(ctx, req)
-         })
-     })
-     ```
+    user, err := retry.Do(ctx, func() (interface{}, error) {
+        return cb.Execute(func() (interface{}, error) {
+            return authClient.GetUser(ctx, req)
+        })
+    })
+    ```
 
 2. **Timeouts:**
 
-     ```go
-     // Context with timeout for network calls
-     ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-     defer cancel()
+    ```go
+    // Context with timeout for network calls
+    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+    defer cancel()
 
-     user, err := authClient.GetUser(ctx, req)
-     ```
+    user, err := authClient.GetUser(ctx, req)
+    ```
 
 3. **TLS/Security:**
-     ```go
-     // In production, use TLS
-     creds := credentials.NewTLS(&tls.Config{
-         ServerName: "auth-service",
-     })
-     conn, err := grpc.NewClient("auth-service:9050", grpc.WithTransportCredentials(creds))
-     ```
+    ```go
+    // In production, use TLS
+    creds := credentials.NewTLS(&tls.Config{
+        ServerName: "auth-service",
+    })
+    conn, err := grpc.NewClient("auth-service:9050", grpc.WithTransportCredentials(creds))
+    ```
 
 ### Event Bus (Distributed)
 
@@ -400,18 +403,18 @@ func (s *OrderService) StartEventConsumer(ctx context.Context) error {
 
 ## Comparison: Modulith vs Microservices
 
-| Aspect               | Modulith                | Microservices             |
-| -------------------- | ----------------------- | ------------------------- |
-| **gRPC Communication** | In-process (no network) | Network (via network)     |
-| **Performance**      | Very high (no latency)   | Lower (network latency)   |
-| **Scaling**          | All together            | Independent per service   |
-| **Deployment**       | Single artifact          | Multiple artifacts         |
-| **Event Bus**        | In-memory                | Distributed (Kafka, etc.) |
-| **Transactions**     | Shared DB (easy)         | Saga pattern (complex)    |
-| **Testing**          | Simpler                  | More complex              |
-| **Debugging**        | Single process           | Multiple processes        |
-| **Service Discovery** | Not required            | Required                  |
-| **Resilience**       | Less critical            | Critical (circuit breakers) |
+| Aspect                 | Modulith                | Microservices               |
+| ---------------------- | ----------------------- | --------------------------- |
+| **gRPC Communication** | In-process (no network) | Network (via network)       |
+| **Performance**        | Very high (no latency)  | Lower (network latency)     |
+| **Scaling**            | All together            | Independent per service     |
+| **Deployment**         | Single artifact         | Multiple artifacts          |
+| **Event Bus**          | In-memory               | Distributed (Kafka, etc.)   |
+| **Transactions**       | Shared DB (easy)        | Saga pattern (complex)      |
+| **Testing**            | Simpler                 | More complex                |
+| **Debugging**          | Single process          | Multiple processes          |
+| **Service Discovery**  | Not required            | Required                    |
+| **Resilience**         | Less critical           | Critical (circuit breakers) |
 
 ---
 
@@ -896,7 +899,7 @@ Kafka Topic: "user.created"
 
 ### For Modulith
 
--   [ ] All modules registered in `cmd/server/main.go`
+-   [ ] All modules registered in `cmd/server/setup/registry.go` via `RegisterModules()`
 -   [ ] gRPC clients point to `127.0.0.1:9050`
 -   [ ] In-memory event bus configured
 -   [ ] Single process to deploy

@@ -15,25 +15,26 @@ This proposal documents the architectural decision to include the web frontend i
 3. **Code Co-location**: Templates and handlers live alongside business code, facilitating development and maintenance.
 
 4. **HTMX as Perfect Complement**:
-   - No build step required (just HTML + inline JavaScript)
-   - Small and efficient requests
-   - Server already handles HTTP robustly
-   - Enables dynamic interactions without SPA complexity
+
+    - No build step required (just HTML + inline JavaScript)
+    - Small and efficient requests
+    - Server already handles HTTP robustly
+    - Enables dynamic interactions without SPA complexity
 
 5. **Consistency with Modulith**: Maintains the "everything in one place" principle while allowing internal modular separation.
 
 6. **Simplified Development**:
-   - Hot reload with Air works for templates too
-   - No synchronization between repositories
-   - Simpler testing (everything in one process)
+    - Hot reload with Air works for templates too
+    - No synchronization between repositories
+    - Simpler testing (everything in one process)
 
 ### Real-Time Communication
 
 The backend already includes integrated **WebSocket** (`/ws`) for bidirectional real-time communication:
 
-- **JWT Authentication**: WebSocket connections are protected
-- **Event Bus Integration**: Backend events automatically propagate to clients
-- **Broadcast and Directed Messages**: Support for global and user-specific notifications
+-   **JWT Authentication**: WebSocket connections are protected
+-   **Event Bus Integration**: Backend events automatically propagate to clients
+-   **Broadcast and Directed Messages**: Support for global and user-specific notifications
 
 **See complete documentation:** `docs/WEBSOCKET_GUIDE.md`
 
@@ -41,18 +42,18 @@ The backend already includes integrated **WebSocket** (`/ws`) for bidirectional 
 
 If you need a more flexible API than REST, the backend supports optional **GraphQL**:
 
-- **Schema per Module**: Each module defines its own GraphQL schema
-- **Subscriptions**: Real-time subscriptions via WebSocket
-- **Event Bus Integration**: Subscriptions can listen to internal events
+-   **Schema per Module**: Each module defines its own GraphQL schema
+-   **Subscriptions**: Real-time subscriptions via WebSocket
+-   **Event Bus Integration**: Subscriptions can listen to internal events
 
 **See complete documentation:** `docs/GRAPHQL_INTEGRATION.md`
 
 ### Ideal Use Cases
 
-- **Dashboards administrativos**: Interfaces de gestión internas
-- **Aplicaciones B2B**: Portales para clientes empresariales
-- **Herramientas internas**: Paneles de control, configuraciones
-- **Applications with low UI traffic**: Where simplicity outweighs the need for extreme optimization
+-   **Dashboards administrativos**: Interfaces de gestión internas
+-   **Aplicaciones B2B**: Portales para clientes empresariales
+-   **Herramientas internas**: Paneles de control, configuraciones
+-   **Applications with low UI traffic**: Where simplicity outweighs the need for extreme optimization
 
 ## Proposed Structure
 
@@ -164,7 +165,7 @@ func (h *AuthWebHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 ### 2. Integration in main.go
 
 ```go
-// In cmd/server/main.go, after setupGateway:
+// In cmd/server/setup/gateway.go, in the Gateway() function:
 
 // Setup web handlers (HTML + HTMX)
 webHandler, err := handlers.NewWebHandler()
@@ -197,22 +198,20 @@ mux.HandleFunc("/readyz", readyz)
 <!-- internal/templates/base.html -->
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Title}} - Modulith App</title>
-    <link rel="stylesheet" href="/static/css/main.css">
-    <script src="/static/js/htmx.min.js"></script>
-</head>
-<body>
-    {{template "navbar" .}}
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{{.Title}} - Modulith App</title>
+        <link rel="stylesheet" href="/static/css/main.css" />
+        <script src="/static/js/htmx.min.js"></script>
+    </head>
+    <body>
+        {{template "navbar" .}}
 
-    <main>
-        {{block "content" .}}{{end}}
-    </main>
+        <main>{{block "content" .}}{{end}}</main>
 
-    {{template "footer" .}}
-</body>
+        {{template "footer" .}}
+    </body>
 </html>
 ```
 
@@ -222,10 +221,8 @@ mux.HandleFunc("/readyz", readyz)
 <!-- internal/templates/pages/login.html -->
 {{define "content"}}
 <div class="login-container">
-    <form hx-post="/api/auth/login"
-          hx-target="#login-result"
-          hx-swap="innerHTML">
-        <input type="email" name="email" placeholder="Email" required>
+    <form hx-post="/api/auth/login" hx-target="#login-result" hx-swap="innerHTML">
+        <input type="email" name="email" placeholder="Email" required />
         <button type="submit">Send Magic Code</button>
     </form>
 
@@ -315,9 +312,9 @@ The modulith design facilitates this transition without drastic changes.
 
 ### Scaling Alternatives
 
-- **CDN for Assets**: Serve CSS/JS from CDN in production
-- **Caching**: Appropriate cache headers for static assets
-- **SSR Caching**: Cache rendered templates if necessary
+-   **CDN for Assets**: Serve CSS/JS from CDN in production
+-   **Caching**: Appropriate cache headers for static assets
+-   **SSR Caching**: Cache rendered templates if necessary
 
 ## Testing
 
@@ -356,40 +353,40 @@ Air is already configured to monitor `.html` files. Template changes will automa
 
 ### Advantages ✅
 
-- Operational simplicity (single binary)
-- Faster development (no synchronization between repos)
-- Lower infrastructure complexity
-- Co-location of related code
-- HTMX is lightweight and efficient
-- Easy to test (everything in one process)
+-   Operational simplicity (single binary)
+-   Faster development (no synchronization between repos)
+-   Lower infrastructure complexity
+-   Co-location of related code
+-   HTMX is lightweight and efficient
+-   Easy to test (everything in one process)
 
 ### Disadvantages ⚠️
 
-- Frontend/backend teams work in the same repo (can also be an advantage)
-- If you need a complex SPA, this architecture is not ideal
-- Static assets increase binary size (mitigated with CDN)
-- Less flexibility to deploy frontend/backend separately (mitigated by modulith design)
+-   Frontend/backend teams work in the same repo (can also be an advantage)
+-   If you need a complex SPA, this architecture is not ideal
+-   Static assets increase binary size (mitigated with CDN)
+-   Less flexibility to deploy frontend/backend separately (mitigated by modulith design)
 
 ## Final Recommendation
 
 **✅ YES, include frontend in the same repository** if:
 
-- You use Go Templates + HTMX (traditional server architecture)
-- You prioritize simplicity over strict separation
-- The team is small or the same team works on both
-- You don't need a complex SPA with React/Vue/etc.
+-   You use Go Templates + HTMX (traditional server architecture)
+-   You prioritize simplicity over strict separation
+-   The team is small or the same team works on both
+-   You don't need a complex SPA with React/Vue/etc.
 
 **❌ DON'T include** if:
 
-- You need a complex SPA with modern framework (React, Vue, Svelte)
-- You have completely separate frontend/backend teams
-- You require deploying frontend/backend independently from the start
+-   You need a complex SPA with modern framework (React, Vue, Svelte)
+-   You have completely separate frontend/backend teams
+-   You require deploying frontend/backend independently from the start
 
 ## Next Steps
 
 1. Create folder structure (`internal/templates/`, `static/`)
 2. Implement base handler with template parsing
-3. Integrate in `cmd/server/main.go`
+3. Integrate in `cmd/server/setup/gateway.go` (GraphQL integration is automatic via `make graphql-init`)
 4. Create base template and first example page
 5. Configure authentication middleware for web
 6. Document HTMX patterns in the project
@@ -399,4 +396,3 @@ Air is already configured to monitor `.html` files. Template changes will automa
 **Proposal Date**: 2025-01-XX
 **Estado**: Propuesto
 **Decisión**: Pendiente de aprobación
-

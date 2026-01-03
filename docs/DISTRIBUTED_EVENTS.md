@@ -16,27 +16,27 @@ Distributed events are necessary when:
 
 ### Horizontal Scaling Requirements
 
-- **Multiple Instances**: You're running multiple instances of your application
-- **Load Balancing**: Requests are distributed across instances
-- **Event Delivery**: Events need to reach all instances, not just the one that published them
+-   **Multiple Instances**: You're running multiple instances of your application
+-   **Load Balancing**: Requests are distributed across instances
+-   **Event Delivery**: Events need to reach all instances, not just the one that published them
 
 ### Multi-Instance Deployments
 
-- **Kubernetes**: Multiple pods running the same service
-- **Cloud Deployments**: Auto-scaling groups with multiple instances
-- **High Availability**: Need events to work even if one instance fails
+-   **Kubernetes**: Multiple pods running the same service
+-   **Cloud Deployments**: Auto-scaling groups with multiple instances
+-   **High Availability**: Need events to work even if one instance fails
 
 ### Event Persistence Needs
 
-- **Durability**: Events must survive instance restarts
-- **Replay**: Need to replay events for recovery or debugging
-- **Audit**: Events must be stored for compliance or auditing
+-   **Durability**: Events must survive instance restarts
+-   **Replay**: Need to replay events for recovery or debugging
+-   **Audit**: Events must be stored for compliance or auditing
 
 ### Cross-Service Communication
 
-- **Microservices**: When modules are split into separate services
-- **External Systems**: Events need to reach external services
-- **Event Sourcing**: Using events as the source of truth
+-   **Microservices**: When modules are split into separate services
+-   **External Systems**: Events need to reach external services
+-   **Event Sourcing**: Using events as the source of truth
 
 ## Architecture Overview
 
@@ -59,10 +59,11 @@ Distributed events are necessary when:
 ```
 
 **Characteristics:**
-- Events are published and consumed within the same process
-- Fast (no network overhead)
-- Simple to implement
-- Limited to single instance
+
+-   Events are published and consumed within the same process
+-   Fast (no network overhead)
+-   Simple to implement
+-   Limited to single instance
 
 #### Distributed Events
 
@@ -82,10 +83,11 @@ Distributed events are necessary when:
 ```
 
 **Characteristics:**
-- Events travel over the network
-- Works across multiple instances
-- Can persist events
-- Slightly higher latency
+
+-   Events travel over the network
+-   Works across multiple instances
+-   Can persist events
+-   Slightly higher latency
 
 ### Composite Event Bus Pattern
 
@@ -103,9 +105,10 @@ compositeBus.Publish(ctx, event)
 ```
 
 **Benefits:**
-- Local handlers run immediately (low latency)
-- Events are also persisted for distributed consumption
-- Gradual migration path
+
+-   Local handlers run immediately (low latency)
+-   Events are also persisted for distributed consumption
+-   Gradual migration path
 
 ## Implementation Options
 
@@ -116,11 +119,13 @@ Kafka is ideal for high-throughput, persistent event streaming.
 #### Setup
 
 1. Add dependency:
+
 ```bash
 go get github.com/segmentio/kafka-go
 ```
 
 2. Configure Kafka bus:
+
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/events"
 
@@ -136,6 +141,7 @@ if err != nil {
 ```
 
 3. Start consuming:
+
 ```go
 ctx := context.Background()
 if err := kafkaBus.Start(ctx); err != nil {
@@ -154,11 +160,13 @@ Redis Pub/Sub is simpler and suitable for lower-volume, real-time events.
 #### Setup
 
 1. Add dependency:
+
 ```bash
 go get github.com/redis/go-redis/v9
 ```
 
 2. Configure Redis bus:
+
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/events"
 
@@ -195,8 +203,9 @@ For AWS deployments, you can use SNS for publishing and SQS for consuming.
 #### Phase 2: Add Distributed Bus (Non-Breaking)
 
 1. Add distributed bus alongside existing in-process bus:
+
 ```go
-// In cmd/server/main.go or setup package
+// In cmd/server/setup/registry.go when creating the registry
 localBus := events.NewBus()
 distributedBus := events.NewKafkaBus(kafkaConfig) // or Redis
 compositeBus := events.NewCompositeEventBus(localBus, distributedBus)
@@ -208,6 +217,7 @@ reg := registry.New(
 ```
 
 2. Start distributed bus consumer:
+
 ```go
 if err := distributedBus.Start(ctx); err != nil {
     log.Fatal(err)
@@ -257,18 +267,21 @@ type Event struct {
 ```
 
 **Migration Strategy:**
-- Support multiple versions during transition
-- Document breaking changes
-- Provide migration scripts if needed
+
+-   Support multiple versions during transition
+-   Document breaking changes
+-   Provide migration scripts if needed
 
 ### Error Handling and Retries
 
 **Retry Strategy:**
-- Implement exponential backoff
-- Set maximum retry attempts
-- Use dead letter queues for failed events
+
+-   Implement exponential backoff
+-   Set maximum retry attempts
+-   Use dead letter queues for failed events
 
 **Example:**
+
 ```go
 bus.Subscribe("user.created", func(ctx context.Context, e events.Event) error {
     // Retry logic with exponential backoff
@@ -299,23 +312,27 @@ dlqBus := events.NewKafkaBus(events.DistributedBusConfig{
 ### Event Ordering Guarantees
 
 **Kafka:**
-- Events with the same key are ordered within a partition
-- Use event key (e.g., user_id) for ordering
+
+-   Events with the same key are ordered within a partition
+-   Use event key (e.g., user_id) for ordering
 
 **Redis Pub/Sub:**
-- No ordering guarantees
-- Use Kafka if ordering is critical
+
+-   No ordering guarantees
+-   Use Kafka if ordering is critical
 
 ### Monitoring and Observability
 
 **Metrics to Track:**
-- Event publish rate
-- Event consumption rate
-- Processing latency
-- Error rate
-- Dead letter queue size
+
+-   Event publish rate
+-   Event consumption rate
+-   Processing latency
+-   Error rate
+-   Dead letter queue size
 
 **Example:**
+
 ```go
 // Add metrics to event bus
 metrics.RecordEventPublished(event.Name)
@@ -325,16 +342,19 @@ metrics.RecordEventProcessed(event.Name, duration)
 ### Performance Considerations
 
 **Batching:**
-- Batch events when possible
-- Adjust batch size based on throughput
+
+-   Batch events when possible
+-   Adjust batch size based on throughput
 
 **Partitioning:**
-- Use appropriate partition keys for Kafka
-- Distribute load evenly
+
+-   Use appropriate partition keys for Kafka
+-   Distribute load evenly
 
 **Connection Pooling:**
-- Reuse connections to message broker
-- Configure appropriate pool sizes
+
+-   Reuse connections to message broker
+-   Configure appropriate pool sizes
 
 ## Troubleshooting
 
@@ -361,8 +381,7 @@ metrics.RecordEventProcessed(event.Name, duration)
 
 ## References
 
-- [Kafka Documentation](https://kafka.apache.org/documentation/)
-- [Redis Pub/Sub Documentation](https://redis.io/docs/manual/pubsub/)
-- [Event Sourcing Patterns](https://martinfowler.com/eaaDev/EventSourcing.html)
-- See `internal/events/distributed.go` for implementation details
-
+-   [Kafka Documentation](https://kafka.apache.org/documentation/)
+-   [Redis Pub/Sub Documentation](https://redis.io/docs/manual/pubsub/)
+-   [Event Sourcing Patterns](https://martinfowler.com/eaaDev/EventSourcing.html)
+-   See `internal/events/distributed.go` for implementation details
