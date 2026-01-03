@@ -165,12 +165,20 @@ func (s *AuthService) CompleteLogin(ctx context.Context, req *authv1.CompleteLog
 // This method handles business logic validation (magic code verification).
 // Note: The oneof requirement (email or phone) is handled by the validation interceptor.
 func (s *AuthService) verifyLoginRequest(ctx context.Context, req *authv1.CompleteLoginRequest) error {
-	// With oneof, exactly one field will be set (validated by protovalidate)
-	if req.GetEmail() != "" {
-		return s.verifyMagicCodeByEmail(ctx, req.GetEmail(), req.Code)
+	email := req.GetEmail()
+	phone := req.GetPhone()
+
+	// Validate that at least one of email or phone is provided
+	if email == "" && phone == "" {
+		return status.Error(codes.InvalidArgument, "either email or phone must be provided")
 	}
 
-	return s.verifyMagicCodeByPhone(ctx, req.GetPhone(), req.Code)
+	// With oneof, exactly one field will be set (validated by protovalidate)
+	if email != "" {
+		return s.verifyMagicCodeByEmail(ctx, email, req.Code)
+	}
+
+	return s.verifyMagicCodeByPhone(ctx, phone, req.Code)
 }
 
 func (s *AuthService) verifyMagicCodeByEmail(ctx context.Context, email, code string) error {
