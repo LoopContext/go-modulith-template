@@ -2,36 +2,45 @@
 globs: *.go
 alwaysApply: false
 ---
-## Quality Standards (Go)
 
-- Write idiomatic, simple, and explicit Go.
-- Follow the linter set in `.golangci.yaml` (repo is strict).
-- **Do not introduce PII** in logs (emails, tokens, magic codes, passwords).
+# Quality Standards (Go)
+
+-   Write idiomatic, simple, and explicit Go.
+-   Follow the linter set in `.golangci.yaml` (repo is strict).
+-   **Do not introduce PII** in logs (emails, tokens, magic codes, passwords).
 
 ## Errors
 
-- In repository/adapters: **wrap external errors** with `fmt.Errorf("...: %w", err)` for traceability.
-- In gRPC service: **do not return raw errors** from repo/DB.
+-   In repository/adapters: **wrap external errors** with `fmt.Errorf("...: %w", err)` for traceability.
+-   In gRPC service: **do not return raw errors** from repo/DB.
 
 ## Package docs
 
-- Every package must have a clear intent (package comment when applicable).
+-   Every package must have a clear intent (package comment when applicable).
 
-## Linting Workflow
+## Code Quality Workflow
 
-- **ALWAYS run `make lint`** after any modification that includes `.go` files.
-- Iterate on fixes until **all linting issues are resolved** (0 issues).
-- **NEVER modify `.golangci.yaml`** to ignore or suppress lint errors.
-- Always implement **proper fixes** for lint issues:
-  - Add error checking for unchecked errors (`errcheck`)
-  - Extract repeated strings into constants (`goconst`)
-  - Rename unused parameters to `_` (`revive`)
-  - Add proper whitespace between statements (`wsl_v5`)
-  - Reduce cyclomatic complexity by extracting functions (`cyclop`)
-  - Split long functions into smaller, focused helpers (`funlen`)
+-   **Before committing**: Run `make pre-commit` (format + lint + test-unit)
+-   **Format code**: Use `make format` to format code with gofmt/goimports
+-   **Lint code**: Use `make lint` after any modification that includes `.go` files
+-   **Iterate on fixes** until **all linting issues are resolved** (0 issues).
+-   **NEVER modify `.golangci.yaml`** to ignore or suppress lint errors.
+-   Always implement **proper fixes** for lint issues:
+    -   Add error checking for unchecked errors (`errcheck`)
+    -   Extract repeated strings into constants (`goconst`)
+    -   Rename unused parameters to `_` (`revive`)
+    -   Add proper whitespace between statements (`wsl_v5`)
+    -   Reduce cyclomatic complexity by extracting functions (`cyclop`)
+    -   Split long functions into smaller, focused helpers (`funlen`)
 
 ## Testing Workflow
 
-- **ALWAYS run `make test`** after adding or modifying tests.
-- Ensure all tests pass before considering the work complete.
-- Write clear, focused test cases with descriptive names.
+-   **ALWAYS run `make test-unit`** after adding or modifying tests (faster, generates mocks).
+-   Use `make test-all` for complete testing (unit + integration).
+-   Ensure all tests pass before considering the work complete.
+-   Write clear, focused test cases with descriptive names.
+
+## Code Generation Workflow
+
+-   **After modifying SQL/proto/interfaces**: Run `make generate-all` (runs sqlc + proto + mocks)
+-   Individual commands available: `make sqlc`, `make proto`, `make generate-mocks`

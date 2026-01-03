@@ -1,29 +1,29 @@
-## Goal (Go Modulith Template)
+# Goal (Go Modulith Template)
 
 Maintain this repo as a **base template** for a **Modular Monolith (Modulith)** that can scale to microservices without breaking contracts.
 
 ## Structure rules (Project Layout)
 
-- **Entrypoints** live in `cmd/`:
-  - `cmd/server`: monolith (starts all modules)
-  - `cmd/<mod>-svc`: microservice (starts only one module)
-- **Business modules** live in `modules/<mod>/` and are self-contained.
-- **Contracts/DTOs** live in `proto/<mod>/v1/*.proto` and are generated to `gen/go/proto/...` (single source of truth).
+-   **Entrypoints** live in `cmd/`:
+    -   `cmd/server`: monolith (starts all modules)
+    -   `cmd/<mod>-svc`: microservice (starts only one module)
+-   **Business modules** live in `modules/<mod>/` and are self-contained.
+-   **Contracts/DTOs** live in `proto/<mod>/v1/*.proto` and are generated to `gen/go/proto/...` (single source of truth).
 
 ## Isolation rules (Insulation)
 
-- **Forbidden**: module `A` importing anything from `modules/<other>/internal/...`.
-- **Allowed**:
-  - inter-module communication via **in-process gRPC** using the generated client (internal gateway).
-  - asynchronous communication via **event bus** (`internal/events`) if applicable.
-- **Data**:
-  - Each module is the absolute owner of its schema/migrations/SQLC queries.
-  - Do not share `store/` (SQLC), `repository`, or DB models between modules.
+-   **Forbidden**: module `A` importing anything from `modules/<other>/internal/...`.
+-   **Allowed**:
+    -   inter-module communication via **in-process gRPC** using the generated client (internal gateway).
+    -   asynchronous communication via **event bus** (`internal/events`) if applicable.
+-   **Data**:
+    -   Each module is the absolute owner of its schema/migrations/SQLC queries.
+    -   Do not share `store/` (SQLC), `repository`, or DB models between modules.
 
 ## When adding a new module
 
-- Use `make new-module <name>`.
-- Then:
-  - `make proto` (buf generate)
-  - `make sqlc` (sqlc generate)
-  - Register the module in `cmd/server/main.go` (and in its `<mod>-svc` if applicable).
+-   Use `make new-module <name>`.
+-   Then:
+    -   `make generate-all` (generates sqlc + proto + mocks)
+    -   Register the module in `cmd/server/main.go` (and in its `<mod>-svc` if applicable).
+    -   Run migrations: `make migrate-up`
