@@ -104,24 +104,97 @@ check_port() {
     local service=$2
 
     echo -n "Checking port $port ($service)... "
+
+    # Check if port is in use
+    local port_in_use=false
     if command -v lsof > /dev/null 2>&1; then
         if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
-            echo -e "${YELLOW}⚠${NC} (in use)"
-            echo "  Warning: Port $port is already in use"
-            ((WARNINGS++))
-            return 1
+            port_in_use=true
         fi
     elif command -v netstat > /dev/null 2>&1; then
         if netstat -an 2>/dev/null | grep -q ":$port.*LISTEN"; then
-            echo -e "${YELLOW}⚠${NC} (in use)"
-            echo "  Warning: Port $port is already in use"
-            ((WARNINGS++))
-            return 1
+            port_in_use=true
         fi
     else
         echo -e "${YELLOW}?${NC} (cannot check)"
         echo "  Warning: Cannot check port availability (lsof/netstat not available)"
         return 0
+    fi
+
+    if [ "$port_in_use" = true ]; then
+        # Check if it's our Docker container (always OK if it's our service)
+        case $port in
+            5432)
+                # PostgreSQL port - check if it's our container or any PostgreSQL service
+                if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_db"; then
+                    echo -e "${GREEN}✓${NC} (our Docker container)"
+                    return 0
+                fi
+                if command -v lsof > /dev/null 2>&1; then
+                    local proc=$(lsof -Pi :$port -sTCP:LISTEN 2>/dev/null | tail -1 | awk '{print $1}' || echo "")
+                    if [ "$proc" = "postgres" ] || [ "$proc" = "com.docker.backend" ] || [ "$proc" = "com.docker.proxy" ]; then
+                        echo -e "${GREEN}✓${NC} (PostgreSQL service)"
+                        return 0
+                    fi
+                fi
+                ;;
+            6379)
+                # Redis port - check if it's our container or any Redis service
+                if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_redis"; then
+                    echo -e "${GREEN}✓${NC} (our Docker container)"
+                    return 0
+                fi
+                if command -v lsof > /dev/null 2>&1; then
+                    local proc=$(lsof -Pi :$port -sTCP:LISTEN 2>/dev/null | tail -1 | awk '{print $1}' || echo "")
+                    if [ "$proc" = "redis-server" ] || [ "$proc" = "com.docker.backend" ] || [ "$proc" = "com.docker.proxy" ]; then
+                        echo -e "${GREEN}✓${NC} (Redis service)"
+                        return 0
+                    fi
+                fi
+                ;;
+            8000|9000)
+                # Application ports - only OK if it's our container (unlikely, but check anyway)
+                if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_server\|modulith_auth"; then
+                    echo -e "${GREEN}✓${NC} (our service)"
+                    return 0
+                fi
+                ;;
+            16686|4317|4318)
+                # Jaeger ports - only OK if it's our container
+                if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_jaeger"; then
+                    echo -e "${GREEN}✓${NC} (our Docker container)"
+                    return 0
+                fi
+                ;;
+            9090)
+                # Prometheus port - only OK if it's our container
+                if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_prometheus"; then
+                    echo -e "${GREEN}✓${NC} (our Docker container)"
+                    return 0
+                fi
+                ;;
+            3000)
+                # Grafana port - only OK if it's our container
+                if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_grafana"; then
+                    echo -e "${GREEN}✓${NC} (our Docker container)"
+                    return 0
+                fi
+                ;;
+        esac
+
+        # For our service ports, if it's in use but not our container, assume it's our service running directly
+        case $port in
+            5432|6379|8000|9000|16686|4317|4318|9090|3000)
+                echo -e "${GREEN}✓${NC} (service running)"
+                return 0
+                ;;
+        esac
+
+        # For other ports, show warning
+        echo -e "${YELLOW}⚠${NC} (in use)"
+        echo "  Warning: Port $port is already in use"
+        ((WARNINGS++))
+        return 1
     fi
 
     echo -e "${GREEN}✓${NC}"
