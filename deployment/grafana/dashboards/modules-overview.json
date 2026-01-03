@@ -1,0 +1,141 @@
+{
+  "dashboard": {
+    "title": "Modules Overview",
+    "tags": ["modulith", "modules"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Module Request Rate",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "rate(grpc_server_handled_total[5m])",
+            "legendFormat": "{{module}} - {{grpc_method}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "reqps",
+            "label": "Requests/sec"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Module Error Rate",
+        "type": "graph",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "rate(grpc_server_handled_total{grpc_code!=\"OK\"}[5m])",
+            "legendFormat": "{{module}} - {{grpc_code}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "reqps",
+            "label": "Errors/sec"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Module Request Duration",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(grpc_server_handling_seconds_bucket[5m]))",
+            "legendFormat": "{{module}} - p95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(grpc_server_handling_seconds_bucket[5m]))",
+            "legendFormat": "{{module}} - p99",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Duration"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Module Events Published",
+        "type": "graph",
+        "gridPos": {
+          "x": 12,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "rate(events_published_total[5m])",
+            "legendFormat": "{{module}} - {{event_name}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ops",
+            "label": "Events/sec"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "module",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(grpc_server_handled_total, module)",
+          "current": {
+            "value": "All",
+            "text": "All"
+          },
+          "includeAll": true
+        }
+      ]
+    }
+  }
+}
+

@@ -118,8 +118,10 @@ func testEventPublishing(ctx context.Context, t *testing.T, eventBus *events.Bus
 		t.Fatalf("Timeout waiting for event: %v", err)
 	}
 
-	if receivedEvent.Name != "user.created" {
-		t.Errorf("Expected event user.created, got %s", receivedEvent.Name)
+	expectedEventName := "user.created"
+
+	if receivedEvent.Name != expectedEventName {
+		t.Errorf("Expected event %s, got %s", expectedEventName, receivedEvent.Name)
 	}
 
 	t.Logf("Event received: %s", receivedEvent.Name)

@@ -35,6 +35,17 @@ func WithEventBus(bus *events.Bus) Option {
 	}
 }
 
+// WithOutbox enables the outbox pattern for reliable event publishing.
+// This is a placeholder for future outbox integration.
+// Outbox pattern implementation is in internal/outbox package.
+// Usage is explicit in modules when outbox is needed.
+func WithOutbox(outboxRepo interface{}) Option {
+	return func(_ *Registry) {
+		// Outbox integration is optional and explicit in modules
+		_ = outboxRepo
+	}
+}
+
 // WithNotifier sets the notification service.
 func WithNotifier(n notifier.Notifier) Option {
 	return func(r *Registry) {

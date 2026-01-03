@@ -1,0 +1,170 @@
+groups:
+  - name: application_alerts
+    interval: 30s
+    rules:
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status_code=~"5.."}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors/sec (threshold: 0.05)"
+
+      # High Request Latency
+      - alert: HighRequestLatency
+        expr: |
+          histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request latency detected"
+          description: "p95 latency is {{ $value }}s (threshold: 1s)"
+
+      # Low Success Rate
+      - alert: LowSuccessRate
+        expr: |
+          (sum(rate(http_requests_total{status_code!~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) * 100 < 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low success rate detected"
+          description: "Success rate is {{ $value }}% (threshold: 95%)"
+
+  - name: grpc_alerts
+    interval: 30s
+    rules:
+      # High gRPC Error Rate
+      - alert: HighGRPCErrorRate
+        expr: |
+          sum(rate(grpc_server_handled_total{grpc_code!="OK"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High gRPC error rate detected"
+          description: "gRPC error rate is {{ $value }} errors/sec (threshold: 0.05)"
+
+      # High gRPC Latency
+      - alert: HighGRPCLatency
+        expr: |
+          histogram_quantile(0.95, rate(grpc_server_handling_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High gRPC latency detected"
+          description: "gRPC p95 latency is {{ $value }}s (threshold: 1s)"
+
+      # Low gRPC Success Rate
+      - alert: LowGRPCSuccessRate
+        expr: |
+          (sum(rate(grpc_server_handled_total{grpc_code="OK"}[5m])) / sum(rate(grpc_server_handled_total[5m]))) * 100 < 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low gRPC success rate detected"
+          description: "gRPC success rate is {{ $value }}% (threshold: 95%)"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # High Database Connection Count
+      - alert: HighDatabaseConnections
+        expr: |
+          sum(pg_stat_database_numbackends) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection count"
+          description: "Database has {{ $value }} connections (threshold: 80)"
+
+      # Low Database Cache Hit Ratio
+      - alert: LowDatabaseCacheHitRatio
+        expr: |
+          (sum(rate(pg_stat_database_blks_hit[5m])) / (sum(rate(pg_stat_database_blks_hit[5m])) + sum(rate(pg_stat_database_blks_read[5m])))) * 100 < 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low database cache hit ratio"
+          description: "Cache hit ratio is {{ $value }}% (threshold: 90%)"
+
+      # Slow Database Queries
+      - alert: SlowDatabaseQueries
+        expr: |
+          rate(pg_stat_statements_mean_exec_time[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Query execution time is {{ $value }}s (threshold: 1s)"
+
+  - name: event_alerts
+    interval: 30s
+    rules:
+      # High Event Handler Error Rate
+      - alert: HighEventHandlerErrorRate
+        expr: |
+          sum(rate(event_handler_errors_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High event handler error rate"
+          description: "Event handler error rate is {{ $value }} errors/sec (threshold: 0.1)"
+
+      # Large Event Queue
+      - alert: LargeEventQueue
+        expr: |
+          sum(events_queue_size) > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Large event queue detected"
+          description: "Event queue size is {{ $value }} (threshold: 1000)"
+
+  - name: system_alerts
+    interval: 30s
+    rules:
+      # Service Down
+      - alert: ServiceDown
+        expr: |
+          up{job="modulith-server"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service is down"
+          description: "Service {{ $labels.job }} is down"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: |
+          (process_resident_memory_bytes / process_virtual_memory_bytes) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}% (threshold: 80%)"
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: |
+          rate(process_cpu_seconds_total[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% (threshold: 80%)"
+

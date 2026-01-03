@@ -12,6 +12,10 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 )
 
+const (
+	eventUserCreated = "user.created"
+)
+
 // TestExampleEventBus demonstrates comprehensive event bus testing patterns.
 // This example shows:
 // - Subscribing to events
@@ -53,7 +57,7 @@ func TestExampleEventBus(t *testing.T) {
 	// Use a fresh collector to avoid interference from previous tests
 	t.Run("EventCollector", func(t *testing.T) {
 		freshCollector := testutil.NewEventCollector()
-		freshCollector.Subscribe(bus, "user.created")
+		freshCollector.Subscribe(bus, eventUserCreated)
 		testEventCollector(ctx, t, bus, freshCollector)
 	})
 
@@ -62,7 +66,7 @@ func TestExampleEventBus(t *testing.T) {
 
 func testPublishAndReceive(ctx context.Context, t *testing.T, bus *events.Bus, collector *testutil.EventCollector) {
 	testEvent := events.Event{
-		Name: "user.created",
+		Name: eventUserCreated,
 		Payload: map[string]interface{}{
 			"user_id": "test-123",
 			"email":   "test@example.com",
