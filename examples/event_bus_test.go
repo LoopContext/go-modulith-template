@@ -4,6 +4,7 @@ package examples
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -49,8 +50,11 @@ func TestExampleEventBus(t *testing.T) {
 	})
 
 	// Step 6: Test event collector functionality
+	// Use a fresh collector to avoid interference from previous tests
 	t.Run("EventCollector", func(t *testing.T) {
-		testEventCollector(ctx, t, bus, collector)
+		freshCollector := testutil.NewEventCollector()
+		freshCollector.Subscribe(bus, "user.created")
+		testEventCollector(ctx, t, bus, freshCollector)
 	})
 
 	t.Log("Event bus tests complete")
@@ -116,10 +120,16 @@ func testMultipleEvents(ctx context.Context, t *testing.T, bus *events.Bus, coll
 }
 
 func testErrorHandling(ctx context.Context, t *testing.T, bus *events.Bus) {
+	var mu sync.Mutex
+
 	errorHandlerCalled := false
 
 	bus.SetErrorHandler(func(_ context.Context, _ events.Event, _ error) {
+		mu.Lock()
+
 		errorHandlerCalled = true
+
+		mu.Unlock()
 	})
 
 	// Subscribe a handler that returns an error
@@ -135,12 +145,19 @@ func testErrorHandling(ctx context.Context, t *testing.T, bus *events.Bus) {
 	// Wait for error handler to be called
 	time.Sleep(100 * time.Millisecond)
 
-	if !errorHandlerCalled {
+	mu.Lock()
+
+	called := errorHandlerCalled
+
+	mu.Unlock()
+
+	if !called {
 		t.Error("Expected error handler to be called")
 	}
 }
 
 func testEventCollector(ctx context.Context, t *testing.T, bus *events.Bus, collector *testutil.EventCollector) {
+	// Clear previous events
 	collector.Clear()
 
 	bus.Publish(ctx, events.Event{
@@ -152,6 +169,9 @@ func testEventCollector(ctx context.Context, t *testing.T, bus *events.Bus, coll
 	if err != nil {
 		t.Fatalf("Failed to receive event: %v", err)
 	}
+
+	// Give a small delay for the event to be fully processed
+	time.Sleep(50 * time.Millisecond)
 
 	if collector.Count() != 1 {
 		t.Errorf("Expected 1 event, got %d", collector.Count())

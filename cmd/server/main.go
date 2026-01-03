@@ -76,9 +76,6 @@ func main() {
 
 	// Start and run the server
 	runServer(ctx, cfg, reg, stop)
-
-	// Exit with success code after graceful shutdown
-	os.Exit(0)
 }
 
 func handleSubcommand(args []string) {

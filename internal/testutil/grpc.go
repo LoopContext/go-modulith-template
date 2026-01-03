@@ -99,19 +99,16 @@ func (s *GRPCTestServer) Start() error {
 // Stop stops the gRPC server and closes the connection.
 func (s *GRPCTestServer) Stop() error {
 	if s.Conn != nil {
-		if err := s.Conn.Close(); err != nil {
-			slog.Error("Failed to close gRPC client connection", "error", err)
-		}
+		_ = s.Conn.Close()
 	}
 
 	if s.Server != nil {
 		s.Server.GracefulStop()
-	}
-
-	if s.listener != nil {
-		if err := s.listener.Close(); err != nil {
-			return fmt.Errorf("failed to close listener: %w", err)
-		}
+		// GracefulStop() closes the listener, so we don't need to close it again
+		s.listener = nil
+	} else if s.listener != nil {
+		// Only close listener if server wasn't stopped
+		_ = s.listener.Close()
 	}
 
 	return nil
@@ -130,4 +127,3 @@ func (s *GRPCTestServer) Address() string {
 
 	return s.listener.Addr().String()
 }
-

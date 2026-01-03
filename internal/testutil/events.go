@@ -69,6 +69,14 @@ func (c *EventCollector) Clear() {
 	defer c.mu.Unlock()
 
 	c.events = c.events[:0]
+	// Drain any pending events from the channel
+	for {
+		select {
+		case <-c.ch:
+		default:
+			return
+		}
+	}
 }
 
 // Count returns the number of collected events.

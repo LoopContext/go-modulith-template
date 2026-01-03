@@ -4,6 +4,8 @@ package migration
 import (
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/golang-migrate/migrate/v4"
@@ -68,26 +70,62 @@ func (r *Runner) RunAll() error {
 
 // runModuleMigration runs migrations for a single module.
 func (r *Runner) runModuleMigration(moduleName, path string) error {
+	absPath, err := r.resolveMigrationPath(path)
+	if err != nil {
+		return fmt.Errorf("failed to resolve migration path: %w", err)
+	}
+
 	m, err := migrate.New(
-		fmt.Sprintf("file://%s", path),
+		fmt.Sprintf("file://%s", absPath),
 		r.dbDSN,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to initialize migration: %w", err)
 	}
 
-	defer func() {
-		sourceErr, dbErr := m.Close()
-		if sourceErr != nil {
-			slog.Error("Failed to close migration source", "module", moduleName, "error", sourceErr)
-		}
+	defer r.closeMigration(m, moduleName)
 
-		if dbErr != nil {
-			slog.Error("Failed to close migration database connection", "module", moduleName, "error", dbErr)
-		}
-	}()
+	return r.applyMigrations(m, moduleName)
+}
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+// resolveMigrationPath resolves a migration path to an absolute path.
+func (r *Runner) resolveMigrationPath(path string) (string, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve path: %w", err)
+	}
+
+	// Verify the path exists
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		// Try to find project root and resolve from there
+		projectRoot := findProjectRoot()
+		if projectRoot != "" {
+			absPath, err = filepath.Abs(filepath.Join(projectRoot, path))
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve path from project root: %w", err)
+			}
+		}
+	}
+
+	return absPath, nil
+}
+
+// closeMigration closes the migration instance and logs any errors.
+func (r *Runner) closeMigration(m *migrate.Migrate, moduleName string) {
+	sourceErr, dbErr := m.Close()
+	if sourceErr != nil {
+		slog.Error("Failed to close migration source", "module", moduleName, "error", sourceErr)
+	}
+
+	if dbErr != nil {
+		slog.Error("Failed to close migration database connection", "module", moduleName, "error", dbErr)
+	}
+}
+
+// applyMigrations applies migrations and logs the result.
+func (r *Runner) applyMigrations(m *migrate.Migrate, moduleName string) error {
+	err := m.Up()
+	if err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("failed to run migration: %w", err)
 	}
 
@@ -118,5 +156,29 @@ func (r *Runner) RunForModule(moduleName string) error {
 	}
 
 	return r.runModuleMigration(moduleName, path)
+}
+
+// findProjectRoot finds the project root by looking for go.mod file.
+func findProjectRoot() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	dir := wd
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+
+		dir = parent
+	}
+
+	return ""
 }
 
