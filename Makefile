@@ -33,6 +33,22 @@ sqlc: ## Generate type-safe Go code from SQL
 proto: ## Generate gRPC code from protobuf definitions
 	buf generate
 
+proto-version-create: ## Create a new API version for a module (usage: make proto-version-create MODULE_NAME=auth VERSION=v2)
+	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make proto-version-create MODULE_NAME=<module_name> VERSION=<version>"; exit 1; fi
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make proto-version-create MODULE_NAME=<module_name> VERSION=<version>"; exit 1; fi
+	@./scripts/proto-version-create.sh $(MODULE_NAME) $(VERSION)
+	@echo "✅ New version created. Run 'make proto' to generate code."
+
+proto-breaking-check: ## Check for breaking changes in proto files (usage: make proto-breaking-check [MODULE_NAME=module_name])
+	@if [ -z "$(MODULE_NAME)" ]; then \
+		./scripts/proto-breaking-check.sh; \
+	else \
+		./scripts/proto-breaking-check.sh $(MODULE_NAME); \
+	fi
+
+proto-lint: ## Lint all proto files
+	buf lint
+
 generate-mocks: ## Generate all mocks from interfaces
 	@echo "Generating mocks..."
 	@go generate ./modules/...
@@ -127,22 +143,22 @@ admin: ## Run admin task (usage: make admin TASK=task_name)
 	@echo "🔧 Running admin task: $(TASK)"
 	go run cmd/server/main.go admin $(TASK)
 
-migrate-down: ## Rollback last migration for a specific module (usage: make migrate-down MODULE=auth)
-	@if [ -z "$(MODULE)" ]; then echo "Usage: make migrate-down MODULE=module_name"; exit 1; fi
-	@MIGRATIONS_DIR=modules/$(MODULE)/resources/db/migration; \
+migrate-down: ## Rollback last migration for a specific module (usage: make migrate-down MODULE_NAME=auth)
+	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make migrate-down MODULE_NAME=module_name"; exit 1; fi
+	@MIGRATIONS_DIR=modules/$(MODULE_NAME)/resources/db/migration; \
 	if [ ! -d "$$MIGRATIONS_DIR" ]; then \
-		echo "Error: Module '$(MODULE)' not found or has no migrations directory"; \
+		echo "Error: Module '$(MODULE_NAME)' not found or has no migrations directory"; \
 		exit 1; \
 	fi; \
-	echo "⚠️  Rolling back last migration for module: $(MODULE)"; \
+	echo "⚠️  Rolling back last migration for module: $(MODULE_NAME)"; \
 	migrate -path $$MIGRATIONS_DIR -database "$(DB_DSN)" down 1
 
-migrate-create: ## Create a new migration file for a module (usage: make migrate-create MODULE=auth NAME=add_users)
-	@if [ -z "$(MODULE)" ]; then echo "Usage: make migrate-create MODULE=module_name NAME=migration_name"; exit 1; fi
-	@if [ -z "$(NAME)" ]; then echo "Usage: make migrate-create MODULE=module_name NAME=migration_name"; exit 1; fi
-	@MIGRATIONS_DIR=modules/$(MODULE)/resources/db/migration; \
+migrate-create: ## Create a new migration file for a module (usage: make migrate-create MODULE_NAME=auth NAME=add_users)
+	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make migrate-create MODULE_NAME=module_name NAME=migration_name"; exit 1; fi
+	@if [ -z "$(NAME)" ]; then echo "Usage: make migrate-create MODULE_NAME=module_name NAME=migration_name"; exit 1; fi
+	@MIGRATIONS_DIR=modules/$(MODULE_NAME)/resources/db/migration; \
 	if [ ! -d "$$MIGRATIONS_DIR" ]; then \
-		echo "Error: Module '$(MODULE)' not found or has no migrations directory"; \
+		echo "Error: Module '$(MODULE_NAME)' not found or has no migrations directory"; \
 		exit 1; \
 	fi; \
 	migrate create -ext sql -dir $$MIGRATIONS_DIR -seq $(NAME)
@@ -296,12 +312,13 @@ graphql-from-proto: ## Generate GraphQL schemas from OpenAPI/Swagger files for a
 	./scripts/graphql-from-proto-all.sh
 
 graphql-validate: ## Validate GraphQL schema
-	@if ! command -v gqlgen > /dev/null; then \
-		echo "gqlgen not found. Install with: go install github.com/99designs/gqlgen@latest"; \
-		exit 1; \
+
+visualize: ## Visualize module connections (usage: make visualize [FORMAT=html|json|dot] [SERVE=true])
+	@echo "🔍 Analyzing modulith architecture..."
+	@FORMAT=$${FORMAT:-html}; \
+	SERVE=$${SERVE:-false}; \
+	if [ "$$SERVE" = "true" ]; then \
+		go run ./cmd/visualize/main.go -format=$$FORMAT -serve; \
+	else \
+		go run ./cmd/visualize/main.go -format=$$FORMAT; \
 	fi
-	@if [ ! -f "gqlgen.yml" ]; then \
-		echo "GraphQL not initialized. Run: make graphql-add"; \
-		exit 1; \
-	fi
-	gqlgen generate --verbose

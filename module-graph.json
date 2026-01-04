@@ -1,0 +1,22 @@
+{
+  "modules": [
+    {
+      "name": "auth",
+      "services": [
+        "AuthService"
+      ],
+      "events": [
+        "notifier.magic_code_requested"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "external",
+      "to": "auth",
+      "type": "grpc",
+      "service": "AuthService",
+      "direction": "inbound"
+    }
+  ]
+}

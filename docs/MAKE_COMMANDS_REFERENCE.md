@@ -6,6 +6,7 @@ Complete reference of all available `make` commands for the Go Modulith Template
 
 - [Setup & Installation](#setup--installation)
 - [Code Generation](#code-generation)
+- [API Versioning](#api-versioning)
 - [Development](#development)
 - [Testing](#testing)
 - [Database & Migrations](#database--migrations)
@@ -68,6 +69,29 @@ Generate all code at once (sqlc + proto + mocks).
 
 ---
 
+## API Versioning
+
+### `make proto-version-create MODULE_NAME=<name> VERSION=<version>`
+Create a new API version for a module (e.g., v2, v3).
+- Automatically copies the latest version as a starting point
+- Updates package names, REST paths, and Go package options
+- Example: `make proto-version-create MODULE_NAME=auth VERSION=v2`
+- After creation, run `make proto` to generate code
+
+### `make proto-breaking-check [MODULE_NAME=<name>]`
+Check for breaking changes and linting issues in proto files.
+- Without MODULE_NAME: checks all modules
+- With MODULE_NAME: checks specific module only
+- Example: `make proto-breaking-check MODULE_NAME=auth`
+- Uses `buf lint` to detect issues
+
+### `make proto-lint`
+Lint all proto files using buf.
+- Validates proto syntax and best practices
+- Run before committing proto changes
+
+---
+
 ## Development
 
 ### `make run`
@@ -123,18 +147,18 @@ Run all module migrations (uses modulith's migration system).
 - Automatically discovers migrations from all registered modules
 - Executes in registration order
 
-### `make migrate-down MODULE=<module_name>`
+### `make migrate-down MODULE_NAME=<module_name>`
 Rollback last migration for a specific module.
 Example:
 ```bash
-make migrate-down MODULE=auth
+make migrate-down MODULE_NAME=auth
 ```
 
-### `make migrate-create MODULE=<module_name> NAME=<migration_name>`
+### `make migrate-create MODULE_NAME=<module_name> NAME=<migration_name>`
 Create a new migration file for a module.
 Example:
 ```bash
-make migrate-create MODULE=auth NAME=add_users_table
+make migrate-create MODULE_NAME=auth NAME=add_users_table
 ```
 
 ### `make db-down`
@@ -301,7 +325,7 @@ make test-unit
 make new-module orders
 
 # Create migration
-make migrate-create MODULE=orders NAME=create_orders_table
+make migrate-create MODULE_NAME=orders NAME=create_orders_table
 
 # Generate code (after adding SQL/proto)
 make sqlc proto

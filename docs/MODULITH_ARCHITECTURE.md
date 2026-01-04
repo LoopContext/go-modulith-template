@@ -162,7 +162,208 @@ Validation errors are automatically converted to `codes.InvalidArgument` with de
 
 See `.cursor/rules/25-protobuf-validation.mdc` for comprehensive validation examples and best practices.
 
-## 7. gRPC Error Handling
+## 7. API Versioning Strategy
+
+The template follows a **package-based versioning strategy** for Protocol Buffers, enabling multiple API versions to coexist while maintaining backward compatibility.
+
+### 7.1 Versioning Principles
+
+-   **Package Versioning**: Each API version uses a distinct package name (e.g., `auth.v1`, `auth.v2`)
+-   **Directory Structure**: Proto files are organized by module and version: `proto/{module}/v{version}/`
+-   **REST Path Versioning**: HTTP endpoints include the version prefix via `grpc-gateway` annotations (e.g., `/v1/auth/...`, `/v2/auth/...`)
+-   **Breaking Changes**: Require a new version directory; non-breaking changes modify existing versions
+-   **Coexistence**: Multiple versions can run simultaneously during migration periods
+
+### 7.2 Directory Structure
+
+```
+proto/
+├── auth/
+│   ├── v1/
+│   │   └── auth.proto          # package auth.v1; → /v1/auth/...
+│   └── v2/
+│       └── auth.proto          # package auth.v2; → /v2/auth/...
+└── order/
+    └── v1/
+        └── order.proto         # package order.v1; → /v1/order/...
+```
+
+### 7.3 When to Create a New Version
+
+Create a new API version (`v2`, `v3`, etc.) when you need to make **breaking changes**:
+
+-   **Removing fields** from messages
+-   **Changing field types** (e.g., `string` → `int32`)
+-   **Removing RPC methods** from services
+-   **Changing RPC signatures** (request/response types)
+-   **Changing field numbers** (violates protobuf compatibility)
+
+**Non-breaking changes** can be made to existing versions:
+
+-   **Adding new fields** (with new field numbers)
+-   **Adding new RPC methods**
+-   **Adding new optional fields**
+-   **Deprecating fields** (using `deprecated = true`)
+
+### 7.4 Version Creation Process
+
+#### Manual Process
+
+1.  Create new version directory: `mkdir -p proto/{module}/v{version}`
+2.  Copy and modify the proto file from the previous version
+3.  Update package name: `package {module}.v{version};`
+4.  Update REST paths: Change `/v{old}/` to `/v{new}/` in HTTP annotations
+5.  Update Go package option: `option go_package = ".../proto/{module}/v{version};{module}v{version}";`
+6.  Generate code: `make proto`
+7.  Implement new service handlers in the module
+
+#### Automated Process
+
+Use the provided tooling:
+
+```bash
+# Create a new API version for a module
+make proto-version-create MODULE_NAME=auth VERSION=v2
+
+# This will:
+# - Create proto/auth/v2/ directory
+# - Copy proto/auth/v1/auth.proto as a starting point
+# - Update package name and paths
+# - Generate code automatically
+```
+
+### 7.5 Breaking Change Detection
+
+The project uses **Buf** for breaking change detection:
+
+```yaml
+# buf.yaml
+version: v1
+breaking:
+  use:
+    - FILE
+```
+
+Check for breaking changes before committing:
+
+```bash
+# Check for breaking changes in proto files
+make proto-breaking-check
+
+# Or check a specific module
+make proto-breaking-check MODULE_NAME=auth
+```
+
+### 7.6 Backward Compatibility Strategy
+
+1.  **Maintain Old Versions**: Keep previous versions active during migration
+2.  **Gradual Migration**: Migrate clients to new versions over time
+3.  **Deprecation Warnings**: Use `deprecated = true` in proto fields/methods
+4.  **Documentation**: Document migration guides for breaking changes
+5.  **Sunset Policy**: Define a timeline for removing old versions
+
+### 7.7 Example: Creating v2 from v1
+
+**Step 1: Create new version**
+
+```bash
+make proto-version-create MODULE_NAME=auth VERSION=v2
+```
+
+**Step 2: Modify the new proto file**
+
+```protobuf
+// proto/auth/v2/auth.proto
+syntax = "proto3";
+
+package auth.v2;  // Changed from auth.v1
+
+import "google/api/annotations.proto";
+
+option go_package = ".../gen/go/proto/auth/v2;authv2";
+
+service AuthService {
+  rpc RequestLogin(RequestLoginRequest) returns (RequestLoginResponse) {
+    option (google.api.http) = {
+      post: "/v2/auth/login/request"  // Changed from /v1/
+      body: "*"
+    };
+  }
+
+  // New method in v2
+  rpc RequestLoginWithBiometric(RequestLoginWithBiometricRequest) returns (RequestLoginResponse) {
+    option (google.api.http) = {
+      post: "/v2/auth/login/biometric"
+      body: "*"
+    };
+  }
+}
+```
+
+**Step 3: Generate code**
+
+```bash
+make proto
+```
+
+**Step 4: Implement service handlers**
+
+Both `auth.v1` and `auth.v2` services will be registered and available simultaneously.
+
+### 7.8 Generated Code Organization
+
+Generated Go code follows the same version structure:
+
+```
+gen/go/proto/
+├── auth/
+│   ├── v1/
+│   │   ├── auth.pb.go
+│   │   ├── auth_grpc.pb.go
+│   │   └── auth.pb.gw.go
+│   └── v2/
+│       ├── auth.pb.go
+│       ├── auth_grpc.pb.go
+│       └── auth.pb.gw.go
+```
+
+Import both versions in your code:
+
+```go
+import (
+    authv1 "github.com/.../gen/go/proto/auth/v1"
+    authv2 "github.com/.../gen/go/proto/auth/v2"
+)
+```
+
+### 7.9 REST API Versioning
+
+REST endpoints automatically reflect the proto version through `grpc-gateway`:
+
+-   `proto/auth/v1/auth.proto` → `/v1/auth/*` endpoints
+-   `proto/auth/v2/auth.proto` → `/v2/auth/*` endpoints
+
+Both versions are accessible simultaneously:
+
+```bash
+# v1 endpoint
+curl -X POST http://localhost:8080/v1/auth/login/request
+
+# v2 endpoint
+curl -X POST http://localhost:8080/v2/auth/login/request
+```
+
+### 7.10 Best Practices
+
+1.  **Start with v1**: All new modules begin with `v1`
+2.  **Avoid Premature Versioning**: Only create new versions for breaking changes
+3.  **Document Changes**: Use CHANGELOG.md to document version changes
+4.  **Test Both Versions**: Ensure old and new versions work correctly
+5.  **Migration Windows**: Provide sufficient time for clients to migrate
+6.  **Use Deprecation**: Mark old fields/methods as deprecated before removal
+7.  **Monitor Usage**: Track which versions are actively used before sunsetting
+
+## 8. gRPC Error Handling
 
 The template provides a standardized error handling system in `internal/errors` that eliminates boilerplate and guarantees consistency.
 
@@ -846,10 +1047,10 @@ The system:
 make migrate-up  # or simply: make migrate
 
 # Revert last migration for a specific module
-make migrate-down MODULE=users
+make migrate-down MODULE_NAME=users
 
 # Create a new migration for a module
-make migrate-create MODULE=users NAME=add_profile_fields
+make migrate-create MODULE_NAME=users NAME=add_profile_fields
 
 # Delete all tables and re-run migrations
 make db-down    # Only deletes tables
