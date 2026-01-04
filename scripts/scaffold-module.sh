@@ -12,15 +12,40 @@ PROJECT_NAME="github.com/cmelgarejo/go-modulith-template"
 # Capitalize first letter
 MODULE_NAME_CAPITALIZED="$(tr '[:lower:]' '[:upper:]' <<< ${MODULE_NAME:0:1})${MODULE_NAME:1}"
 
-# Handle pluralization for table names and SQLC struct names
+# Ask if table name should be plural
+echo ""
+echo "Is the table name plural? (e.g., 'users', 'orders', 'products')"
 if [[ "${MODULE_NAME}" == *s ]]; then
-    MODULE_NAME_PLURAL="${MODULE_NAME}"
-    # SQLC usually singularizes table names for structs (e.g. products -> Product)
-    # Simple singularization: remove trailing 's' then capitalize
-    SINGULAR_NAME="${MODULE_NAME%s}"
-    MODULE_STRUCT_NAME="$(tr '[:lower:]' '[:upper:]' <<< ${SINGULAR_NAME:0:1})${SINGULAR_NAME:1}"
+    echo "  [Y/n] (default: Y - module name '${MODULE_NAME}' already appears plural): "
 else
-    MODULE_NAME_PLURAL="${MODULE_NAME}s"
+    echo "  [Y/n] (default: n - module name '${MODULE_NAME}' appears singular): "
+fi
+read -r IS_PLURAL
+
+# Determine if table should be plural
+if [[ -z "$IS_PLURAL" ]]; then
+    # Default behavior: plural if module name ends with 's'
+    if [[ "${MODULE_NAME}" == *s ]]; then
+        IS_PLURAL="y"
+    else
+        IS_PLURAL="n"
+    fi
+fi
+
+# Handle pluralization for table names and SQLC struct names
+if [[ "$IS_PLURAL" =~ ^[Yy] ]]; then
+    if [[ "${MODULE_NAME}" == *s ]]; then
+        MODULE_NAME_PLURAL="${MODULE_NAME}"
+        # SQLC usually singularizes table names for structs (e.g. products -> Product)
+        # Simple singularization: remove trailing 's' then capitalize
+        SINGULAR_NAME="${MODULE_NAME%s}"
+        MODULE_STRUCT_NAME="$(tr '[:lower:]' '[:upper:]' <<< ${SINGULAR_NAME:0:1})${SINGULAR_NAME:1}"
+    else
+        MODULE_NAME_PLURAL="${MODULE_NAME}s"
+        MODULE_STRUCT_NAME="${MODULE_NAME_CAPITALIZED}"
+    fi
+else
+    MODULE_NAME_PLURAL="${MODULE_NAME}"
     MODULE_STRUCT_NAME="${MODULE_NAME_CAPITALIZED}"
 fi
 
