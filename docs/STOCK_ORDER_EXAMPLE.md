@@ -5,9 +5,10 @@ This guide demonstrates how to create a complex e-commerce system with **Stock**
 ## Overview
 
 We'll build:
-- **Stock Module**: Manages inventory (products, stock levels, reservations)
-- **Order Module**: Manages orders (creation, processing, fulfillment)
-- **Communication**: Order module calls Stock module via gRPC to reserve inventory
+
+-   **Stock Module**: Manages inventory (products, stock levels, reservations)
+-   **Order Module**: Manages orders (creation, processing, fulfillment)
+-   **Communication**: Order module calls Stock module via gRPC to reserve inventory
 
 ## Architecture
 
@@ -42,10 +43,11 @@ make new-module stock
 ```
 
 This creates:
-- `modules/stock/` - Module structure
-- `proto/stock/v1/stock.proto` - Protocol definitions
-- `cmd/stock/main.go` - Standalone service entrypoint
-- `configs/stock.yaml` - Module configuration
+
+-   `modules/stock/` - Module structure
+-   `proto/stock/v1/stock.proto` - Protocol definitions
+-   `cmd/stock/main.go` - Standalone service entrypoint
+-   `configs/stock.yaml` - Module configuration
 
 ### Step 2: Define Stock Module Proto Contract
 
@@ -939,10 +941,11 @@ type OrderService struct {
 
 func NewOrderService(repo repository.Repository, bus *events.Bus, grpcAddr string) (*OrderService, error) {
 	// Create gRPC client for Stock module
-	// In modulith: connects to in-process server (127.0.0.1:9050)
-	// In microservices: connects to stock-service:9050
+	// In modulith: connects to in-process server (127.0.0.1:9000 by default)
+	// In microservices: connects to stock-service:9000
+	// Note: gRPC port is configurable via GRPC_PORT or configs/server.yaml
 	conn, err := grpc.NewClient(
-		grpcAddr, // "127.0.0.1:9050" for modulith
+		grpcAddr, // "127.0.0.1:9000" for modulith (default, configurable)
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
@@ -1155,7 +1158,7 @@ func (m *Module) Initialize(r *registry.Registry) error {
 	// Get gRPC address from config (defaults to localhost for modulith)
 	grpcAddr := cfg.GRPCPort
 	if grpcAddr == "" {
-		grpcAddr = "127.0.0.1:9050"
+		grpcAddr = "127.0.0.1:9000"  // Default port (configurable via GRPC_PORT or configs/server.yaml)
 	} else {
 		grpcAddr = "127.0.0.1:" + grpcAddr
 	}
@@ -1310,19 +1313,22 @@ curl -X POST http://localhost:8080/v1/orders \
 ## Troubleshooting
 
 ### Module not found
-- Ensure modules are registered in `cmd/server/setup/registry.go`
-- Run `make generate-all` after proto changes
+
+-   Ensure modules are registered in `cmd/server/setup/registry.go`
+-   Run `make generate-all` after proto changes
 
 ### gRPC connection errors
-- Check gRPC port in config (`GRPC_PORT`)
-- In modulith: use `127.0.0.1:9050`
-- In microservices: use service discovery address
+
+-   Check gRPC port in config (`GRPC_PORT`)
+-   In modulith: use `127.0.0.1:9000` (default, configurable via `GRPC_PORT` or `configs/server.yaml`)
+-   In microservices: use service discovery address
 
 ### Migration errors
-- Ensure migrations are in correct order
-- Check database connection string
+
+-   Ensure migrations are in correct order
+-   Check database connection string
 
 ### Stock reservation fails
-- Verify product exists and has sufficient stock
-- Check reservation expiration (30 minutes default)
 
+-   Verify product exists and has sufficient stock
+-   Check reservation expiration (30 minutes default)

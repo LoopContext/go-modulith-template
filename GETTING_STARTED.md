@@ -6,7 +6,7 @@ This guide will walk you through the complete process of cloning this repository
 
 1. [Prerequisites](#prerequisites)
 2. [Step 1: Clone the Repository](#step-1-clone-the-repository)
-3. [Step 2: Install Dependencies](#step-2-install-dependencies)
+3. [Step 2: Setup Project](#step-2-setup-project)
 4. [Step 3: Configure the Project](#step-3-configure-the-project)
 5. [Step 4: Start Infrastructure](#step-4-start-infrastructure)
 6. [Step 5: Add a New Module](#step-5-add-a-new-module)
@@ -120,22 +120,34 @@ The project uses a flexible configuration system with the following priority:
 2. `.env` file
 3. `configs/server.yaml` (default configuration)
 
-**Option A: Use YAML configuration (recommended for development)**
+#### Option A: Use YAML configuration (recommended for development)
 
 Edit `configs/server.yaml`:
 
 ```yaml
 env: dev
-log_level: debug
+log_level: debug # debug, info, warn, error
 http_port: 8000
 grpc_port: 9000
+service_name: modulith-server
 db_dsn: postgres://postgres:postgres@localhost:5432/modulith_demo?sslmode=disable
+
+# Database connection pool settings
+db_max_open_conns: 25
+db_max_idle_conns: 25
+db_conn_max_lifetime: 5m
+db_connect_timeout: 10s
+
+# Timeouts
+read_timeout: 5s # HTTP server read timeout
+write_timeout: 10s # HTTP server write timeout
+shutdown_timeout: 30s # Graceful shutdown timeout
 
 auth:
     jwt_secret: your-secret-key-at-least-32-bytes-long-change-this
 ```
 
-**Option B: Use environment variables**
+#### Option B: Use environment variables
 
 Create a `.env` file (optional):
 
@@ -169,9 +181,9 @@ This starts:
 
 -   **PostgreSQL** - Main database (port 5432)
 -   **Redis** - Cache and session storage (port 6379)
--   **Jaeger** - Distributed tracing UI (http://localhost:16686)
--   **Prometheus** - Metrics collection (http://localhost:9090)
--   **Grafana** - Visualization dashboards (http://localhost:3000, user: `admin`, password: `admin`)
+-   **Jaeger** - Distributed tracing UI [http://localhost:16686](http://localhost:16686)
+-   **Prometheus** - Metrics collection [http://localhost:9090](http://localhost:9090)
+-   **Grafana** - Visualization dashboards ([http://localhost:3000](http://localhost:3000), user: `admin`, password: `admin`)
 
 **Verify services are running:**
 
@@ -207,7 +219,7 @@ This command will:
 
 **Generated structure:**
 
-```
+```bash
 modules/order/
 ├── module.go                    # Module implementation
 ├── internal/
@@ -248,29 +260,31 @@ configs/
 
 ## Step 6: Register the Module
 
-After scaffolding, you need to register the module in the main server. Edit `cmd/server/main.go`:
+After scaffolding, you need to register the module in the main server. Edit `cmd/server/setup/registry.go`:
 
-**Find the `registerModules` function (around line 236):**
+**Find the `RegisterModules` function:**
 
 ```go
-func registerModules(reg *registry.Registry) {
-	// Register all modules here
-	reg.Register(auth.NewModule())
-	// Add more modules as needed:
-	// reg.Register(order.NewModule())
-	// reg.Register(payment.NewModule())
+// RegisterModules registers all modules with the registry.
+func RegisterModules(reg *registry.Registry) {
+    // Register all modules here
+    reg.Register(auth.NewModule())
+    // Add more modules as needed:
+    // reg.Register(order.NewModule())
+    // reg.Register(payment.NewModule())
 }
 ```
 
 **Add your new module:**
 
 ```go
-func registerModules(reg *registry.Registry) {
-	// Register all modules here
-	reg.Register(auth.NewModule())
-	reg.Register(order.NewModule())  // Add this line
-	// Add more modules as needed:
-	// reg.Register(payment.NewModule())
+// RegisterModules registers all modules with the registry.
+func RegisterModules(reg *registry.Registry) {
+    // Register all modules here
+    reg.Register(auth.NewModule())
+    reg.Register(order.NewModule())  // Add this line
+    // Add more modules as needed:
+    // reg.Register(payment.NewModule())
 }
 ```
 
@@ -278,10 +292,10 @@ func registerModules(reg *registry.Registry) {
 
 ```go
 import (
-	// ... existing imports ...
-	"github.com/cmelgarejo/go-modulith-template/modules/auth"
-	"github.com/cmelgarejo/go-modulith-template/modules/order"  // Add this line
-	// ... rest of imports ...
+    // ... existing imports ...
+    "github.com/cmelgarejo/go-modulith-template/modules/auth"
+    "github.com/cmelgarejo/go-modulith-template/modules/order"  // Add this line
+    // ... rest of imports ...
 )
 ```
 
@@ -337,7 +351,13 @@ Run database migrations to create the schema for your new module:
 make migrate
 ```
 
-Or run migrations manually:
+Or run migrations manually using the subcommand:
+
+```bash
+go run cmd/server/main.go migrate
+```
+
+Or using the flag:
 
 ```bash
 go run cmd/server/main.go -migrate
@@ -358,11 +378,13 @@ psql postgres://postgres:postgres@localhost:5432/modulith_demo
 # List tables
 \dt
 
-# Check migration version
+# Check migration versions (each module has its own migration tracking)
 SELECT * FROM schema_migrations;
 ```
 
 You should see tables for your new module (e.g., `orders` table if you created an order module).
+
+> **Note:** Migrations run automatically when you start the server. The modulith discovers and applies migrations for all registered modules.
 
 ---
 
@@ -418,10 +440,11 @@ make dev
 
 This will:
 
--   Start the gRPC server (port 9000)
--   Start the HTTP gateway (port 8000)
+-   Start the gRPC server (port 9000 by default, configurable)
+-   Start the HTTP gateway (port 8000 by default, configurable)
 -   Automatically reload on code changes
 -   Monitor changes in `.go`, `.yaml`, `.env`, `.proto`, and `.sql` files
+-   Run migrations automatically on startup
 
 ### Option B: Run a Specific Module Standalone
 
@@ -478,7 +501,7 @@ grpcurl -plaintext localhost:9000 list order.v1.OrderService
 
 In development mode, Swagger UI is available at:
 
-```
+```bash
 http://localhost:8000/swagger-ui/
 ```
 
@@ -495,7 +518,7 @@ The server logs will show:
 
 Look for messages like:
 
-```
+```bash
 Starting application version=...
 Module 'order' initialized successfully
 ✅ Migrations completed successfully
@@ -586,6 +609,7 @@ Now that you have a working module, you can:
 
     - Edit `modules/order/resources/db/seed/001_example_data.sql`
     - Run `make seed` or `go run cmd/server/main.go seed`
+    - Note: The module must implement `SeedPath()` method in `module.go` (automatically included when using `make new-module`)
 
 5. **Add Tests**
 
@@ -616,9 +640,10 @@ make validate-setup
 
 **Solution:** Make sure you:
 
-1. Added the import for your module
-2. Called `reg.Register(order.NewModule())` in `registerModules`
+1. Added the import for your module in `cmd/server/setup/registry.go`
+2. Called `reg.Register(order.NewModule())` in `RegisterModules` function
 3. Ran `go mod tidy` to update dependencies
+4. The module path in the import matches your actual module path
 
 ### Issue: Migrations fail
 

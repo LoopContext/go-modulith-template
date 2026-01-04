@@ -1008,7 +1008,7 @@ The template includes an automatic discovery and execution system for migrations
 
 #### Module Declaration
 
-Each module implements the `ModuleMigration` interface to declare its migration path:
+Each module implements the `ModuleMigrations` interface to declare its migration path:
 
 ```go
 // En modules/users/module.go
@@ -1034,7 +1034,7 @@ if err := runner.RunAll(); err != nil {
 
 The system:
 
-1. Discovers all modules that implement `ModuleMigration`
+1. Discovers all modules that implement `ModuleMigrations`
 2. Executes migrations in module registration order
 3. Uses `golang-migrate` internally for version tracking
 4. Each module maintains its own migration history
@@ -1072,6 +1072,42 @@ make migrate
 -   ✅ **Ordered:** Migrations execute in registration order
 -   ✅ **Autonomous:** Each module manages its own schema
 -   ✅ **Portable:** Works in both monolith and microservices
+
+### 5.1. Seed Data System (`internal/migration/seeder.go`)
+
+Similar to migrations, the template includes an automatic discovery and execution system for seed data.
+
+#### Module Declaration
+
+Each module implements the `ModuleSeeder` interface (from `internal/migration`) to declare its seed data path:
+
+```go
+// In modules/users/module.go
+func (m *Module) SeedPath() string {
+    return "modules/users/resources/db/seed"
+}
+```
+
+#### Automatic Execution
+
+Seed data can be executed via:
+
+```bash
+# Run seed data for all modules
+make seed
+
+# Or using subcommand
+go run cmd/server/main.go seed
+```
+
+The system:
+
+1. Discovers all modules that implement `ModuleSeeder`
+2. Executes seed SQL files in alphabetical order (e.g., `001_initial_data.sql`, `002_more_data.sql`)
+3. Each module manages its own seed data
+4. Seed data is typically used for development and testing
+
+**Note:** Seed data is NOT executed automatically on server startup. It must be run explicitly via `make seed` or the seed subcommand.
 
 ### Phase 3: Repository Layer (Adapter)
 
@@ -1317,18 +1353,29 @@ The template provides comprehensive testing utilities to simplify integration te
 
 #### Test Registry Builder
 
-Create test registries easily with `testutil.NewTestRegistry()`:
+Create test registries easily with `testutil.NewTestRegistryBuilder()`:
 
 ```go
 import "github.com/cmelgarejo/go-modulith-template/internal/testutil"
 
 func TestMyModule(t *testing.T) {
     // Set up test database (using testcontainers)
-    pgContainer, db := testutil.SetupPostgresContainer(ctx, t)
-    defer pgContainer.Terminate(ctx)
+    pgContainer, err := testutil.NewPostgresContainer(ctx, t)
+    require.NoError(t, err)
+    defer func() {
+        if err := pgContainer.Close(ctx); err != nil {
+            t.Logf("Failed to close container: %v", err)
+        }
+    }()
+
+    db, err := pgContainer.DB(ctx)
+    require.NoError(t, err)
+    defer db.Close()
 
     // Create test registry with database
-    reg := testutil.NewTestRegistry(t, db)
+    reg := testutil.NewTestRegistryBuilder().
+        WithDatabase(db).
+        Build()
 
     // Register your module
     reg.Register(myModule.NewModule())
@@ -1352,13 +1399,27 @@ Test gRPC services end-to-end with `testutil.NewGRPCTestServer()`:
 
 ```go
 func TestGRPCService(t *testing.T) {
-    pgContainer, db := testutil.SetupPostgresContainer(ctx, t)
-    defer pgContainer.Terminate(ctx)
+    ctx := context.Background()
+
+    pgContainer, err := testutil.NewPostgresContainer(ctx, t)
+    require.NoError(t, err)
+    defer func() {
+        if err := pgContainer.Close(ctx); err != nil {
+            t.Logf("Failed to close container: %v", err)
+        }
+    }()
+
+    db, err := pgContainer.DB(ctx)
+    require.NoError(t, err)
+    defer db.Close()
 
     cfg := testutil.TestConfig()
     cfg.DBDSN = pgContainer.DSN
 
-    reg := testutil.NewTestRegistry(t, db)
+    reg := testutil.NewTestRegistryBuilder().
+        WithDatabase(db).
+        WithConfig(cfg).
+        Build()
     reg.Register(auth.NewModule())
 
     // ... initialize and migrate ...
@@ -1456,8 +1517,9 @@ To accelerate the start of new modules and ensure they follow defined standards,
         -   `Initialize(reg)` - Initialization with registry access
         -   `RegisterGRPC(server)` - gRPC handler registration
         -   `RegisterGateway(ctx, mux, conn)` - HTTP gateway registration
-        -   `MigrationPath()` - Module migration path
-        -   `PublicGRPCEndpoints()` - Public endpoints (no auth)
+        -   `MigrationPath()` - Module migration path (optional, for automatic migration discovery)
+        -   `SeedPath()` - Module seed data path (optional, for automatic seed data discovery)
+        -   `PublicEndpoints()` - Public endpoints (no auth, optional)
     -   `modules/[name]/internal/service/service.go`: Service with:
         -   Integration with `internal/errors` for error handling
         -   Integration with `internal/telemetry` for tracing
@@ -2040,7 +2102,7 @@ To avoid coupling with external providers (Twilio, SendGrid, etc.), the system u
 -   **LogNotifier for Dev:** Prints notifications in structured logs, allowing testing flows like "Magic Code" without configuring external APIs.
 -   **Injection and Registration:**
     -   The module (e.g. `auth`) emits the event to the `Bus`.
-    -   The `Subscriber` registers to the `Bus` in `main.go`, ensuring delivery logic is completely outside the module's domain.
+    -   The `Subscriber` registers to the `Bus` in `cmd/server/setup/registry.go` (via `CreateRegistry`), ensuring delivery logic is completely outside the module's domain.
 
 ---
 

@@ -27,6 +27,16 @@ func (m *Module) MigrationPath() string {
 }
 ```
 
+#### ModuleSeeder
+
+Implement to enable automatic seed data discovery:
+
+```go
+func (m *Module) SeedPath() string {
+    return "modules/mymodule/resources/db/seed"
+}
+```
+
 #### ModuleAuth
 
 Implement to declare public endpoints:
@@ -68,14 +78,15 @@ func (m *Module) HealthCheck(ctx context.Context) error {
 
 ### Module Registration
 
-In `cmd/server/main.go`:
+In `cmd/server/setup/registry.go`:
 
 ```go
-func registerModules(reg *registry.Registry) {
+// RegisterModules registers all modules with the registry.
+func RegisterModules(reg *registry.Registry) {
     reg.Register(auth.NewModule())
     reg.Register(order.NewModule())
     reg.Register(payment.NewModule())
 }
 ```
 
-Migrations and public endpoints are automatically discovered!
+Migrations, seed data, and public endpoints are automatically discovered!

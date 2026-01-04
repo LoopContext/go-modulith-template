@@ -93,8 +93,9 @@ In the modulith scenario, all modules run in a **single process** (`cmd/server/m
     func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
         // Create gRPC client for Auth
         // In modulith, this connects to the in-process server
+        // Note: Default gRPC port is 9000 (configurable via GRPC_PORT or configs/server.yaml)
         conn, err := grpc.NewClient(
-            "127.0.0.1:9050",  // Local gRPC server
+            "127.0.0.1:9000",  // Local gRPC server (default, configurable)
             grpc.WithTransportCredentials(insecure.NewCredentials()),
         )
         if err != nil {
@@ -242,8 +243,8 @@ In the microservices scenario, each module runs as an **independent process** (`
         selector:
             app: auth
         ports:
-            - port: 9050
-              targetPort: 9050
+            - port: 9000  # Default gRPC port (configurable)
+              targetPort: 9000
     ```
 
 3. **Inter-service call:**
@@ -256,7 +257,7 @@ In the microservices scenario, each module runs as an **independent process** (`
         // Create gRPC client for Auth (via network)
         // In microservices, this connects to another service
         conn, err := grpc.NewClient(
-            "auth-service:9050",  // Service discovery (Kubernetes DNS)
+            "auth-service:9000",  // Service discovery (Kubernetes DNS, port configurable)
             grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})),  // TLS in prod
         )
         if err != nil {
@@ -313,7 +314,7 @@ In the microservices scenario, each module runs as an **independent process** (`
     creds := credentials.NewTLS(&tls.Config{
         ServerName: "auth-service",
     })
-    conn, err := grpc.NewClient("auth-service:9050", grpc.WithTransportCredentials(creds))
+    conn, err := grpc.NewClient("auth-service:9000", grpc.WithTransportCredentials(creds))  // Port configurable
     ```
 
 ### Event Bus (Distributed)
@@ -428,7 +429,7 @@ func (s *OrderService) StartEventConsumer(ctx context.Context) error {
 // Helper to create gRPC client (reusable)
 func newAuthClient(grpcAddr string) (authv1.AuthServiceClient, error) {
     conn, err := grpc.NewClient(
-        grpcAddr,  // "127.0.0.1:9050" in modulith
+        grpcAddr,  // "127.0.0.1:9000" in modulith (default, configurable)
         grpc.WithTransportCredentials(insecure.NewCredentials()),
     )
     if err != nil {
@@ -453,7 +454,7 @@ bus.Publish(ctx, events.Event{...})
 // Helper con circuit breaker y retries
 func newAuthClientWithResilience(serviceAddr string) (authv1.AuthServiceClient, error) {
     conn, err := grpc.NewClient(
-        serviceAddr,  // "auth-service:9050" en microservicios
+        serviceAddr,  // "auth-service:9000" en microservicios (port configurable)
         grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})),
     )
     if err != nil {
@@ -501,7 +502,7 @@ type OrderService struct {
 func NewOrderService(repo repository.Repository, bus *events.Bus, grpcAddr string) (*OrderService, error) {
     // Crear cliente gRPC (in-process en modulith)
     conn, err := grpc.NewClient(
-        grpcAddr,  // "127.0.0.1:9050"
+        grpcAddr,  // "127.0.0.1:9000" (default, configurable)
         grpc.WithTransportCredentials(insecure.NewCredentials()),
     )
     if err != nil {
@@ -576,7 +577,7 @@ func NewOrderService(repo repository.Repository, bus *events.Bus, authServiceAdd
     })
 
     conn, err := grpc.NewClient(
-        authServiceAddr,  // "auth-service:9050" (Kubernetes DNS)
+        authServiceAddr,  // "auth-service:9000" (Kubernetes DNS, port configurable)
         grpc.WithTransportCredentials(creds),
     )
     if err != nil {
@@ -645,7 +646,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrder
 # configs/server.yaml
 env: prod
 http_port: 8080
-grpc_port: 9050
+grpc_port: 9000  # Default port (configurable)
 
 # All modules use the same DB
 db_dsn: postgres://user:pass@db:5432/modulith
@@ -665,13 +666,13 @@ make build
 # configs/auth.yaml (Auth Service)
 env: prod
 http_port: 8080
-grpc_port: 9050
+grpc_port: 9000  # Default port (configurable)
 db_dsn: postgres://user:pass@db:5432/modulith
 
 # configs/order.yaml (Order Service)
 env: prod
 http_port: 8080
-grpc_port: 9050
+grpc_port: 9000  # Default port (configurable)
 db_dsn: postgres://user:pass@db:5432/modulith
 
 # Service discovery config
@@ -713,7 +714,7 @@ make new-module order  # Creates cmd/order/main.go
 ```yaml
 # configs/order.yaml
 # Add service discovery
-auth_service_addr: auth-service:9050 # Instead of 127.0.0.1:9050
+auth_service_addr: auth-service:9000 # Instead of 127.0.0.1:9000 (port configurable)
 ```
 
 ### Step 4: Add Resilience
@@ -900,7 +901,7 @@ Kafka Topic: "user.created"
 ### For Modulith
 
 -   [ ] All modules registered in `cmd/server/setup/registry.go` via `RegisterModules()`
--   [ ] gRPC clients point to `127.0.0.1:9050`
+-   [ ] gRPC clients point to `127.0.0.1:9000` (default, configurable via `GRPC_PORT`)
 -   [ ] In-memory event bus configured
 -   [ ] Single process to deploy
 
@@ -908,7 +909,7 @@ Kafka Topic: "user.created"
 
 -   [ ] Each module has its own `cmd/{module}/main.go`
 -   [ ] Service discovery configured (Kubernetes DNS, etc.)
--   [ ] gRPC clients point to service names (`auth-service:9050`)
+-   [ ] gRPC clients point to service names (`auth-service:9000`, port configurable)
 -   [ ] TLS enabled for inter-service communication
 -   [ ] Circuit breakers implemented
 -   [ ] Retries and timeouts configured

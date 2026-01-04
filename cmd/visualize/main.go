@@ -237,25 +237,40 @@ func generateHTML(graph *analyzer.Graph) string {
     <title>Modulith Module Graph</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        html, body {
+            height: 100%%;
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: #f5f5f5;
         }
+        body {
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            box-sizing: border-box;
+        }
         .container {
-            max-width: 1400px;
-            margin: 0 auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            width: 100%%;
+            margin: 0;
             background: white;
-            border-radius: 8px;
+            border-radius: 0;
             padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: none;
+            box-sizing: border-box;
+            min-height: 0;
         }
         h1 {
             margin-top: 0;
+            margin-bottom: 0;
             color: #333;
+            flex-shrink: 0;
         }
         .controls {
+            flex-shrink: 0;
             margin-bottom: 20px;
             padding: 15px;
             background: #f9f9f9;
@@ -265,6 +280,7 @@ func generateHTML(graph *analyzer.Graph) string {
             display: flex;
             gap: 20px;
             margin-top: 10px;
+            flex-wrap: wrap;
         }
         .legend-item {
             display: flex;
@@ -279,10 +295,22 @@ func generateHTML(graph *analyzer.Graph) string {
         .legend-line.dashed { border-top: 2px dashed #333; }
         .legend-line.dotted { border-top: 2px dotted #0066cc; }
         #graph {
+            flex: 1;
             width: 100%%;
-            height: 800px;
+            min-height: 0;
             border: 1px solid #ddd;
             border-radius: 4px;
+        }
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 15px;
+            }
+            .legend {
+                gap: 10px;
+            }
         }
         .node {
             cursor: pointer;
@@ -348,14 +376,33 @@ func generateHTML(graph *analyzer.Graph) string {
         const graphData = ` + graphJSONStr + `;
 
         const container = document.getElementById('graph');
-        const width = container ? Math.max(container.clientWidth, 1200) : 1200;
-        const height = 800;
-
-        const svg = d3.select("#graph")
-            .attr("width", width)
-            .attr("height", height);
-
+        const svg = d3.select("#graph");
         const tooltip = d3.select("#tooltip");
+
+        let width, height;
+        let simulation;
+
+        function updateDimensions() {
+            // Use viewport width (100vw) with minimum of 800px
+            width = Math.max(window.innerWidth - 42 || 800, 800);
+
+            // Calculate height: 100vh - header height - controls height
+            const header = document.querySelector('h1');
+            const controls = document.querySelector('.controls');
+            const headerHeight = header ? header.getBoundingClientRect().height : 0;
+            const controlsHeight = controls ? controls.getBoundingClientRect().height : 0;
+            const containerPadding = 40; // 20px padding top + 20px padding bottom
+            const availableHeight = (window.innerHeight - 24 || 600) - headerHeight - controlsHeight - containerPadding;
+            height = Math.max(availableHeight, 600);
+
+            svg.attr("width", width)
+               .attr("height", height);
+
+            if (simulation) {
+                simulation.force("center", d3.forceCenter(width / 2, height / 2));
+                simulation.alpha(0.3).restart();
+            }
+        }
 
         // Create nodes - include "external" node for external connections
         const nodeMap = new Map();
@@ -381,12 +428,27 @@ func generateHTML(graph *analyzer.Graph) string {
             direction: c.direction || ""
         }));
 
+        // Initialize dimensions
+        updateDimensions();
+
         // Create force simulation
-        const simulation = d3.forceSimulation(nodes)
+        simulation = d3.forceSimulation(nodes)
             .force("link", d3.forceLink(links).id(d => d.id))
             .force("charge", d3.forceManyBody().strength(-300))
             .force("center", d3.forceCenter(width / 2, height / 2))
             .force("collision", d3.forceCollide().radius(50));
+
+        // Update dimensions after layout to use actual container size
+        requestAnimationFrame(function() {
+            updateDimensions();
+        });
+
+        // Handle window resize
+        let resizeTimeout;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(updateDimensions, 100);
+        });
 
         // Create links
         const link = svg.append("g")
@@ -428,18 +490,28 @@ func generateHTML(graph *analyzer.Graph) string {
         // Add tooltip on hover
         node.on("mouseover", function(event, d) {
             const services = (d.module && d.module.services) ? d.module.services : [];
-            const events = graphData.connections
+            const moduleEvents = (d.module && d.module.events) ? d.module.events : [];
+            const eventConnections = graphData.connections
                 .filter(c => c.from === d.id && c.type === "event")
                 .map(c => c.event);
 
-            const eventCount = events.length;
             const serviceCount = services.length;
+            const eventCount = moduleEvents.length;
+            const eventConnectionCount = eventConnections.length;
+
+            let tooltipContent = "<strong>" + d.id + "</strong><br/>";
+            tooltipContent += "Services: " + serviceCount + "<br/>";
+            tooltipContent += "Events: " + eventCount;
+            if (eventCount > 0) {
+                tooltipContent += " (" + moduleEvents.join(", ") + ")";
+            }
+            if (eventConnectionCount > 0) {
+                tooltipContent += "<br/>Event Connections: " + eventConnectionCount;
+            }
 
             tooltip
                 .style("display", "block")
-                .html("<strong>" + d.id + "</strong><br/>" +
-                      "Services: " + serviceCount + "<br/>" +
-                      "Events: " + eventCount)
+                .html(tooltipContent)
                 .style("left", (event.pageX + 10) + "px")
                 .style("top", (event.pageY - 10) + "px");
         })

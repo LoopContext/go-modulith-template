@@ -350,7 +350,11 @@ func analyzeEventConnections(projectRoot, modulesDir string, graph *Graph) error
 				eventName := strings.Trim(match[1], `" `)
 				eventName = strings.Trim(eventName, `"`)
 
-				if strings.HasPrefix(eventName, "events.") {
+				// Handle string literals (already resolved)
+				if strings.HasPrefix(eventName, `"`) && strings.HasSuffix(eventName, `"`) {
+					eventName = strings.Trim(eventName, `"`)
+				} else if strings.Contains(eventName, ".") {
+					// It's a constant like "events.EventUserCreated" or "notifier.EventMagicCodeRequested"
 					eventName = resolveEventConstant(projectRoot, eventName)
 				}
 

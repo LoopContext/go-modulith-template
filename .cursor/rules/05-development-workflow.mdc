@@ -7,7 +7,7 @@ alwaysApply: true
 
 This project uses `make` commands for all development tasks. Always prefer `make` commands over direct tool invocations.
 
-### Quick Reference
+## Quick Reference
 
 -   **Setup**: `make quickstart` (first time) or `make validate-setup`
 -   **Code Generation**: `make generate-all` (runs sqlc + proto + mocks)
