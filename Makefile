@@ -163,11 +163,27 @@ migrate-create: ## Create a new migration file for a module (usage: make migrate
 	fi; \
 	migrate create -ext sql -dir $$MIGRATIONS_DIR -seq $(NAME)
 
-db-down: ## Drop all database tables (destructive, asks for confirmation)
-	@echo "⚠️  WARNING: This will DROP ALL TABLES in the database!"
+migrate-force: ## Force migration version to clean dirty state (usage: make migrate-force MODULE_NAME=auth VERSION=1)
+	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make migrate-force MODULE_NAME=module_name VERSION=version_number"; exit 1; fi
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make migrate-force MODULE_NAME=module_name VERSION=version_number"; exit 1; fi
+	@MIGRATIONS_DIR=modules/$(MODULE_NAME)/resources/db/migration; \
+	if [ ! -d "$$MIGRATIONS_DIR" ]; then \
+		echo "Error: Module '$(MODULE_NAME)' not found or has no migrations directory"; \
+		exit 1; \
+	fi; \
+	echo "⚠️  Forcing migration version $(VERSION) for module $(MODULE_NAME) (clears dirty state)..."; \
+	if echo "$(DB_DSN)" | grep -q "?"; then \
+		MODULE_DSN="$(DB_DSN)&x-migrations-table=$(MODULE_NAME)_schema_migrations"; \
+	else \
+		MODULE_DSN="$(DB_DSN)?x-migrations-table=$(MODULE_NAME)_schema_migrations"; \
+	fi; \
+	migrate -path $$MIGRATIONS_DIR -database "$$MODULE_DSN" force $(VERSION)
+
+db-down: ## Rollback last migration for all modules (uses modulith's migration system)
+	@echo "⚠️  WARNING: This will rollback the last migration for ALL modules!"
 	@read -p "Are you sure? Type 'yes' to confirm: " confirm && [ "$$confirm" = "yes" ] || exit 1
-	@psql "$(DB_DSN)" -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;" > /dev/null 2>&1 || true
-	@echo "✅ Database schema dropped"
+	@echo "🔄 Rolling back migrations for all modules..."
+	@go run cmd/server/main.go migrate-down
 
 db-reset: db-down migrate-up ## Drop database and re-run all migrations (db-down + migrate-up)
 

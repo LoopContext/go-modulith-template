@@ -84,6 +84,8 @@ func handleSubcommand(args []string) {
 	switch command {
 	case "migrate":
 		commands.RunMigrateCommand()
+	case "migrate-down":
+		commands.RunMigrateDownCommand()
 	case "seed":
 		commands.RunSeedCommand()
 	case "admin":
@@ -95,7 +97,7 @@ func handleSubcommand(args []string) {
 		commands.RunAdminCommand(args[1])
 	default:
 		slog.Error("Unknown command", "command", command)
-		slog.Info("Available commands: migrate, seed, admin")
+		slog.Info("Available commands: migrate, migrate-down, seed, admin")
 		os.Exit(1)
 	}
 }
