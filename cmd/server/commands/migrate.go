@@ -27,13 +27,15 @@ func RunMigrateCommand() {
 // RunMigrateDownCommand runs the migrate-down command.
 func RunMigrateDownCommand() {
 	cfg, db, reg := CommonSetup()
-	defer setup.CloseDB(db)
 
 	if err := RunDownMigrations(cfg.DBDSN, reg); err != nil {
 		slog.Error("Failed to rollback migrations", "error", err)
+		setup.CloseDB(db)
+
 		os.Exit(1)
 	}
 
+	setup.CloseDB(db)
 	slog.Info("✅ Migrations rolled back successfully")
 }
 

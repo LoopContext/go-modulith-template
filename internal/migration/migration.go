@@ -283,6 +283,7 @@ func (r *Runner) DownAll() error {
 
 	modulesWithMigrations := 0
 	rolledBackCount := 0
+
 	var lastError error
 
 	for _, mod := range modules {
@@ -297,6 +298,7 @@ func (r *Runner) DownAll() error {
 		}
 
 		modulesWithMigrations++
+
 		slog.Info("Rolling back all migrations for module", "module", mod.Name(), "path", path)
 
 		if err := r.runModuleMigrationWithDirection(mod.Name(), path, "down-all"); err != nil {
@@ -317,13 +319,16 @@ func (r *Runner) DownAll() error {
 
 	if rolledBackCount == 0 {
 		slog.Error("Failed to rollback migrations for any module")
+
 		if lastError != nil {
 			return fmt.Errorf("all module rollbacks failed, last error: %w", lastError)
 		}
+
 		return fmt.Errorf("failed to rollback migrations for any module")
 	}
 
 	slog.Info("All module migrations rolled back successfully", "count", rolledBackCount, "total", modulesWithMigrations)
+
 	return nil
 }
 

@@ -7,7 +7,12 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver
 
+	"github.com/cmelgarejo/go-modulith-template/internal/config"
+	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/migration"
+	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
+	"github.com/cmelgarejo/go-modulith-template/modules/auth"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository"
 )
 
@@ -31,7 +36,7 @@ func TestIntegration_SQLRepository_CreateUser(t *testing.T) {
 	}()
 
 	// Get database connection and setup schema
-	db, repo := setupTestDB(ctx, t, container)
+	db, repo := setupTestDB(ctx, t, container, container.DSN)
 
 	defer func() {
 		if err := db.Close(); err != nil {
@@ -53,7 +58,7 @@ func TestIntegration_SQLRepository_CreateUser(t *testing.T) {
 	verifyUserCreated(ctx, t, db, testID, testEmail)
 }
 
-func setupTestDB(ctx context.Context, t *testing.T, container *testutil.PostgresContainer) (*sql.DB, *repository.SQLRepository) {
+func setupTestDB(ctx context.Context, t *testing.T, container *testutil.PostgresContainer, dsn string) (*sql.DB, *repository.SQLRepository) {
 	t.Helper()
 
 	db, err := container.DB(ctx)
@@ -61,18 +66,33 @@ func setupTestDB(ctx context.Context, t *testing.T, container *testutil.Postgres
 		t.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Create schema (simplified for test)
-	_, err = db.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS users (
-			id VARCHAR(64) PRIMARY KEY,
-			email VARCHAR(255) NOT NULL UNIQUE,
-			phone VARCHAR(20),
-			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)
-	`)
-	if err != nil {
-		t.Fatalf("Failed to create schema: %v", err)
+	// Set up registry and run migrations
+	cfg := &config.AppConfig{
+		Env:      "test",
+		LogLevel: "debug",
+		Auth: config.AuthConfig{
+			JWTSecret: "test-secret-key-that-is-at-least-32-bytes-long-for-testing",
+		},
+	}
+
+	reg := registry.New(
+		registry.WithConfig(cfg),
+		registry.WithDatabase(db),
+		registry.WithEventBus(events.NewBus()),
+	)
+
+	// Register the auth module
+	reg.Register(auth.NewModule())
+
+	// Initialize modules (required before migrations)
+	if err := reg.InitializeAll(); err != nil {
+		t.Fatalf("Failed to initialize modules: %v", err)
+	}
+
+	// Run migrations
+	migrationRunner := migration.NewRunner(dsn, reg)
+	if err := migrationRunner.RunAll(); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
 	repo := repository.NewSQLRepository(db)
@@ -85,7 +105,7 @@ func verifyUserCreated(ctx context.Context, t *testing.T, db *sql.DB, userID, ex
 
 	var email string
 
-	err := db.QueryRowContext(ctx, "SELECT email FROM users WHERE id = $1", userID).Scan(&email)
+	err := db.QueryRowContext(ctx, "SELECT email FROM auth.users WHERE id = $1", userID).Scan(&email)
 	if err != nil {
 		t.Errorf("Failed to query user: %v", err)
 	}
