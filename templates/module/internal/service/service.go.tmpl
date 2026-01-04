@@ -3,15 +3,14 @@ package service
 
 import (
 	"context"
-	"log/slog"
+	"database/sql"
 
 	{{.MODULE_NAME}}v1 "{{.PROJECT_NAME}}/gen/go/proto/{{.MODULE_NAME}}/v1"
 	"{{.PROJECT_NAME}}/internal/errors"
 	"{{.PROJECT_NAME}}/internal/events"
+	"{{.PROJECT_NAME}}/internal/telemetry"
 	"{{.PROJECT_NAME}}/modules/{{.MODULE_NAME}}/internal/repository"
 	"go.jetify.com/typeid"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // {{.MODULE_NAME_CAPITALIZED}}Service implements the {{.MODULE_NAME}}v1.{{.MODULE_NAME_CAPITALIZED}}ServiceServer interface.
@@ -31,31 +30,28 @@ func New{{.MODULE_NAME_CAPITALIZED}}Service(repo repository.Repository, bus *eve
 
 // Create{{.MODULE_NAME_CAPITALIZED}} handles the creation of a new {{.MODULE_NAME}}.
 func (s *{{.MODULE_NAME_CAPITALIZED}}Service) Create{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, req *{{.MODULE_NAME}}v1.Create{{.MODULE_NAME_CAPITALIZED}}Request) (*{{.MODULE_NAME}}v1.Create{{.MODULE_NAME_CAPITALIZED}}Response, error) {
+	ctx, span := telemetry.ServiceSpan(ctx, "{{.MODULE_NAME}}", "Create{{.MODULE_NAME_CAPITALIZED}}")
+	defer span.End()
+
 	// 1. Domain Logic: ID Generation (TypeID)
 	tid, err := typeid.WithPrefix("{{.MODULE_NAME}}")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to generate typeid", "error", err)
-
-		// Note: For i18n support, use errors.ToGRPCWithContext(ctx, cfg.DefaultLocale, errors.Internal("errors.internal_error", err))
-		// For now, using status.Error for template simplicity - replace with domain errors in actual implementation
-		return nil, status.Error(codes.Internal, "internal server error")
+		telemetry.RecordError(ctx, err)
+		return nil, errors.ToGRPC(errors.Internal("failed to generate typeid", err))
 	}
 
 	id := tid.String()
 
 	// 2. Persistence
 	if err := s.repo.Create{{.MODULE_NAME_CAPITALIZED}}(ctx, id, req.Name); err != nil {
-		slog.ErrorContext(ctx, "failed to create {{.MODULE_NAME}}", "error", err, "id", id)
-
-		// Note: For i18n support, use errors.ToGRPCWithContext(ctx, cfg.DefaultLocale, errors.Internal("errors.internal_error", err))
-		// For now, using status.Error for template simplicity - replace with domain errors in actual implementation
-		return nil, status.Error(codes.Internal, "failed to create {{.MODULE_NAME}}")
+		telemetry.RecordError(ctx, err)
+		return nil, errors.ToGRPC(errors.Internal("failed to create {{.MODULE_NAME}}", err))
 	}
 
 	// 3. Publish event for async side effects
 	s.bus.Publish(ctx, events.Event{
 		Name: "{{.MODULE_NAME}}.created",
-		Payload: map[string]interface{}{
+		Payload: map[string]any{
 			"id":   id,
 			"name": req.Name,
 		},
@@ -64,5 +60,25 @@ func (s *{{.MODULE_NAME_CAPITALIZED}}Service) Create{{.MODULE_NAME_CAPITALIZED}}
 	return &{{.MODULE_NAME}}v1.Create{{.MODULE_NAME_CAPITALIZED}}Response{
 		Id:   id,
 		Name: req.Name,
+	}, nil
+}
+
+// Get{{.MODULE_NAME_CAPITALIZED}} retrieves a {{.MODULE_NAME}} by its ID.
+func (s *{{.MODULE_NAME_CAPITALIZED}}Service) Get{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, req *{{.MODULE_NAME}}v1.Get{{.MODULE_NAME_CAPITALIZED}}Request) (*{{.MODULE_NAME}}v1.Get{{.MODULE_NAME_CAPITALIZED}}Response, error) {
+	ctx, span := telemetry.ServiceSpan(ctx, "{{.MODULE_NAME}}", "Get{{.MODULE_NAME_CAPITALIZED}}")
+	defer span.End()
+
+	{{.MODULE_NAME}}, err := s.repo.Get{{.MODULE_NAME_CAPITALIZED}}(ctx, req.Id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.ToGRPC(errors.NotFound("{{.MODULE_NAME}} not found"))
+		}
+		telemetry.RecordError(ctx, err)
+		return nil, errors.ToGRPC(errors.Internal("failed to get {{.MODULE_NAME}}", err))
+	}
+
+	return &{{.MODULE_NAME}}v1.Get{{.MODULE_NAME_CAPITALIZED}}Response{
+		Id:   {{.MODULE_NAME}}.ID,
+		Name: {{.MODULE_NAME}}.Name,
 	}, nil
 }

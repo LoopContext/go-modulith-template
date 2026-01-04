@@ -38,7 +38,14 @@ func (r *SQLRepository) WithTx(ctx context.Context, fn func(Repository) error) e
 	}
 
 	defer func() {
-		_ = tx.Rollback()
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			_ = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
 	}()
 
 	txRepo := &SQLRepository{
@@ -46,15 +53,8 @@ func (r *SQLRepository) WithTx(ctx context.Context, fn func(Repository) error) e
 		db: r.db,
 	}
 
-	if err := fn(txRepo); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	return nil
+	err = fn(txRepo)
+	return err
 }
 
 // Create{{.MODULE_NAME_CAPITALIZED}} creates a new {{.MODULE_NAME}} record.
@@ -70,11 +70,12 @@ func (r *SQLRepository) Create{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, 
 }
 
 // Get{{.MODULE_NAME_CAPITALIZED}} retrieves a {{.MODULE_NAME}} record by its ID.
+// Note: SQLC returns structs (not pointers), so we convert to pointer here.
 func (r *SQLRepository) Get{{.MODULE_NAME_CAPITALIZED}}(ctx context.Context, id string) (*store.{{.MODULE_STRUCT_NAME}}, error) {
-	row, err := r.q.Get{{.MODULE_NAME_CAPITALIZED}}(ctx, id)
+	result, err := r.q.Get{{.MODULE_NAME_CAPITALIZED}}(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error getting {{.MODULE_NAME}}: %w", err)
 	}
 
-	return &row, nil
+	return &result, nil
 }

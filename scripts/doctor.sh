@@ -36,6 +36,50 @@ check_cmd() {
     fi
 }
 
+# Get port from .env file or environment variable, with default
+get_app_port_from_env() {
+    local env_var=$1
+    local default=$2
+    local port=$default
+
+    if [ -f ".env" ]; then
+        # Try to read port from .env
+        local env_port=$(grep -E "^${env_var}=" .env 2>/dev/null | cut -d '=' -f2 | tr -d '"' | tr -d "'" | xargs)
+        if [ -n "$env_port" ]; then
+            port=$env_port
+        fi
+    fi
+    # Check shell environment variable (takes precedence)
+    # Use bash indirect variable expansion
+    local env_val="${!env_var}"
+    if [ -n "$env_val" ]; then
+        port=$env_val
+    fi
+    echo "$port"
+}
+
+# Get port from .env.docker or environment variable, with default
+get_port_from_env() {
+    local env_var=$1
+    local default=$2
+    local port=$default
+
+    if [ -f ".env.docker" ]; then
+        # Try to read port from .env.docker
+        local env_port=$(grep -E "^${env_var}=" .env.docker 2>/dev/null | cut -d '=' -f2 | tr -d '"' | tr -d "'" | xargs)
+        if [ -n "$env_port" ]; then
+            port=$env_port
+        fi
+    fi
+    # Check shell environment variable (takes precedence)
+    # Use bash indirect variable expansion
+    local env_val="${!env_var}"
+    if [ -n "$env_val" ]; then
+        port=$env_val
+    fi
+    echo "$port"
+}
+
 # Check port with detail
 check_port_detailed() {
     local port=$1
@@ -60,6 +104,50 @@ check_port_detailed() {
 
     echo -e "${GREEN}✓${NC} available"
     return 0
+}
+
+# Check port, recognizing if it's in use by a specific Docker container
+check_container_port() {
+    local port=$1
+    local service=$2
+    local container_name=$3
+    echo -n "  Port $port ($service): "
+
+    local is_in_use=false
+    if command -v lsof > /dev/null 2>&1; then
+        local pid=$(lsof -ti :$port 2>/dev/null || true)
+        if [ -n "$pid" ]; then
+            is_in_use=true
+            # Check if this is our Docker container
+            if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container_name}$"; then
+                echo -e "${GREEN}✓${NC} in use by ${container_name} container (expected)"
+                return 0
+            else
+                local proc=$(ps -p $pid -o comm= 2>/dev/null || echo "unknown")
+                echo -e "${YELLOW}⚠${NC} in use by $proc (PID: $pid)"
+                ((WARNINGS++))
+                return 1
+            fi
+        fi
+    elif command -v netstat > /dev/null 2>&1; then
+        if netstat -an 2>/dev/null | grep -q ":$port.*LISTEN"; then
+            is_in_use=true
+            # Check if this is our Docker container
+            if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container_name}$"; then
+                echo -e "${GREEN}✓${NC} in use by ${container_name} container (expected)"
+                return 0
+            else
+                echo -e "${YELLOW}⚠${NC} in use"
+                ((WARNINGS++))
+                return 1
+            fi
+        fi
+    fi
+
+    if [ "$is_in_use" = false ]; then
+        echo -e "${GREEN}✓${NC} available"
+        return 0
+    fi
 }
 
 # Section: Prerequisites
@@ -134,13 +222,13 @@ echo -e "${BLUE}Port Availability${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
-check_port_detailed 8000 "HTTP"
-check_port_detailed 9000 "gRPC"
-check_port_detailed 5432 "PostgreSQL"
-check_port_detailed 6379 "Redis"
-check_port_detailed 16686 "Jaeger UI"
-check_port_detailed 9090 "Prometheus"
-check_port_detailed 3000 "Grafana"
+check_port_detailed $(get_app_port_from_env "HTTP_PORT" "8000") "HTTP"
+check_port_detailed $(get_app_port_from_env "GRPC_PORT" "9000") "gRPC"
+check_container_port $(get_port_from_env "DB_PORT" "5432") "PostgreSQL" "modulith_db"
+check_container_port $(get_port_from_env "REDIS_PORT" "6379") "Redis" "modulith_redis"
+check_container_port $(get_port_from_env "JAEGER_UI_PORT" "16686") "Jaeger UI" "modulith_jaeger"
+check_container_port $(get_port_from_env "PROMETHEUS_PORT" "9090") "Prometheus" "modulith_prometheus"
+check_container_port $(get_port_from_env "GRAFANA_PORT" "3000") "Grafana" "modulith_grafana"
 
 echo ""
 

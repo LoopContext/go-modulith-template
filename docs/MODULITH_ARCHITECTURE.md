@@ -378,7 +378,7 @@ import "github.com/cmelgarejo/go-modulith-template/internal/errors"
 func (s *Service) CreateUser(ctx context.Context, req *pb.Request) (*pb.Response, error) {
     // Domain errors are automatically mapped
     if err := s.repo.CreateUser(ctx, id, email); err != nil {
-        return nil, errors.ToGRPC(errors.Internal("failed to create user", errors.WithWrappedError(err)))
+        return nil, errors.ToGRPC(errors.Internal("failed to create user", err))
     }
 
     return &pb.Response{Id: id}, nil
@@ -422,8 +422,8 @@ Errors can include additional details:
 ```go
 err := errors.NotFound("user not found",
     errors.WithDetail("user_id", userID),
-    errors.WithWrappedError(sqlErr),
 )
+// Note: Domain errors automatically wrap underlying errors when created
 ```
 
 ### Type Checking
@@ -685,7 +685,7 @@ func (s *Service) CreateUser(ctx context.Context, req *pb.Request) (*pb.Response
 
     // Business logic...
     if err != nil {
-        telemetry.RecordError(span, err)
+        telemetry.RecordError(ctx, err)
         return nil, errors.ToGRPC(err)
     }
 
@@ -699,7 +699,7 @@ func (r *Repo) GetUser(ctx context.Context, id string) (*User, error) {
 
     user, err := r.q.GetUserByID(ctx, id)
     if err != nil {
-        telemetry.RecordError(span, err)
+        telemetry.RecordError(ctx, err)
         return nil, fmt.Errorf("failed to get user: %w", err)
     }
 
@@ -713,7 +713,7 @@ func (r *Repo) GetUser(ctx context.Context, id string) (*User, error) {
 -   **`telemetry.ServiceSpan(ctx, module, operation)`** - Service layer span
 -   **`telemetry.RepositorySpan(ctx, module, operation, entity)`** - Repository span
 -   **`telemetry.SetAttribute(ctx, key, value)`** - Add attribute to current span
--   **`telemetry.RecordError(span, err)`** - Record error in span
+-   **`telemetry.RecordError(ctx, err)`** - Record error in span (uses ctx, not span)
 -   **`telemetry.AddEvent(ctx, name, attrs)`** - Add event to span
 
 #### Benefits
@@ -1515,8 +1515,8 @@ func (s *Service) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (
 
     // 5. Persistence
     if err := s.repo.CreateOrder(ctx, id, req); err != nil {
-        telemetry.RecordError(span, err)
-        return nil, errors.ToGRPC(errors.Internal("failed to create order", errors.WithWrappedError(err)))
+        telemetry.RecordError(ctx, err)
+        return nil, errors.ToGRPC(errors.Internal("failed to create order", err))
     }
 
     // 6. Publish event (typed event)
@@ -1531,6 +1531,218 @@ func (s *Service) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (
 ```
 
 **All of the above uses template abstractions - your code only contains business logic.**
+
+### Template Implementation Details
+
+The scaffolding tool generates code that follows established patterns and best practices. Understanding these patterns helps when extending generated modules.
+
+#### Repository Template Patterns
+
+**SQLC Return Type Handling:**
+
+SQLC generates code that returns structs (not pointers) and slices of structs (not pointers). The repository template automatically converts these to pointers to match the interface:
+
+```go
+// Get method - converts struct to pointer
+func (r *SQLRepository) GetModule(ctx context.Context, id string) (*store.Module, error) {
+    result, err := r.q.GetModule(ctx, id)
+    if err != nil {
+        return nil, fmt.Errorf("error getting module: %w", err)
+    }
+    return &result, nil  // Convert struct to pointer
+}
+
+// List method - converts slice of structs to slice of pointers
+func (r *SQLRepository) ListModules(ctx context.Context) ([]*store.Module, error) {
+    modules, err := r.q.ListModules(ctx)
+    if err != nil {
+        return nil, err
+    }
+    result := make([]*store.Module, len(modules))
+    for i := range modules {
+        result[i] = &modules[i]  // Convert each element to pointer
+    }
+    return result, nil
+}
+```
+
+**Transaction Handling:**
+
+The `WithTx` method includes proper panic and error handling:
+
+```go
+func (r *SQLRepository) WithTx(ctx context.Context, fn func(Repository) error) error {
+    tx, err := r.db.BeginTx(ctx, nil)
+    if err != nil {
+        return fmt.Errorf("failed to begin transaction: %w", err)
+    }
+
+    defer func() {
+        if p := recover(); p != nil {
+            _ = tx.Rollback()
+            panic(p)  // Re-panic after rollback
+        } else if err != nil {
+            _ = tx.Rollback()
+        } else {
+            err = tx.Commit()
+        }
+    }()
+
+    txRepo := &SQLRepository{
+        q:  r.q.WithTx(tx),
+        db: r.db,
+    }
+
+    err = fn(txRepo)
+    return err
+}
+```
+
+#### Service Template Patterns
+
+**Telemetry Integration:**
+
+All service methods include telemetry spans and proper error recording:
+
+```go
+func (s *Service) CreateModule(ctx context.Context, req *pb.CreateModuleRequest) (*pb.CreateModuleResponse, error) {
+    ctx, span := telemetry.ServiceSpan(ctx, "module", "CreateModule")
+    defer span.End()
+
+    // ... business logic ...
+
+    if err != nil {
+        telemetry.RecordError(ctx, err)  // Use ctx, not span
+        return nil, errors.ToGRPC(errors.Internal("failed to create", err))
+    }
+}
+```
+
+**Important:** `telemetry.RecordError` expects `ctx context.Context`, not a span. The context contains the span information automatically.
+
+**Error Handling:**
+
+The template uses the domain error system, not raw gRPC status errors:
+
+```go
+// ✅ Correct: Use domain errors
+if err != nil {
+    return nil, errors.ToGRPC(errors.Internal("failed to create", err))
+}
+
+// ✅ Correct: Handle specific error types
+if err == sql.ErrNoRows {
+    return nil, errors.ToGRPC(errors.NotFound("resource not found"))
+}
+
+// ❌ Incorrect: Don't use raw status.Error
+return nil, status.Error(codes.Internal, "internal error")
+```
+
+**Telemetry Attributes:**
+
+When setting attributes, convert non-string types to strings:
+
+```go
+// ✅ Correct: Convert int to string
+telemetry.SetAttribute(ctx, "items_count", fmt.Sprintf("%d", len(req.Items)))
+
+// ❌ Incorrect: Don't pass int directly
+telemetry.SetAttribute(ctx, "items_count", len(req.Items))
+```
+
+#### Template-Generated Code Structure
+
+The scaffolding tool ensures all generated code follows these patterns:
+
+1. **Repository Layer:**
+   - ✅ SQLC struct-to-pointer conversion
+   - ✅ Proper transaction error handling
+   - ✅ Error wrapping with context
+
+2. **Service Layer:**
+   - ✅ Telemetry spans for all operations
+   - ✅ Domain error system usage
+   - ✅ Event publishing for side effects
+   - ✅ TypeID generation for entities
+
+3. **Module Layer:**
+   - ✅ Complete `registry.Module` implementation
+   - ✅ Proper dependency injection
+   - ✅ Migration path configuration
+
+#### Verifying Template-Generated Code
+
+After generating a module, verify it compiles:
+
+```bash
+# Generate code
+make proto
+make sqlc
+
+# Build the module
+go build ./modules/<module-name>/...
+
+# Or build the entire project
+make build
+```
+
+#### Common Issues and Solutions
+
+**Issue: SQLC return type errors**
+
+```
+cannot use r.q.GetModule(ctx, id) (value of struct type store.Module) as *store.Module
+```
+
+**Solution:** The template handles this automatically. If you see this error, ensure you're using the latest template version.
+
+**Issue: Telemetry errors**
+
+```
+cannot use span as context.Context value in argument to telemetry.RecordError
+```
+
+**Solution:** Always use `ctx` for `telemetry.RecordError`, not `span`:
+
+```go
+// ✅ Correct
+telemetry.RecordError(ctx, err)
+
+// ❌ Incorrect
+telemetry.RecordError(span, err)  // Wrong: span is not context.Context
+
+// ✅ Correct
+telemetry.RecordError(ctx, err)  // Correct: use ctx which contains span
+```
+
+**Issue: Unused imports**
+
+**Solution:** The template only includes necessary imports. If you add functionality that requires new imports, add them explicitly.
+
+#### Extending Template-Generated Code
+
+When extending generated modules:
+
+1. **Add Repository Methods:**
+   - Follow the SQLC struct-to-pointer pattern
+   - Use `WithTx` for transactional operations
+   - Wrap errors with context
+
+2. **Add Service Methods:**
+   - Include telemetry spans
+   - Use domain error system
+   - Publish events for side effects
+
+3. **Add SQL Queries:**
+   - Place in `modules/<name>/internal/db/query/<name>.sql`
+   - Run `make sqlc` to generate code
+   - Update repository interface and implementation
+
+4. **Add Proto Methods:**
+   - Edit `proto/<name>/v1/<name>.proto`
+   - Run `make proto` to generate code
+   - Implement in service layer
 
 ## 18. Granular Deployment and Configuration (Microservices Path)
 
