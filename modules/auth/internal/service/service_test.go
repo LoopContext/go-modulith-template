@@ -18,11 +18,11 @@ import (
 
 type mockRepository struct {
 	createUserFunc               func(ctx context.Context, id, email, phone string) error
-	getUserByEmailFunc           func(ctx context.Context, email string) (*store.User, error)
-	getUserByPhoneFunc           func(ctx context.Context, phone string) (*store.User, error)
+	getUserByEmailFunc           func(ctx context.Context, email string) (*store.AuthUser, error)
+	getUserByPhoneFunc           func(ctx context.Context, phone string) (*store.AuthUser, error)
 	createMagicCodeFunc          func(ctx context.Context, code, email, phone string, expiresAt time.Time) error
-	getValidMagicCodeByEmailFunc func(ctx context.Context, email, code string) (*store.MagicCode, error)
-	getValidMagicCodeByPhoneFunc func(ctx context.Context, phone, code string) (*store.MagicCode, error)
+	getValidMagicCodeByEmailFunc func(ctx context.Context, email, code string) (*store.AuthMagicCode, error)
+	getValidMagicCodeByPhoneFunc func(ctx context.Context, phone, code string) (*store.AuthMagicCode, error)
 	invalidateMagicCodesFunc     func(ctx context.Context, email, phone string) error
 }
 
@@ -38,20 +38,20 @@ func (m *mockRepository) CreateUser(ctx context.Context, id, email, phone string
 	return nil
 }
 
-func (m *mockRepository) GetUserByEmail(ctx context.Context, email string) (*store.User, error) {
+func (m *mockRepository) GetUserByEmail(ctx context.Context, email string) (*store.AuthUser, error) {
 	if m.getUserByEmailFunc != nil {
 		return m.getUserByEmailFunc(ctx, email)
 	}
 
-	return &store.User{ID: "user-123", Email: sql.NullString{String: email, Valid: true}}, nil
+	return &store.AuthUser{ID: "user-123", Email: sql.NullString{String: email, Valid: true}}, nil
 }
 
-func (m *mockRepository) GetUserByPhone(ctx context.Context, phone string) (*store.User, error) {
+func (m *mockRepository) GetUserByPhone(ctx context.Context, phone string) (*store.AuthUser, error) {
 	if m.getUserByPhoneFunc != nil {
 		return m.getUserByPhoneFunc(ctx, phone)
 	}
 
-	return &store.User{ID: "user-123", Phone: sql.NullString{String: phone, Valid: true}}, nil
+	return &store.AuthUser{ID: "user-123", Phone: sql.NullString{String: phone, Valid: true}}, nil
 }
 
 func (m *mockRepository) CreateMagicCode(ctx context.Context, code, email, phone string, expiresAt time.Time) error {
@@ -62,20 +62,20 @@ func (m *mockRepository) CreateMagicCode(ctx context.Context, code, email, phone
 	return nil
 }
 
-func (m *mockRepository) GetValidMagicCodeByEmail(ctx context.Context, email, code string) (*store.MagicCode, error) {
+func (m *mockRepository) GetValidMagicCodeByEmail(ctx context.Context, email, code string) (*store.AuthMagicCode, error) {
 	if m.getValidMagicCodeByEmailFunc != nil {
 		return m.getValidMagicCodeByEmailFunc(ctx, email, code)
 	}
 
-	return &store.MagicCode{Code: code, UserEmail: sql.NullString{String: email, Valid: true}}, nil
+	return &store.AuthMagicCode{Code: code, UserEmail: sql.NullString{String: email, Valid: true}}, nil
 }
 
-func (m *mockRepository) GetValidMagicCodeByPhone(ctx context.Context, phone, code string) (*store.MagicCode, error) {
+func (m *mockRepository) GetValidMagicCodeByPhone(ctx context.Context, phone, code string) (*store.AuthMagicCode, error) {
 	if m.getValidMagicCodeByPhoneFunc != nil {
 		return m.getValidMagicCodeByPhoneFunc(ctx, phone, code)
 	}
 
-	return &store.MagicCode{Code: code, UserPhone: sql.NullString{String: phone, Valid: true}}, nil
+	return &store.AuthMagicCode{Code: code, UserPhone: sql.NullString{String: phone, Valid: true}}, nil
 }
 
 func (m *mockRepository) InvalidateMagicCodes(ctx context.Context, email, phone string) error {
@@ -154,7 +154,7 @@ func TestRequestLogin_Success_Phone(t *testing.T) {
 
 func TestRequestLogin_UserNotFound(t *testing.T) {
 	repo := &mockRepository{
-		getUserByEmailFunc: func(_ context.Context, _ string) (*store.User, error) {
+		getUserByEmailFunc: func(_ context.Context, _ string) (*store.AuthUser, error) {
 			return nil, sql.ErrNoRows
 		},
 	}
@@ -200,11 +200,11 @@ func TestRequestLogin_CreateMagicCodeError(t *testing.T) {
 
 func TestCompleteLogin_Success_ExistingUser(t *testing.T) {
 	repo := &mockRepository{
-		getValidMagicCodeByEmailFunc: func(_ context.Context, _, code string) (*store.MagicCode, error) {
-			return &store.MagicCode{Code: code}, nil
+		getValidMagicCodeByEmailFunc: func(_ context.Context, _, code string) (*store.AuthMagicCode, error) {
+			return &store.AuthMagicCode{Code: code}, nil
 		},
-		getUserByEmailFunc: func(_ context.Context, email string) (*store.User, error) {
-			return &store.User{
+		getUserByEmailFunc: func(_ context.Context, email string) (*store.AuthUser, error) {
+			return &store.AuthUser{
 				ID:    "user-123",
 				Email: sql.NullString{String: email, Valid: true},
 			}, nil
@@ -239,17 +239,17 @@ func TestCompleteLogin_Success_NewUser(t *testing.T) {
 	var createdUserID string
 
 	repo := &mockRepository{
-		getValidMagicCodeByEmailFunc: func(_ context.Context, _, code string) (*store.MagicCode, error) {
-			return &store.MagicCode{Code: code}, nil
+		getValidMagicCodeByEmailFunc: func(_ context.Context, _, code string) (*store.AuthMagicCode, error) {
+			return &store.AuthMagicCode{Code: code}, nil
 		},
-		getUserByEmailFunc: func(_ context.Context, email string) (*store.User, error) {
+		getUserByEmailFunc: func(_ context.Context, email string) (*store.AuthUser, error) {
 			// First call returns not found, simulating new user
 			if createdUserID == "" {
 				return nil, sql.ErrNoRows
 			}
 
 			// After user creation, return the new user
-			return &store.User{
+			return &store.AuthUser{
 				ID:    createdUserID,
 				Email: sql.NullString{String: email, Valid: true},
 			}, nil
@@ -296,7 +296,7 @@ func TestCompleteLogin_MissingEmailAndPhone(t *testing.T) {
 
 func TestCompleteLogin_InvalidMagicCode(t *testing.T) {
 	repo := &mockRepository{
-		getValidMagicCodeByEmailFunc: func(_ context.Context, _, _ string) (*store.MagicCode, error) {
+		getValidMagicCodeByEmailFunc: func(_ context.Context, _, _ string) (*store.AuthMagicCode, error) {
 			return nil, sql.ErrNoRows
 		},
 	}
@@ -315,11 +315,11 @@ func TestCompleteLogin_InvalidMagicCode(t *testing.T) {
 
 func TestCompleteLogin_WithPhone(t *testing.T) {
 	repo := &mockRepository{
-		getValidMagicCodeByPhoneFunc: func(_ context.Context, _, code string) (*store.MagicCode, error) {
-			return &store.MagicCode{Code: code}, nil
+		getValidMagicCodeByPhoneFunc: func(_ context.Context, _, code string) (*store.AuthMagicCode, error) {
+			return &store.AuthMagicCode{Code: code}, nil
 		},
-		getUserByPhoneFunc: func(_ context.Context, phone string) (*store.User, error) {
-			return &store.User{
+		getUserByPhoneFunc: func(_ context.Context, phone string) (*store.AuthUser, error) {
+			return &store.AuthUser{
 				ID:    "user-456",
 				Phone: sql.NullString{String: phone, Valid: true},
 			}, nil
@@ -414,7 +414,7 @@ func testGeneratesDifferentLengths(t *testing.T) {
 
 func TestCompleteLogin_DatabaseError(t *testing.T) {
 	repo := &mockRepository{
-		getValidMagicCodeByEmailFunc: func(_ context.Context, _, _ string) (*store.MagicCode, error) {
+		getValidMagicCodeByEmailFunc: func(_ context.Context, _, _ string) (*store.AuthMagicCode, error) {
 			return nil, errors.New("database connection error")
 		},
 	}
@@ -433,10 +433,10 @@ func TestCompleteLogin_DatabaseError(t *testing.T) {
 
 func TestCompleteLogin_GetUserError(t *testing.T) {
 	repo := &mockRepository{
-		getValidMagicCodeByEmailFunc: func(_ context.Context, _, code string) (*store.MagicCode, error) {
-			return &store.MagicCode{Code: code}, nil
+		getValidMagicCodeByEmailFunc: func(_ context.Context, _, code string) (*store.AuthMagicCode, error) {
+			return &store.AuthMagicCode{Code: code}, nil
 		},
-		getUserByEmailFunc: func(_ context.Context, _ string) (*store.User, error) {
+		getUserByEmailFunc: func(_ context.Context, _ string) (*store.AuthUser, error) {
 			return nil, errors.New("database error fetching user")
 		},
 	}
@@ -457,15 +457,15 @@ func TestCompleteLogin_NewUser_WithPhone(t *testing.T) {
 	var createdUserID string
 
 	repo := &mockRepository{
-		getValidMagicCodeByPhoneFunc: func(_ context.Context, _, code string) (*store.MagicCode, error) {
-			return &store.MagicCode{Code: code}, nil
+		getValidMagicCodeByPhoneFunc: func(_ context.Context, _, code string) (*store.AuthMagicCode, error) {
+			return &store.AuthMagicCode{Code: code}, nil
 		},
-		getUserByPhoneFunc: func(_ context.Context, phone string) (*store.User, error) {
+		getUserByPhoneFunc: func(_ context.Context, phone string) (*store.AuthUser, error) {
 			if createdUserID == "" {
 				return nil, sql.ErrNoRows
 			}
 
-			return &store.User{
+			return &store.AuthUser{
 				ID:    createdUserID,
 				Phone: sql.NullString{String: phone, Valid: true},
 			}, nil
@@ -498,10 +498,10 @@ func TestCompleteLogin_NewUser_WithPhone(t *testing.T) {
 
 func TestCompleteLogin_CreateUserError(t *testing.T) {
 	repo := &mockRepository{
-		getValidMagicCodeByEmailFunc: func(_ context.Context, _, code string) (*store.MagicCode, error) {
-			return &store.MagicCode{Code: code}, nil
+		getValidMagicCodeByEmailFunc: func(_ context.Context, _, code string) (*store.AuthMagicCode, error) {
+			return &store.AuthMagicCode{Code: code}, nil
 		},
-		getUserByEmailFunc: func(_ context.Context, _ string) (*store.User, error) {
+		getUserByEmailFunc: func(_ context.Context, _ string) (*store.AuthUser, error) {
 			return nil, sql.ErrNoRows
 		},
 		createUserFunc: func(_ context.Context, _, _, _ string) error {
@@ -525,10 +525,10 @@ func TestCompleteLogin_FetchUserAfterCreateError(t *testing.T) {
 	callCount := 0
 
 	repo := &mockRepository{
-		getValidMagicCodeByEmailFunc: func(_ context.Context, _, code string) (*store.MagicCode, error) {
-			return &store.MagicCode{Code: code}, nil
+		getValidMagicCodeByEmailFunc: func(_ context.Context, _, code string) (*store.AuthMagicCode, error) {
+			return &store.AuthMagicCode{Code: code}, nil
 		},
-		getUserByEmailFunc: func(_ context.Context, _ string) (*store.User, error) {
+		getUserByEmailFunc: func(_ context.Context, _ string) (*store.AuthUser, error) {
 			callCount++
 			if callCount == 1 {
 				return nil, sql.ErrNoRows
@@ -557,10 +557,10 @@ func TestCompleteLogin_FetchUserByPhoneAfterCreateError(t *testing.T) {
 	callCount := 0
 
 	repo := &mockRepository{
-		getValidMagicCodeByPhoneFunc: func(_ context.Context, _, code string) (*store.MagicCode, error) {
-			return &store.MagicCode{Code: code}, nil
+		getValidMagicCodeByPhoneFunc: func(_ context.Context, _, code string) (*store.AuthMagicCode, error) {
+			return &store.AuthMagicCode{Code: code}, nil
 		},
-		getUserByPhoneFunc: func(_ context.Context, _ string) (*store.User, error) {
+		getUserByPhoneFunc: func(_ context.Context, _ string) (*store.AuthUser, error) {
 			callCount++
 			if callCount == 1 {
 				return nil, sql.ErrNoRows
@@ -587,11 +587,11 @@ func TestCompleteLogin_FetchUserByPhoneAfterCreateError(t *testing.T) {
 
 func TestCompleteLogin_InvalidateMagicCodesError(t *testing.T) {
 	repo := &mockRepository{
-		getValidMagicCodeByEmailFunc: func(_ context.Context, _, code string) (*store.MagicCode, error) {
-			return &store.MagicCode{Code: code}, nil
+		getValidMagicCodeByEmailFunc: func(_ context.Context, _, code string) (*store.AuthMagicCode, error) {
+			return &store.AuthMagicCode{Code: code}, nil
 		},
-		getUserByEmailFunc: func(_ context.Context, email string) (*store.User, error) {
-			return &store.User{
+		getUserByEmailFunc: func(_ context.Context, email string) (*store.AuthUser, error) {
+			return &store.AuthUser{
 				ID:    "user-123",
 				Email: sql.NullString{String: email, Valid: true},
 			}, nil
@@ -620,7 +620,7 @@ func TestCompleteLogin_InvalidateMagicCodesError(t *testing.T) {
 
 func TestVerifyMagicCodeByPhone_InvalidCode(t *testing.T) {
 	repo := &mockRepository{
-		getValidMagicCodeByPhoneFunc: func(_ context.Context, _, _ string) (*store.MagicCode, error) {
+		getValidMagicCodeByPhoneFunc: func(_ context.Context, _, _ string) (*store.AuthMagicCode, error) {
 			return nil, sql.ErrNoRows
 		},
 	}
@@ -639,7 +639,7 @@ func TestVerifyMagicCodeByPhone_InvalidCode(t *testing.T) {
 
 func TestVerifyMagicCodeByPhone_DatabaseError(t *testing.T) {
 	repo := &mockRepository{
-		getValidMagicCodeByPhoneFunc: func(_ context.Context, _, _ string) (*store.MagicCode, error) {
+		getValidMagicCodeByPhoneFunc: func(_ context.Context, _, _ string) (*store.AuthMagicCode, error) {
 			return nil, errors.New("database error")
 		},
 	}
@@ -658,8 +658,8 @@ func TestVerifyMagicCodeByPhone_DatabaseError(t *testing.T) {
 
 // Additional mock methods for the extended Repository interface
 
-func (m *mockRepository) GetUserByID(_ context.Context, id string) (*store.User, error) {
-	return &store.User{ID: id}, nil
+func (m *mockRepository) GetUserByID(_ context.Context, id string) (*store.AuthUser, error) {
+	return &store.AuthUser{ID: id}, nil
 }
 
 func (m *mockRepository) UpdateUserProfile(_ context.Context, _, _, _ string) error {

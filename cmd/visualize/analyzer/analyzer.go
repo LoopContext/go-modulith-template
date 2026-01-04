@@ -358,9 +358,9 @@ func analyzeEventConnections(projectRoot, modulesDir string, graph *Graph) error
 					// Find publisher
 					if publisher, ok := eventPublishers[eventName]; ok && publisher != moduleName {
 						graph.Connections = append(graph.Connections, Connection{
-							From: publisher,
-							To:   moduleName,
-							Type: "event",
+							From:  publisher,
+							To:    moduleName,
+							Type:  "event",
 							Event: eventName,
 						})
 					}
@@ -501,4 +501,3 @@ func updateModuleEvents(graph *Graph, moduleName, eventName string) {
 		}
 	}
 }
-

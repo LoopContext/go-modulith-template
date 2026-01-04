@@ -116,6 +116,126 @@ if ! grep -q "modules/${MODULE_NAME}/internal/db/store" sqlc.yaml; then
 EOF
 fi
 
+# Register module in registry.go
+register_module_in_registry() {
+    local registry_file="cmd/server/setup/registry.go"
+    local import_path="github.com/cmelgarejo/go-modulith-template/modules/${MODULE_NAME}"
+
+    if [ ! -f "$registry_file" ]; then
+        echo "⚠️  Warning: ${registry_file} not found, skipping auto-registration"
+        return
+    fi
+
+    # Check if module is already registered
+    if grep -q "reg.Register(${MODULE_NAME}.NewModule())" "$registry_file"; then
+        echo "ℹ️  Module ${MODULE_NAME} is already registered in ${registry_file}"
+        return
+    fi
+
+    # Determine sed command based on OS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        SED_IN_PLACE="sed -i ''"
+    else
+        SED_IN_PLACE="sed -i"
+    fi
+
+    # Use awk to modify the file - more reliable than sed for complex operations
+    local register_line_text="\treg.Register(${MODULE_NAME}.NewModule())"
+    awk -v module_name="${MODULE_NAME}" \
+        -v import_path="${import_path}" \
+        -v register_line="${register_line_text}" '
+    BEGIN {
+        import_added = 0
+        register_added = 0
+        in_import_block = 0
+        in_register_func = 0
+        last_import_line = ""
+    }
+
+    # Track import block
+    /^import \(/ {
+        in_import_block = 1
+        print
+        next
+    }
+    in_import_block && /^\)/ {
+        # Before closing import block, add import if not already present
+        if (!import_added) {
+            print "\t\"" import_path "\""
+            import_added = 1
+        }
+        in_import_block = 0
+        print
+        next
+    }
+    in_import_block {
+        # Check if our import already exists
+        if (index($0, "modules/" module_name) > 0) {
+            import_added = 1
+        }
+        # Track the last import line to insert after it
+        last_import_line = $0
+        print
+        next
+    }
+
+    # Track RegisterModules function
+    /^func RegisterModules/ {
+        in_register_func = 1
+        print
+        next
+    }
+
+    in_register_func && /^\t\/\/ Add more modules as needed:/ {
+        # Add registration before the comment
+        if (!register_added) {
+            print register_line
+            register_added = 1
+        }
+        print
+        next
+    }
+
+    in_register_func && /^}$/ && !register_added {
+        # Add registration before closing brace if comment not found
+        print register_line
+        register_added = 1
+        print
+        in_register_func = 0
+        next
+    }
+
+    in_register_func && /^}$/ {
+        in_register_func = 0
+        print
+        next
+    }
+
+    # Default: print the line
+    { print }
+    ' "$registry_file" > "${registry_file}.tmp" && mv "${registry_file}.tmp" "$registry_file"
+
+    if grep -q "\"${import_path}\"" "$registry_file"; then
+        echo "  ✅ Added import for ${MODULE_NAME} module"
+    fi
+    if grep -q "reg.Register(${MODULE_NAME}.NewModule())" "$registry_file"; then
+        echo "  ✅ Registered ${MODULE_NAME} module in ${registry_file}"
+    fi
+}
+
+echo ""
+echo "🔧 Registering module in registry..."
+register_module_in_registry
+
+echo ""
+echo "⚙️  Running code generation (make generate-all)..."
+if make generate-all > /dev/null 2>&1; then
+    echo "  ✅ Code generation completed successfully"
+else
+    echo "  ⚠️  Warning: Code generation had some issues, but continuing..."
+    echo "     You may need to run 'make generate-all' manually"
+fi
+
 echo "Module ${MODULE_NAME} scaffolded successfully!"
 echo ""
 echo "Generated files:"
@@ -132,24 +252,20 @@ if [ -d "${GRAPHQL_SCHEMA_DIR}" ]; then
 fi
 
 echo ""
-echo "Next steps:"
-echo "1. Run 'make proto' to generate gRPC code."
-echo "2. Run 'make sqlc' to generate DB code."
+echo "✅ Module setup complete! Next steps:"
 
 if [ -d "${GRAPHQL_SCHEMA_DIR}" ]; then
-    echo "3. Edit ${GRAPHQL_SCHEMA_FILE} to define your GraphQL schema."
-    echo "4. Run 'make graphql-generate-module MODULE_NAME=${MODULE_NAME}' to generate GraphQL code for this module."
+    echo ""
+    echo "1. Edit ${GRAPHQL_SCHEMA_FILE} to define your GraphQL schema."
+    echo "2. Run 'make graphql-generate-module MODULE_NAME=${MODULE_NAME}' to generate GraphQL code for this module."
     echo "   Or run 'make graphql-generate-all' to generate for all modules."
-    echo "5. Implement resolvers in ${GRAPHQL_RESOLVER_FILE}."
-    echo "6. Register the new module in cmd/server/setup/registry.go:"
-    echo "   Add: reg.Register(${MODULE_NAME}.NewModule()) in RegisterModules() function"
-    echo "7. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
-    echo "8. Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
-else
-    echo "3. Register the new module in cmd/server/setup/registry.go:"
-    echo "   Add: reg.Register(${MODULE_NAME}.NewModule()) in RegisterModules() function"
+    echo "3. Implement resolvers in ${GRAPHQL_RESOLVER_FILE}."
     echo "4. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
-    echo "5. Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
+    echo "   Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
+else
+    echo ""
+    echo "1. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
+    echo "   Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
     echo ""
     echo "💡 Tip: Run 'make graphql-init' to enable GraphQL support for future modules."
 fi

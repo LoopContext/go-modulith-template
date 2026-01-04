@@ -15,7 +15,7 @@ import (
 
 const blacklistToken = `-- name: BlacklistToken :exec
 
-INSERT INTO token_blacklist (token_hash, user_id, expires_at, reason)
+INSERT INTO auth.token_blacklist (token_hash, user_id, expires_at, reason)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (token_hash) DO NOTHING
 `
@@ -41,7 +41,7 @@ func (q *Queries) BlacklistToken(ctx context.Context, arg BlacklistTokenParams) 
 }
 
 const cleanupExpiredBlacklistEntries = `-- name: CleanupExpiredBlacklistEntries :exec
-DELETE FROM token_blacklist WHERE expires_at < CURRENT_TIMESTAMP
+DELETE FROM auth.token_blacklist WHERE expires_at < CURRENT_TIMESTAMP
 `
 
 func (q *Queries) CleanupExpiredBlacklistEntries(ctx context.Context) error {
@@ -50,7 +50,7 @@ func (q *Queries) CleanupExpiredBlacklistEntries(ctx context.Context) error {
 }
 
 const cleanupExpiredMagicCodes = `-- name: CleanupExpiredMagicCodes :exec
-DELETE FROM magic_codes WHERE expires_at < CURRENT_TIMESTAMP
+DELETE FROM auth.magic_codes WHERE expires_at < CURRENT_TIMESTAMP
 `
 
 func (q *Queries) CleanupExpiredMagicCodes(ctx context.Context) error {
@@ -59,7 +59,7 @@ func (q *Queries) CleanupExpiredMagicCodes(ctx context.Context) error {
 }
 
 const cleanupExpiredOAuthStates = `-- name: CleanupExpiredOAuthStates :exec
-DELETE FROM oauth_states WHERE expires_at < CURRENT_TIMESTAMP
+DELETE FROM auth.oauth_states WHERE expires_at < CURRENT_TIMESTAMP
 `
 
 func (q *Queries) CleanupExpiredOAuthStates(ctx context.Context) error {
@@ -68,7 +68,7 @@ func (q *Queries) CleanupExpiredOAuthStates(ctx context.Context) error {
 }
 
 const cleanupExpiredSessions = `-- name: CleanupExpiredSessions :exec
-DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '7 days'
+DELETE FROM auth.sessions WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '7 days'
 `
 
 func (q *Queries) CleanupExpiredSessions(ctx context.Context) error {
@@ -77,7 +77,7 @@ func (q *Queries) CleanupExpiredSessions(ctx context.Context) error {
 }
 
 const countExternalAccountsByUserID = `-- name: CountExternalAccountsByUserID :one
-SELECT COUNT(*) FROM user_external_accounts WHERE user_id = $1
+SELECT COUNT(*) FROM auth.user_external_accounts WHERE user_id = $1
 `
 
 func (q *Queries) CountExternalAccountsByUserID(ctx context.Context, userID string) (int64, error) {
@@ -89,7 +89,7 @@ func (q *Queries) CountExternalAccountsByUserID(ctx context.Context, userID stri
 
 const createExternalAccount = `-- name: CreateExternalAccount :exec
 
-INSERT INTO user_external_accounts (id, user_id, provider, provider_user_id, email, name, avatar_url, access_token, refresh_token, token_expires_at, raw_data)
+INSERT INTO auth.user_external_accounts (id, user_id, provider, provider_user_id, email, name, avatar_url, access_token, refresh_token, token_expires_at, raw_data)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `
 
@@ -129,7 +129,7 @@ func (q *Queries) CreateExternalAccount(ctx context.Context, arg CreateExternalA
 
 const createMagicCode = `-- name: CreateMagicCode :exec
 
-INSERT INTO magic_codes (code, user_email, user_phone, expires_at) VALUES ($1, $2, $3, $4)
+INSERT INTO auth.magic_codes (code, user_email, user_phone, expires_at) VALUES ($1, $2, $3, $4)
 `
 
 type CreateMagicCodeParams struct {
@@ -154,7 +154,7 @@ func (q *Queries) CreateMagicCode(ctx context.Context, arg CreateMagicCodeParams
 
 const createOAuthState = `-- name: CreateOAuthState :exec
 
-INSERT INTO oauth_states (state, provider, redirect_url, user_id, action, expires_at)
+INSERT INTO auth.oauth_states (state, provider, redirect_url, user_id, action, expires_at)
 VALUES ($1, $2, $3, $4, $5, $6)
 `
 
@@ -184,7 +184,7 @@ func (q *Queries) CreateOAuthState(ctx context.Context, arg CreateOAuthStatePara
 
 const createPendingContactChange = `-- name: CreatePendingContactChange :exec
 
-INSERT INTO pending_contact_changes (id, user_id, change_type, new_value, verification_code, expires_at)
+INSERT INTO auth.pending_contact_changes (id, user_id, change_type, new_value, verification_code, expires_at)
 VALUES ($1, $2, $3, $4, $5, $6)
 `
 
@@ -214,7 +214,7 @@ func (q *Queries) CreatePendingContactChange(ctx context.Context, arg CreatePend
 
 const createSession = `-- name: CreateSession :exec
 
-INSERT INTO sessions (id, user_id, refresh_token_hash, user_agent, ip_address, expires_at)
+INSERT INTO auth.sessions (id, user_id, refresh_token_hash, user_agent, ip_address, expires_at)
 VALUES ($1, $2, $3, $4, $5, $6)
 `
 
@@ -244,7 +244,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) er
 
 const createUser = `-- name: CreateUser :exec
 
-INSERT INTO users (id, email, phone) VALUES ($1, $2, $3)
+INSERT INTO auth.users (id, email, phone) VALUES ($1, $2, $3)
 `
 
 type CreateUserParams struct {
@@ -262,7 +262,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 }
 
 const deleteExpiredPendingContactChanges = `-- name: DeleteExpiredPendingContactChanges :exec
-DELETE FROM pending_contact_changes WHERE expires_at < CURRENT_TIMESTAMP
+DELETE FROM auth.pending_contact_changes WHERE expires_at < CURRENT_TIMESTAMP
 `
 
 func (q *Queries) DeleteExpiredPendingContactChanges(ctx context.Context) error {
@@ -271,7 +271,7 @@ func (q *Queries) DeleteExpiredPendingContactChanges(ctx context.Context) error 
 }
 
 const deleteExternalAccount = `-- name: DeleteExternalAccount :exec
-DELETE FROM user_external_accounts WHERE id = $1 AND user_id = $2
+DELETE FROM auth.user_external_accounts WHERE id = $1 AND user_id = $2
 `
 
 type DeleteExternalAccountParams struct {
@@ -285,7 +285,7 @@ func (q *Queries) DeleteExternalAccount(ctx context.Context, arg DeleteExternalA
 }
 
 const deleteExternalAccountByProvider = `-- name: DeleteExternalAccountByProvider :exec
-DELETE FROM user_external_accounts WHERE user_id = $1 AND provider = $2
+DELETE FROM auth.user_external_accounts WHERE user_id = $1 AND provider = $2
 `
 
 type DeleteExternalAccountByProviderParams struct {
@@ -299,7 +299,7 @@ func (q *Queries) DeleteExternalAccountByProvider(ctx context.Context, arg Delet
 }
 
 const deleteMagicCodesByEmail = `-- name: DeleteMagicCodesByEmail :exec
-DELETE FROM magic_codes WHERE user_email = $1
+DELETE FROM auth.magic_codes WHERE user_email = $1
 `
 
 func (q *Queries) DeleteMagicCodesByEmail(ctx context.Context, userEmail sql.NullString) error {
@@ -308,7 +308,7 @@ func (q *Queries) DeleteMagicCodesByEmail(ctx context.Context, userEmail sql.Nul
 }
 
 const deleteMagicCodesByPhone = `-- name: DeleteMagicCodesByPhone :exec
-DELETE FROM magic_codes WHERE user_phone = $1
+DELETE FROM auth.magic_codes WHERE user_phone = $1
 `
 
 func (q *Queries) DeleteMagicCodesByPhone(ctx context.Context, userPhone sql.NullString) error {
@@ -317,7 +317,7 @@ func (q *Queries) DeleteMagicCodesByPhone(ctx context.Context, userPhone sql.Nul
 }
 
 const deleteOAuthState = `-- name: DeleteOAuthState :exec
-DELETE FROM oauth_states WHERE state = $1
+DELETE FROM auth.oauth_states WHERE state = $1
 `
 
 func (q *Queries) DeleteOAuthState(ctx context.Context, state string) error {
@@ -326,7 +326,7 @@ func (q *Queries) DeleteOAuthState(ctx context.Context, state string) error {
 }
 
 const deletePendingContactChange = `-- name: DeletePendingContactChange :exec
-DELETE FROM pending_contact_changes WHERE id = $1
+DELETE FROM auth.pending_contact_changes WHERE id = $1
 `
 
 func (q *Queries) DeletePendingContactChange(ctx context.Context, id string) error {
@@ -335,7 +335,7 @@ func (q *Queries) DeletePendingContactChange(ctx context.Context, id string) err
 }
 
 const getExternalAccountByProviderAndEmail = `-- name: GetExternalAccountByProviderAndEmail :one
-SELECT id, user_id, provider, provider_user_id, email, name, avatar_url, access_token, refresh_token, token_expires_at, raw_data, created_at, updated_at FROM user_external_accounts WHERE provider = $1 AND email = $2 LIMIT 1
+SELECT id, user_id, provider, provider_user_id, email, name, avatar_url, access_token, refresh_token, token_expires_at, raw_data, created_at, updated_at FROM auth.user_external_accounts WHERE provider = $1 AND email = $2 LIMIT 1
 `
 
 type GetExternalAccountByProviderAndEmailParams struct {
@@ -343,9 +343,9 @@ type GetExternalAccountByProviderAndEmailParams struct {
 	Email    sql.NullString `json:"email"`
 }
 
-func (q *Queries) GetExternalAccountByProviderAndEmail(ctx context.Context, arg GetExternalAccountByProviderAndEmailParams) (UserExternalAccount, error) {
+func (q *Queries) GetExternalAccountByProviderAndEmail(ctx context.Context, arg GetExternalAccountByProviderAndEmailParams) (AuthUserExternalAccount, error) {
 	row := q.db.QueryRowContext(ctx, getExternalAccountByProviderAndEmail, arg.Provider, arg.Email)
-	var i UserExternalAccount
+	var i AuthUserExternalAccount
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -365,7 +365,7 @@ func (q *Queries) GetExternalAccountByProviderAndEmail(ctx context.Context, arg 
 }
 
 const getExternalAccountByProviderAndUserID = `-- name: GetExternalAccountByProviderAndUserID :one
-SELECT id, user_id, provider, provider_user_id, email, name, avatar_url, access_token, refresh_token, token_expires_at, raw_data, created_at, updated_at FROM user_external_accounts WHERE provider = $1 AND provider_user_id = $2 LIMIT 1
+SELECT id, user_id, provider, provider_user_id, email, name, avatar_url, access_token, refresh_token, token_expires_at, raw_data, created_at, updated_at FROM auth.user_external_accounts WHERE provider = $1 AND provider_user_id = $2 LIMIT 1
 `
 
 type GetExternalAccountByProviderAndUserIDParams struct {
@@ -373,9 +373,9 @@ type GetExternalAccountByProviderAndUserIDParams struct {
 	ProviderUserID string `json:"provider_user_id"`
 }
 
-func (q *Queries) GetExternalAccountByProviderAndUserID(ctx context.Context, arg GetExternalAccountByProviderAndUserIDParams) (UserExternalAccount, error) {
+func (q *Queries) GetExternalAccountByProviderAndUserID(ctx context.Context, arg GetExternalAccountByProviderAndUserIDParams) (AuthUserExternalAccount, error) {
 	row := q.db.QueryRowContext(ctx, getExternalAccountByProviderAndUserID, arg.Provider, arg.ProviderUserID)
-	var i UserExternalAccount
+	var i AuthUserExternalAccount
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -395,18 +395,18 @@ func (q *Queries) GetExternalAccountByProviderAndUserID(ctx context.Context, arg
 }
 
 const getExternalAccountsByUserID = `-- name: GetExternalAccountsByUserID :many
-SELECT id, user_id, provider, provider_user_id, email, name, avatar_url, access_token, refresh_token, token_expires_at, raw_data, created_at, updated_at FROM user_external_accounts WHERE user_id = $1 ORDER BY created_at DESC
+SELECT id, user_id, provider, provider_user_id, email, name, avatar_url, access_token, refresh_token, token_expires_at, raw_data, created_at, updated_at FROM auth.user_external_accounts WHERE user_id = $1 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetExternalAccountsByUserID(ctx context.Context, userID string) ([]UserExternalAccount, error) {
+func (q *Queries) GetExternalAccountsByUserID(ctx context.Context, userID string) ([]AuthUserExternalAccount, error) {
 	rows, err := q.db.QueryContext(ctx, getExternalAccountsByUserID, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []UserExternalAccount
+	var items []AuthUserExternalAccount
 	for rows.Next() {
-		var i UserExternalAccount
+		var i AuthUserExternalAccount
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -436,12 +436,12 @@ func (q *Queries) GetExternalAccountsByUserID(ctx context.Context, userID string
 }
 
 const getOAuthState = `-- name: GetOAuthState :one
-SELECT state, provider, redirect_url, user_id, action, created_at, expires_at FROM oauth_states WHERE state = $1 AND expires_at > CURRENT_TIMESTAMP LIMIT 1
+SELECT state, provider, redirect_url, user_id, action, created_at, expires_at FROM auth.oauth_states WHERE state = $1 AND expires_at > CURRENT_TIMESTAMP LIMIT 1
 `
 
-func (q *Queries) GetOAuthState(ctx context.Context, state string) (OauthState, error) {
+func (q *Queries) GetOAuthState(ctx context.Context, state string) (AuthOauthState, error) {
 	row := q.db.QueryRowContext(ctx, getOAuthState, state)
-	var i OauthState
+	var i AuthOauthState
 	err := row.Scan(
 		&i.State,
 		&i.Provider,
@@ -455,7 +455,7 @@ func (q *Queries) GetOAuthState(ctx context.Context, state string) (OauthState, 
 }
 
 const getPendingContactChange = `-- name: GetPendingContactChange :one
-SELECT id, user_id, change_type, new_value, verification_code, created_at, expires_at FROM pending_contact_changes
+SELECT id, user_id, change_type, new_value, verification_code, created_at, expires_at FROM auth.pending_contact_changes
 WHERE user_id = $1 AND change_type = $2 AND verification_code = $3 AND expires_at > CURRENT_TIMESTAMP
 LIMIT 1
 `
@@ -466,9 +466,9 @@ type GetPendingContactChangeParams struct {
 	VerificationCode string `json:"verification_code"`
 }
 
-func (q *Queries) GetPendingContactChange(ctx context.Context, arg GetPendingContactChangeParams) (PendingContactChange, error) {
+func (q *Queries) GetPendingContactChange(ctx context.Context, arg GetPendingContactChangeParams) (AuthPendingContactChange, error) {
 	row := q.db.QueryRowContext(ctx, getPendingContactChange, arg.UserID, arg.ChangeType, arg.VerificationCode)
-	var i PendingContactChange
+	var i AuthPendingContactChange
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -482,12 +482,12 @@ func (q *Queries) GetPendingContactChange(ctx context.Context, arg GetPendingCon
 }
 
 const getSessionByID = `-- name: GetSessionByID :one
-SELECT id, user_id, refresh_token_hash, user_agent, ip_address, created_at, last_active_at, expires_at, revoked_at FROM sessions WHERE id = $1 AND revoked_at IS NULL LIMIT 1
+SELECT id, user_id, refresh_token_hash, user_agent, ip_address, created_at, last_active_at, expires_at, revoked_at FROM auth.sessions WHERE id = $1 AND revoked_at IS NULL LIMIT 1
 `
 
-func (q *Queries) GetSessionByID(ctx context.Context, id string) (Session, error) {
+func (q *Queries) GetSessionByID(ctx context.Context, id string) (AuthSession, error) {
 	row := q.db.QueryRowContext(ctx, getSessionByID, id)
-	var i Session
+	var i AuthSession
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -503,12 +503,12 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (Session, error
 }
 
 const getSessionByRefreshTokenHash = `-- name: GetSessionByRefreshTokenHash :one
-SELECT id, user_id, refresh_token_hash, user_agent, ip_address, created_at, last_active_at, expires_at, revoked_at FROM sessions WHERE refresh_token_hash = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP LIMIT 1
+SELECT id, user_id, refresh_token_hash, user_agent, ip_address, created_at, last_active_at, expires_at, revoked_at FROM auth.sessions WHERE refresh_token_hash = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP LIMIT 1
 `
 
-func (q *Queries) GetSessionByRefreshTokenHash(ctx context.Context, refreshTokenHash string) (Session, error) {
+func (q *Queries) GetSessionByRefreshTokenHash(ctx context.Context, refreshTokenHash string) (AuthSession, error) {
 	row := q.db.QueryRowContext(ctx, getSessionByRefreshTokenHash, refreshTokenHash)
-	var i Session
+	var i AuthSession
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -524,18 +524,18 @@ func (q *Queries) GetSessionByRefreshTokenHash(ctx context.Context, refreshToken
 }
 
 const getSessionsByUserID = `-- name: GetSessionsByUserID :many
-SELECT id, user_id, refresh_token_hash, user_agent, ip_address, created_at, last_active_at, expires_at, revoked_at FROM sessions WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY last_active_at DESC
+SELECT id, user_id, refresh_token_hash, user_agent, ip_address, created_at, last_active_at, expires_at, revoked_at FROM auth.sessions WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY last_active_at DESC
 `
 
-func (q *Queries) GetSessionsByUserID(ctx context.Context, userID string) ([]Session, error) {
+func (q *Queries) GetSessionsByUserID(ctx context.Context, userID string) ([]AuthSession, error) {
 	rows, err := q.db.QueryContext(ctx, getSessionsByUserID, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Session
+	var items []AuthSession
 	for rows.Next() {
-		var i Session
+		var i AuthSession
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -561,12 +561,12 @@ func (q *Queries) GetSessionsByUserID(ctx context.Context, userID string) ([]Ses
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, phone, created_at, updated_at, display_name, avatar_url FROM users WHERE email = $1 LIMIT 1
+SELECT id, email, phone, created_at, updated_at, display_name, avatar_url FROM auth.users WHERE email = $1 LIMIT 1
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (User, error) {
+func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (AuthUser, error) {
 	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
-	var i User
+	var i AuthUser
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
@@ -580,12 +580,12 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (Use
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, phone, created_at, updated_at, display_name, avatar_url FROM users WHERE id = $1 LIMIT 1
+SELECT id, email, phone, created_at, updated_at, display_name, avatar_url FROM auth.users WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id string) (AuthUser, error) {
 	row := q.db.QueryRowContext(ctx, getUserByID, id)
-	var i User
+	var i AuthUser
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
@@ -599,12 +599,12 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 }
 
 const getUserByPhone = `-- name: GetUserByPhone :one
-SELECT id, email, phone, created_at, updated_at, display_name, avatar_url FROM users WHERE phone = $1 LIMIT 1
+SELECT id, email, phone, created_at, updated_at, display_name, avatar_url FROM auth.users WHERE phone = $1 LIMIT 1
 `
 
-func (q *Queries) GetUserByPhone(ctx context.Context, phone sql.NullString) (User, error) {
+func (q *Queries) GetUserByPhone(ctx context.Context, phone sql.NullString) (AuthUser, error) {
 	row := q.db.QueryRowContext(ctx, getUserByPhone, phone)
-	var i User
+	var i AuthUser
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
@@ -618,7 +618,7 @@ func (q *Queries) GetUserByPhone(ctx context.Context, phone sql.NullString) (Use
 }
 
 const getValidMagicCodeByEmail = `-- name: GetValidMagicCodeByEmail :one
-SELECT code, user_email, user_phone, expires_at, created_at FROM magic_codes
+SELECT code, user_email, user_phone, expires_at, created_at FROM auth.magic_codes
 WHERE user_email = $1 AND code = $2 AND expires_at > $3
 ORDER BY created_at DESC LIMIT 1
 `
@@ -629,9 +629,9 @@ type GetValidMagicCodeByEmailParams struct {
 	ExpiresAt time.Time      `json:"expires_at"`
 }
 
-func (q *Queries) GetValidMagicCodeByEmail(ctx context.Context, arg GetValidMagicCodeByEmailParams) (MagicCode, error) {
+func (q *Queries) GetValidMagicCodeByEmail(ctx context.Context, arg GetValidMagicCodeByEmailParams) (AuthMagicCode, error) {
 	row := q.db.QueryRowContext(ctx, getValidMagicCodeByEmail, arg.UserEmail, arg.Code, arg.ExpiresAt)
-	var i MagicCode
+	var i AuthMagicCode
 	err := row.Scan(
 		&i.Code,
 		&i.UserEmail,
@@ -643,7 +643,7 @@ func (q *Queries) GetValidMagicCodeByEmail(ctx context.Context, arg GetValidMagi
 }
 
 const getValidMagicCodeByPhone = `-- name: GetValidMagicCodeByPhone :one
-SELECT code, user_email, user_phone, expires_at, created_at FROM magic_codes
+SELECT code, user_email, user_phone, expires_at, created_at FROM auth.magic_codes
 WHERE user_phone = $1 AND code = $2 AND expires_at > $3
 ORDER BY created_at DESC LIMIT 1
 `
@@ -654,9 +654,9 @@ type GetValidMagicCodeByPhoneParams struct {
 	ExpiresAt time.Time      `json:"expires_at"`
 }
 
-func (q *Queries) GetValidMagicCodeByPhone(ctx context.Context, arg GetValidMagicCodeByPhoneParams) (MagicCode, error) {
+func (q *Queries) GetValidMagicCodeByPhone(ctx context.Context, arg GetValidMagicCodeByPhoneParams) (AuthMagicCode, error) {
 	row := q.db.QueryRowContext(ctx, getValidMagicCodeByPhone, arg.UserPhone, arg.Code, arg.ExpiresAt)
-	var i MagicCode
+	var i AuthMagicCode
 	err := row.Scan(
 		&i.Code,
 		&i.UserEmail,
@@ -668,7 +668,7 @@ func (q *Queries) GetValidMagicCodeByPhone(ctx context.Context, arg GetValidMagi
 }
 
 const isTokenBlacklisted = `-- name: IsTokenBlacklisted :one
-SELECT EXISTS(SELECT 1 FROM token_blacklist WHERE token_hash = $1 AND expires_at > CURRENT_TIMESTAMP)
+SELECT EXISTS(SELECT 1 FROM auth.token_blacklist WHERE token_hash = $1 AND expires_at > CURRENT_TIMESTAMP)
 `
 
 func (q *Queries) IsTokenBlacklisted(ctx context.Context, tokenHash string) (bool, error) {
@@ -679,7 +679,7 @@ func (q *Queries) IsTokenBlacklisted(ctx context.Context, tokenHash string) (boo
 }
 
 const revokeAllUserSessions = `-- name: RevokeAllUserSessions :execrows
-UPDATE sessions SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND revoked_at IS NULL AND ($2 = '' OR id != $2)
+UPDATE auth.sessions SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND revoked_at IS NULL AND ($2 = '' OR id != $2)
 `
 
 type RevokeAllUserSessionsParams struct {
@@ -696,7 +696,7 @@ func (q *Queries) RevokeAllUserSessions(ctx context.Context, arg RevokeAllUserSe
 }
 
 const revokeSession = `-- name: RevokeSession :exec
-UPDATE sessions SET revoked_at = CURRENT_TIMESTAMP WHERE id = $1
+UPDATE auth.sessions SET revoked_at = CURRENT_TIMESTAMP WHERE id = $1
 `
 
 func (q *Queries) RevokeSession(ctx context.Context, id string) error {
@@ -705,7 +705,7 @@ func (q *Queries) RevokeSession(ctx context.Context, id string) error {
 }
 
 const updateExternalAccountProfile = `-- name: UpdateExternalAccountProfile :exec
-UPDATE user_external_accounts
+UPDATE auth.user_external_accounts
 SET name = $3, avatar_url = $4, email = $5, raw_data = $6, updated_at = CURRENT_TIMESTAMP
 WHERE provider = $1 AND provider_user_id = $2
 `
@@ -732,7 +732,7 @@ func (q *Queries) UpdateExternalAccountProfile(ctx context.Context, arg UpdateEx
 }
 
 const updateExternalAccountTokens = `-- name: UpdateExternalAccountTokens :exec
-UPDATE user_external_accounts
+UPDATE auth.user_external_accounts
 SET access_token = $3, refresh_token = $4, token_expires_at = $5, updated_at = CURRENT_TIMESTAMP
 WHERE provider = $1 AND provider_user_id = $2
 `
@@ -757,7 +757,7 @@ func (q *Queries) UpdateExternalAccountTokens(ctx context.Context, arg UpdateExt
 }
 
 const updateSessionActivity = `-- name: UpdateSessionActivity :exec
-UPDATE sessions SET last_active_at = CURRENT_TIMESTAMP WHERE id = $1
+UPDATE auth.sessions SET last_active_at = CURRENT_TIMESTAMP WHERE id = $1
 `
 
 func (q *Queries) UpdateSessionActivity(ctx context.Context, id string) error {
@@ -766,7 +766,7 @@ func (q *Queries) UpdateSessionActivity(ctx context.Context, id string) error {
 }
 
 const updateUserProfile = `-- name: UpdateUserProfile :exec
-UPDATE users SET display_name = $2, avatar_url = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1
+UPDATE auth.users SET display_name = $2, avatar_url = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1
 `
 
 type UpdateUserProfileParams struct {

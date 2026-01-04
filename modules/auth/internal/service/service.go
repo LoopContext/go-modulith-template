@@ -221,8 +221,8 @@ func (s *AuthService) verifyMagicCodeByPhone(ctx context.Context, phone, code st
 	return nil
 }
 
-func (s *AuthService) getOrCreateUser(ctx context.Context, email, phone string) (*store.User, error) {
-	var user *store.User
+func (s *AuthService) getOrCreateUser(ctx context.Context, email, phone string) (*store.AuthUser, error) {
+	var user *store.AuthUser
 
 	var err error
 
@@ -244,7 +244,7 @@ func (s *AuthService) getOrCreateUser(ctx context.Context, email, phone string) 
 	return s.handleSignup(ctx, email, phone)
 }
 
-func (s *AuthService) handleSignup(ctx context.Context, email, phone string) (*store.User, error) {
+func (s *AuthService) handleSignup(ctx context.Context, email, phone string) (*store.AuthUser, error) {
 	tid, err := typeid.WithPrefix("user")
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to generate user typeid", "error", err)
@@ -274,7 +274,7 @@ func (s *AuthService) handleSignup(ctx context.Context, email, phone string) (*s
 	return user, nil
 }
 
-func (s *AuthService) generateLoginResponse(user *store.User) (*authv1.CompleteLoginResponse, error) {
+func (s *AuthService) generateLoginResponse(user *store.AuthUser) (*authv1.CompleteLoginResponse, error) {
 	accessToken, err := s.tokenService.CreateToken(user.ID, "user", 1*time.Hour)
 	if err != nil {
 		slog.Error("failed to create access token", "error", err)
@@ -664,8 +664,8 @@ func (s *AuthService) RevokeAllSessions(ctx context.Context, req *authv1.RevokeA
 	}, nil
 }
 
-// userToProto converts a store.User to a protobuf User message.
-func userToProto(user *store.User) *authv1.User {
+// userToProto converts a store.AuthUser to a protobuf User message.
+func userToProto(user *store.AuthUser) *authv1.User {
 	u := &authv1.User{
 		Id:        user.ID,
 		CreatedAt: timestamppb.New(user.CreatedAt),

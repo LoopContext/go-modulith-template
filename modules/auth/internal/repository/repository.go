@@ -21,15 +21,15 @@ type Repository interface {
 
 	// User management
 	CreateUser(ctx context.Context, id, email, phone string) error
-	GetUserByID(ctx context.Context, id string) (*store.User, error)
-	GetUserByEmail(ctx context.Context, email string) (*store.User, error)
-	GetUserByPhone(ctx context.Context, phone string) (*store.User, error)
+	GetUserByID(ctx context.Context, id string) (*store.AuthUser, error)
+	GetUserByEmail(ctx context.Context, email string) (*store.AuthUser, error)
+	GetUserByPhone(ctx context.Context, phone string) (*store.AuthUser, error)
 	UpdateUserProfile(ctx context.Context, id, displayName, avatarURL string) error
 
 	// Magic code (passwordless auth)
 	CreateMagicCode(ctx context.Context, code, email, phone string, expiresAt time.Time) error
-	GetValidMagicCodeByEmail(ctx context.Context, email, code string) (*store.MagicCode, error)
-	GetValidMagicCodeByPhone(ctx context.Context, phone, code string) (*store.MagicCode, error)
+	GetValidMagicCodeByEmail(ctx context.Context, email, code string) (*store.AuthMagicCode, error)
+	GetValidMagicCodeByPhone(ctx context.Context, phone, code string) (*store.AuthMagicCode, error)
 	InvalidateMagicCodes(ctx context.Context, email, phone string) error
 	CleanupExpiredMagicCodes(ctx context.Context) (int, error)
 
@@ -178,7 +178,7 @@ func (r *SQLRepository) CreateUser(ctx context.Context, id, email, phone string)
 }
 
 // GetUserByEmail retrieves a user record by their email address.
-func (r *SQLRepository) GetUserByEmail(ctx context.Context, email string) (*store.User, error) {
+func (r *SQLRepository) GetUserByEmail(ctx context.Context, email string) (*store.AuthUser, error) {
 	u, err := r.q.GetUserByEmail(ctx, sql.NullString{String: email, Valid: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
@@ -188,7 +188,7 @@ func (r *SQLRepository) GetUserByEmail(ctx context.Context, email string) (*stor
 }
 
 // GetUserByPhone retrieves a user record by their phone number.
-func (r *SQLRepository) GetUserByPhone(ctx context.Context, phone string) (*store.User, error) {
+func (r *SQLRepository) GetUserByPhone(ctx context.Context, phone string) (*store.AuthUser, error) {
 	u, err := r.q.GetUserByPhone(ctx, sql.NullString{String: phone, Valid: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by phone: %w", err)
@@ -212,7 +212,7 @@ func (r *SQLRepository) CreateMagicCode(ctx context.Context, code, email, phone 
 }
 
 // GetValidMagicCodeByEmail retrieves a valid magic code by user email and code value.
-func (r *SQLRepository) GetValidMagicCodeByEmail(ctx context.Context, email, code string) (*store.MagicCode, error) {
+func (r *SQLRepository) GetValidMagicCodeByEmail(ctx context.Context, email, code string) (*store.AuthMagicCode, error) {
 	mc, err := r.q.GetValidMagicCodeByEmail(ctx, store.GetValidMagicCodeByEmailParams{
 		UserEmail: sql.NullString{String: email, Valid: true},
 		Code:      code,
@@ -226,7 +226,7 @@ func (r *SQLRepository) GetValidMagicCodeByEmail(ctx context.Context, email, cod
 }
 
 // GetValidMagicCodeByPhone retrieves a valid magic code by user phone and code value.
-func (r *SQLRepository) GetValidMagicCodeByPhone(ctx context.Context, phone, code string) (*store.MagicCode, error) {
+func (r *SQLRepository) GetValidMagicCodeByPhone(ctx context.Context, phone, code string) (*store.AuthMagicCode, error) {
 	mc, err := r.q.GetValidMagicCodeByPhone(ctx, store.GetValidMagicCodeByPhoneParams{
 		UserPhone: sql.NullString{String: phone, Valid: true},
 		Code:      code,
@@ -261,7 +261,7 @@ func (r *SQLRepository) InvalidateMagicCodes(ctx context.Context, email, phone s
 }
 
 // GetUserByID retrieves a user record by their ID.
-func (r *SQLRepository) GetUserByID(ctx context.Context, id string) (*store.User, error) {
+func (r *SQLRepository) GetUserByID(ctx context.Context, id string) (*store.AuthUser, error) {
 	u, err := r.q.GetUserByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by id: %w", err)
@@ -445,8 +445,8 @@ func (r *SQLRepository) DeletePendingContactChange(ctx context.Context, id strin
 	return nil
 }
 
-// storeSessionToModel converts a store.Session to repository.Session.
-func storeSessionToModel(s *store.Session) *Session {
+// storeSessionToModel converts a store.AuthSession to repository.Session.
+func storeSessionToModel(s *store.AuthSession) *Session {
 	session := &Session{
 		ID:               s.ID,
 		UserID:           s.UserID,
@@ -640,8 +640,8 @@ func (r *SQLRepository) CountExternalAccountsByUserID(ctx context.Context, userI
 	return count, nil
 }
 
-// storeExternalAccountToModel converts a store.UserExternalAccount to repository.ExternalAccount.
-func storeExternalAccountToModel(ea *store.UserExternalAccount) (*ExternalAccount, error) {
+// storeExternalAccountToModel converts a store.AuthUserExternalAccount to repository.ExternalAccount.
+func storeExternalAccountToModel(ea *store.AuthUserExternalAccount) (*ExternalAccount, error) {
 	account := &ExternalAccount{
 		ID:             ea.ID,
 		UserID:         ea.UserID,

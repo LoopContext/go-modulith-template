@@ -391,10 +391,10 @@ func (mr *MockRepositoryMockRecorder) GetSessionsByUserID(ctx, userID any) *gomo
 }
 
 // GetUserByEmail mocks base method.
-func (m *MockRepository) GetUserByEmail(ctx context.Context, email string) (*store.User, error) {
+func (m *MockRepository) GetUserByEmail(ctx context.Context, email string) (*store.AuthUser, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserByEmail", ctx, email)
-	ret0, _ := ret[0].(*store.User)
+	ret0, _ := ret[0].(*store.AuthUser)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -406,10 +406,10 @@ func (mr *MockRepositoryMockRecorder) GetUserByEmail(ctx, email any) *gomock.Cal
 }
 
 // GetUserByID mocks base method.
-func (m *MockRepository) GetUserByID(ctx context.Context, id string) (*store.User, error) {
+func (m *MockRepository) GetUserByID(ctx context.Context, id string) (*store.AuthUser, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserByID", ctx, id)
-	ret0, _ := ret[0].(*store.User)
+	ret0, _ := ret[0].(*store.AuthUser)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -421,10 +421,10 @@ func (mr *MockRepositoryMockRecorder) GetUserByID(ctx, id any) *gomock.Call {
 }
 
 // GetUserByPhone mocks base method.
-func (m *MockRepository) GetUserByPhone(ctx context.Context, phone string) (*store.User, error) {
+func (m *MockRepository) GetUserByPhone(ctx context.Context, phone string) (*store.AuthUser, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserByPhone", ctx, phone)
-	ret0, _ := ret[0].(*store.User)
+	ret0, _ := ret[0].(*store.AuthUser)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -436,10 +436,10 @@ func (mr *MockRepositoryMockRecorder) GetUserByPhone(ctx, phone any) *gomock.Cal
 }
 
 // GetValidMagicCodeByEmail mocks base method.
-func (m *MockRepository) GetValidMagicCodeByEmail(ctx context.Context, email, code string) (*store.MagicCode, error) {
+func (m *MockRepository) GetValidMagicCodeByEmail(ctx context.Context, email, code string) (*store.AuthMagicCode, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetValidMagicCodeByEmail", ctx, email, code)
-	ret0, _ := ret[0].(*store.MagicCode)
+	ret0, _ := ret[0].(*store.AuthMagicCode)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -451,10 +451,10 @@ func (mr *MockRepositoryMockRecorder) GetValidMagicCodeByEmail(ctx, email, code 
 }
 
 // GetValidMagicCodeByPhone mocks base method.
-func (m *MockRepository) GetValidMagicCodeByPhone(ctx context.Context, phone, code string) (*store.MagicCode, error) {
+func (m *MockRepository) GetValidMagicCodeByPhone(ctx context.Context, phone, code string) (*store.AuthMagicCode, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetValidMagicCodeByPhone", ctx, phone, code)
-	ret0, _ := ret[0].(*store.MagicCode)
+	ret0, _ := ret[0].(*store.AuthMagicCode)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

@@ -64,7 +64,7 @@ func TestCompleteLogin_WithMock(t *testing.T) {
 
 	mockRepo.EXPECT().
 		GetValidMagicCodeByEmail(gomock.Any(), email, code).
-		Return(&store.MagicCode{
+		Return(&store.AuthMagicCode{
 			Code:      code,
 			UserEmail: sql.NullString{String: email, Valid: true},
 			ExpiresAt: time.Now().Add(5 * time.Minute),
@@ -73,7 +73,7 @@ func TestCompleteLogin_WithMock(t *testing.T) {
 
 	mockRepo.EXPECT().
 		GetUserByEmail(gomock.Any(), email).
-		Return(&store.User{
+		Return(&store.AuthUser{
 			ID:    userID,
 			Email: sql.NullString{String: email, Valid: true},
 		}, nil).
@@ -134,7 +134,7 @@ func getRequestLoginTestCases() []struct {
 			name: "successful login request",
 			req:  &authv1.RequestLoginRequest{ContactInfo: &authv1.RequestLoginRequest_Email{Email: "test@example.com"}},
 			setupMock: func(m *mocks.MockRepository) {
-				m.EXPECT().GetUserByEmail(gomock.Any(), "test@example.com").Return(&store.User{ID: "user-123"}, nil).Times(1)
+				m.EXPECT().GetUserByEmail(gomock.Any(), "test@example.com").Return(&store.AuthUser{ID: "user-123"}, nil).Times(1)
 				m.EXPECT().CreateMagicCode(gomock.Any(), gomock.Any(), "test@example.com", "", gomock.Any()).Return(nil).Times(1)
 			},
 			wantErr: false,
@@ -161,7 +161,7 @@ func getRequestLoginTestCases() []struct {
 			name: "repository error on create magic code",
 			req:  &authv1.RequestLoginRequest{ContactInfo: &authv1.RequestLoginRequest_Email{Email: "test@example.com"}},
 			setupMock: func(m *mocks.MockRepository) {
-				m.EXPECT().GetUserByEmail(gomock.Any(), "test@example.com").Return(&store.User{ID: "user-123"}, nil).Times(1)
+				m.EXPECT().GetUserByEmail(gomock.Any(), "test@example.com").Return(&store.AuthUser{ID: "user-123"}, nil).Times(1)
 				m.EXPECT().CreateMagicCode(gomock.Any(), gomock.Any(), "test@example.com", "", gomock.Any()).
 					Return(errors.New("database error")).Times(1)
 			},

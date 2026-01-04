@@ -1,7 +1,10 @@
+-- Set search_path for subsequent statements in this migration
+SET search_path TO auth, public;
+
 -- External OAuth Accounts
 -- Links users to external OAuth providers (Google, Facebook, GitHub, etc.)
 
-CREATE TABLE user_external_accounts (
+CREATE TABLE auth.user_external_accounts (
     id VARCHAR(64) PRIMARY KEY,
     user_id VARCHAR(64) NOT NULL,
     provider VARCHAR(50) NOT NULL,           -- google, facebook, github, apple, microsoft, twitter
@@ -15,18 +18,18 @@ CREATE TABLE user_external_accounts (
     raw_data JSONB,                          -- Additional data from the provider
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,
     UNIQUE (provider, provider_user_id)
 );
 
 -- Index for looking up accounts by user
-CREATE INDEX idx_external_accounts_user_id ON user_external_accounts(user_id);
+CREATE INDEX idx_external_accounts_user_id ON auth.user_external_accounts(user_id);
 
 -- Index for looking up accounts by provider and email (for auto-linking)
-CREATE INDEX idx_external_accounts_provider_email ON user_external_accounts(provider, email);
+CREATE INDEX idx_external_accounts_provider_email ON auth.user_external_accounts(provider, email);
 
 -- OAuth State tokens for CSRF protection
-CREATE TABLE oauth_states (
+CREATE TABLE auth.oauth_states (
     state VARCHAR(255) PRIMARY KEY,
     provider VARCHAR(50) NOT NULL,
     redirect_url VARCHAR(512),
@@ -37,5 +40,8 @@ CREATE TABLE oauth_states (
 );
 
 -- Index for cleanup of expired states
-CREATE INDEX idx_oauth_states_expires_at ON oauth_states(expires_at);
+CREATE INDEX idx_oauth_states_expires_at ON auth.oauth_states(expires_at);
+
+-- Reset search_path to default
+SET search_path TO public;
 

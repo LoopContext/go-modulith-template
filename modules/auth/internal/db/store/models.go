@@ -11,7 +11,7 @@ import (
 	"github.com/sqlc-dev/pqtype"
 )
 
-type MagicCode struct {
+type AuthMagicCode struct {
 	Code      string         `json:"code"`
 	UserEmail sql.NullString `json:"user_email"`
 	UserPhone sql.NullString `json:"user_phone"`
@@ -19,7 +19,7 @@ type MagicCode struct {
 	CreatedAt time.Time      `json:"created_at"`
 }
 
-type OauthState struct {
+type AuthOauthState struct {
 	State       string         `json:"state"`
 	Provider    string         `json:"provider"`
 	RedirectUrl sql.NullString `json:"redirect_url"`
@@ -29,7 +29,7 @@ type OauthState struct {
 	ExpiresAt   time.Time      `json:"expires_at"`
 }
 
-type PendingContactChange struct {
+type AuthPendingContactChange struct {
 	ID               string    `json:"id"`
 	UserID           string    `json:"user_id"`
 	ChangeType       string    `json:"change_type"`
@@ -39,24 +39,24 @@ type PendingContactChange struct {
 	ExpiresAt        time.Time `json:"expires_at"`
 }
 
-type Permission struct {
+type AuthPermission struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Resource string `json:"resource"`
 	Action   string `json:"action"`
 }
 
-type Role struct {
+type AuthRole struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
-type RolePermission struct {
+type AuthRolePermission struct {
 	RoleID       string `json:"role_id"`
 	PermissionID string `json:"permission_id"`
 }
 
-type Session struct {
+type AuthSession struct {
 	ID               string         `json:"id"`
 	UserID           string         `json:"user_id"`
 	RefreshTokenHash string         `json:"refresh_token_hash"`
@@ -68,7 +68,7 @@ type Session struct {
 	RevokedAt        sql.NullTime   `json:"revoked_at"`
 }
 
-type TokenBlacklist struct {
+type AuthTokenBlacklist struct {
 	TokenHash string         `json:"token_hash"`
 	UserID    string         `json:"user_id"`
 	ExpiresAt time.Time      `json:"expires_at"`
@@ -76,7 +76,7 @@ type TokenBlacklist struct {
 	Reason    sql.NullString `json:"reason"`
 }
 
-type User struct {
+type AuthUser struct {
 	ID          string         `json:"id"`
 	Email       sql.NullString `json:"email"`
 	Phone       sql.NullString `json:"phone"`
@@ -86,7 +86,7 @@ type User struct {
 	AvatarUrl   sql.NullString `json:"avatar_url"`
 }
 
-type UserExternalAccount struct {
+type AuthUserExternalAccount struct {
 	ID             string                `json:"id"`
 	UserID         string                `json:"user_id"`
 	Provider       string                `json:"provider"`
@@ -102,7 +102,7 @@ type UserExternalAccount struct {
 	UpdatedAt      time.Time             `json:"updated_at"`
 }
 
-type UserRole struct {
+type AuthUserRole struct {
 	UserID string `json:"user_id"`
 	RoleID string `json:"role_id"`
 }

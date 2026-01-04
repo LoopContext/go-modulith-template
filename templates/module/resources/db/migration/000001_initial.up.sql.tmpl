@@ -1,6 +1,15 @@
-CREATE TABLE {{.MODULE_NAME_PLURAL}} (
+-- Create schema for this module
+CREATE SCHEMA IF NOT EXISTS {{.MODULE_NAME}};
+
+-- Set search_path for subsequent statements in this migration
+SET search_path TO {{.MODULE_NAME}}, public;
+
+CREATE TABLE {{.MODULE_NAME}}.{{.MODULE_NAME_PLURAL}} (
     id VARCHAR(64) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Reset search_path to default
+SET search_path TO public;
