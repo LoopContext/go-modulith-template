@@ -1566,6 +1566,29 @@ func (r *SQLRepository) ListModules(ctx context.Context) ([]*store.Module, error
 }
 ```
 
+**SQLC Type Naming Conventions:**
+
+SQLC generates types with schema prefixes. Types follow the pattern `{Schema}{TableName}`:
+
+- Tables in the `auth` schema generate:
+  - `auth.users` → `store.AuthUser` (NOT `store.User`)
+  - `auth.magic_codes` → `store.AuthMagicCode` (NOT `store.MagicCode`)
+  - `auth.sessions` → `store.AuthSession`
+
+**Always use the full prefixed type names** in repository interfaces, service code, and tests:
+
+```go
+// ✅ Correct
+func GetUser(ctx context.Context, id string) (*store.AuthUser, error)
+func GetMagicCode(ctx context.Context, code string) (*store.AuthMagicCode, error)
+
+// ❌ Wrong - will cause "undefined: store.User" compilation errors
+func GetUser(ctx context.Context, id string) (*store.User, error)
+func GetMagicCode(ctx context.Context, code string) (*store.MagicCode, error)
+```
+
+After running `make sqlc`, check `modules/<mod>/internal/db/store/models.go` to see the exact generated type names.
+
 **Transaction Handling:**
 
 The `WithTx` method includes proper panic and error handling:

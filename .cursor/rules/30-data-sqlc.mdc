@@ -9,6 +9,29 @@ alwaysApply: false
   - SQL queries in `modules/<mod>/internal/db/query/*.sql`
   - generated SQLC store in `modules/<mod>/internal/db/store/`
 
+## SQLC Type Naming Conventions
+
+**IMPORTANT:** SQLC generates types with schema prefixes. Types are named using the pattern `{Schema}{TableName}`.
+
+- Tables in the `auth` schema generate types like:
+  - `auth.users` → `store.AuthUser` (NOT `store.User`)
+  - `auth.magic_codes` → `store.AuthMagicCode` (NOT `store.MagicCode`)
+  - `auth.sessions` → `store.AuthSession`
+  - `auth.oauth_states` → `store.AuthOauthState`
+
+- Always use the full prefixed type names in code:
+  ```go
+  // ✅ Correct
+  func GetUser(ctx context.Context, id string) (*store.AuthUser, error)
+  func GetMagicCode(ctx context.Context, code string) (*store.AuthMagicCode, error)
+
+  // ❌ Wrong
+  func GetUser(ctx context.Context, id string) (*store.User, error)
+  func GetMagicCode(ctx context.Context, code string) (*store.MagicCode, error)
+  ```
+
+- After running `make sqlc`, check `modules/<mod>/internal/db/store/models.go` to see the exact generated type names.
+
 ## Repository pattern
 
 - Flow: `store (sqlc)` → `repository` → `service` → `proto`.
@@ -16,6 +39,7 @@ alwaysApply: false
   - does not generate IDs
   - does not contain business logic
   - wraps external errors with context (`fmt.Errorf("...: %w", err)`)
+  - uses the correct SQLC-generated type names (with schema prefixes)
 
 ## Transactions
 

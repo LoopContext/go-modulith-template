@@ -97,6 +97,39 @@ mockgen -source=modules/auth/internal/repository/repository.go \
 
 See `modules/auth/internal/service/service_mock_test.go` for examples.
 
+### SQLC Type Names in Tests
+
+**Important:** When writing tests that use SQLC-generated types, always use the correct type names with schema prefixes:
+
+```go
+// ✅ Correct - Use schema-prefixed types
+mockRepo.EXPECT().
+    GetUserByEmail(gomock.Any(), email).
+    Return(&store.AuthUser{
+        ID:    "user-123",
+        Email: sql.NullString{String: email, Valid: true},
+    }, nil)
+
+mockRepo.EXPECT().
+    GetValidMagicCodeByEmail(gomock.Any(), email, code).
+    Return(&store.AuthMagicCode{
+        Code:      code,
+        UserEmail: sql.NullString{String: email, Valid: true},
+    }, nil)
+
+// ❌ Wrong - Missing schema prefix
+mockRepo.EXPECT().
+    GetUserByEmail(gomock.Any(), email).
+    Return(&store.User{...}, nil)  // This will cause "undefined: store.User" error
+```
+
+SQLC generates types using the pattern `{Schema}{TableName}`:
+- `auth.users` → `store.AuthUser`
+- `auth.magic_codes` → `store.AuthMagicCode`
+- `auth.sessions` → `store.AuthSession`
+
+Always check `modules/<mod>/internal/db/store/models.go` after running `make sqlc` to see the exact generated type names.
+
 ## Integration Testing
 
 ### Testing Module Initialization
