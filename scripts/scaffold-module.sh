@@ -40,13 +40,19 @@ if [[ "$IS_PLURAL" =~ ^[Yy] ]]; then
         # Simple singularization: remove trailing 's' then capitalize
         SINGULAR_NAME="${MODULE_NAME%s}"
         MODULE_STRUCT_NAME="$(tr '[:lower:]' '[:upper:]' <<< ${SINGULAR_NAME:0:1})${SINGULAR_NAME:1}"
+        # SQLC generates struct names as: SchemaName + TableName (singularized)
+        # e.g., stock.stocks -> StockStock, auth.users -> AuthUser
+        SQLC_STRUCT_NAME="${MODULE_NAME_CAPITALIZED}${MODULE_STRUCT_NAME}"
     else
         MODULE_NAME_PLURAL="${MODULE_NAME}s"
         MODULE_STRUCT_NAME="${MODULE_NAME_CAPITALIZED}"
+        SQLC_STRUCT_NAME="${MODULE_NAME_CAPITALIZED}${MODULE_STRUCT_NAME}"
     fi
 else
     MODULE_NAME_PLURAL="${MODULE_NAME}"
     MODULE_STRUCT_NAME="${MODULE_NAME_CAPITALIZED}"
+    # For singular table names, SQLC struct is: SchemaName + TableName
+    SQLC_STRUCT_NAME="${MODULE_NAME_CAPITALIZED}${MODULE_STRUCT_NAME}"
 fi
 
 MODULE_DIR="modules/${MODULE_NAME}"
@@ -74,6 +80,7 @@ process_template() {
         -e "s/{{.MODULE_NAME}}/${MODULE_NAME}/g" \
         -e "s/{{.MODULE_NAME_CAPITALIZED}}/${MODULE_NAME_CAPITALIZED}/g" \
         -e "s/{{.MODULE_STRUCT_NAME}}/${MODULE_STRUCT_NAME}/g" \
+        -e "s/{{.SQLC_STRUCT_NAME}}/${SQLC_STRUCT_NAME}/g" \
         -e "s/{{.MODULE_NAME_PLURAL}}/${MODULE_NAME_PLURAL}/g" \
         "$src" > "$dest"
 }
@@ -254,11 +261,14 @@ register_module_in_registry
 
 echo ""
 echo "⚙️  Running code generation (make generate-all)..."
-if make generate-all > /dev/null 2>&1; then
+if make generate-all; then
+    echo ""
     echo "  ✅ Code generation completed successfully"
 else
-    echo "  ⚠️  Warning: Code generation had some issues, but continuing..."
-    echo "     You may need to run 'make generate-all' manually"
+    echo ""
+    echo "  ❌ Error: Code generation failed!"
+    echo "     Please run 'make generate-all' manually to see the errors"
+    exit 1
 fi
 
 echo "Module ${MODULE_NAME} scaffolded successfully!"
