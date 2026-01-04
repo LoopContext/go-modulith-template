@@ -179,13 +179,14 @@ migrate-force: ## Force migration version to clean dirty state (usage: make migr
 	fi; \
 	migrate -path $$MIGRATIONS_DIR -database "$$MODULE_DSN" force $(VERSION)
 
-db-down: ## Rollback last migration for all modules (uses modulith's migration system)
-	@echo "⚠️  WARNING: This will rollback the last migration for ALL modules!"
+db-down: ## Rollback ALL migrations for all modules (drops all tables, uses modulith's migration system)
+	@echo "⚠️  WARNING: This will rollback ALL migrations for ALL modules (drops all tables)!"
 	@read -p "Are you sure? Type 'yes' to confirm: " confirm && [ "$$confirm" = "yes" ] || exit 1
-	@echo "🔄 Rolling back migrations for all modules..."
+	@echo "🔄 Rolling back all migrations for all modules..."
 	@go run cmd/server/main.go migrate-down
 
-db-reset: db-down migrate-up ## Drop database and re-run all migrations (db-down + migrate-up)
+db-reset: ## Drop all module schemas and re-run all migrations (destructive, asks for confirmation)
+	@./scripts/db-reset.sh
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -258,6 +259,12 @@ ifeq (new-module,$(firstword $(MAKECMDGOALS)))
   $(eval $(MODULE_NAME):;@:)
 endif
 
+# Handle positional arguments for destroy-module
+ifeq (destroy-module,$(firstword $(MAKECMDGOALS)))
+  MODULE_NAME := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(eval $(MODULE_NAME):;@:)
+endif
+
 # Handle positional arguments for build-module
 ifeq (build-module,$(firstword $(MAKECMDGOALS)))
   MODULE_NAME := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
@@ -307,6 +314,10 @@ docker-build-module: ## Build docker image for a specific module (usage: make do
 new-module: ## Scaffold a new module (usage: make new-module MODULE_NAME)
 	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make new-module NAME"; exit 1; fi
 	./scripts/scaffold-module.sh $(MODULE_NAME)
+
+destroy-module: ## Destroy a module completely (usage: make destroy-module MODULE_NAME)
+	@if [ -z "$(MODULE_NAME)" ]; then echo "Usage: make destroy-module MODULE_NAME"; exit 1; fi
+	./scripts/destroy-module.sh $(MODULE_NAME)
 
 ##### GraphQL (Optional)
 graphql-add: ## Add optional GraphQL support using gqlgen (automatically generates code)

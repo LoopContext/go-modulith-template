@@ -101,10 +101,12 @@ func (r *Runner) runModuleMigrationWithDirection(moduleName, path, direction str
 	switch direction {
 	case "down":
 		return r.rollbackMigrations(m, moduleName)
+	case "down-all":
+		return r.rollbackAllMigrations(m, moduleName)
 	case "up":
 		return r.applyMigrations(m, moduleName)
 	default:
-		return fmt.Errorf("invalid direction: %s (must be 'up' or 'down')", direction)
+		return fmt.Errorf("invalid direction: %s (must be 'up', 'down', or 'down-all')", direction)
 	}
 }
 
@@ -215,6 +217,40 @@ func (r *Runner) rollbackMigrations(m *migrate.Migrate, moduleName string) error
 	return nil
 }
 
+// rollbackAllMigrations rolls back all migrations to version 0 and logs the result.
+func (r *Runner) rollbackAllMigrations(m *migrate.Migrate, moduleName string) error {
+	// Check current version first to handle version 0 case
+	version, dirty, err := m.Version()
+	if err != nil && err != migrate.ErrNilVersion {
+		return fmt.Errorf("failed to get migration version: %w", err)
+	}
+
+	// If no migrations are applied (version 0 or ErrNilVersion), there's nothing to rollback
+	if err == migrate.ErrNilVersion || version == 0 {
+		slog.Debug("No migrations to rollback (database is at version 0)", "module", moduleName)
+		return nil
+	}
+
+	// If database is dirty, we can't rollback
+	if dirty {
+		return fmt.Errorf("database is in dirty state at version %d, use migrate-force to fix", version)
+	}
+
+	// Rollback all migrations to version 0
+	err = m.Down()
+	if err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to rollback all migrations: %w", err)
+	}
+
+	if err == migrate.ErrNoChange {
+		slog.Debug("No migrations to rollback", "module", moduleName)
+	} else {
+		slog.Info("All migrations rolled back successfully", "module", moduleName, "from_version", version)
+	}
+
+	return nil
+}
+
 // RunForModule runs migrations for a specific module by name.
 func (r *Runner) RunForModule(moduleName string) error {
 	mod := r.reg.GetModule(moduleName)
@@ -235,8 +271,9 @@ func (r *Runner) RunForModule(moduleName string) error {
 	return r.runModuleMigration(moduleName, path)
 }
 
-// DownAll rolls back the last migration for all registered modules that implement ModuleMigrations.
+// DownAll rolls back ALL migrations for all registered modules that implement ModuleMigrations.
 // Each module's migrations are tracked independently using per-module migrations tables.
+// This will rollback all migrations to version 0, dropping all tables.
 func (r *Runner) DownAll() error {
 	modules := r.reg.Modules()
 	if len(modules) == 0 {
@@ -260,11 +297,11 @@ func (r *Runner) DownAll() error {
 		}
 
 		modulesWithMigrations++
-		slog.Info("Rolling back last migration for module", "module", mod.Name(), "path", path)
+		slog.Info("Rolling back all migrations for module", "module", mod.Name(), "path", path)
 
-		if err := r.runModuleMigrationWithDirection(mod.Name(), path, "down"); err != nil {
+		if err := r.runModuleMigrationWithDirection(mod.Name(), path, "down-all"); err != nil {
 			// Log error but continue with other modules
-			slog.Error("Failed to rollback migration for module", "module", mod.Name(), "error", err)
+			slog.Error("Failed to rollback all migrations for module", "module", mod.Name(), "error", err)
 			lastError = err
 			// Don't return error immediately - try to rollback other modules
 			continue
@@ -286,7 +323,7 @@ func (r *Runner) DownAll() error {
 		return fmt.Errorf("failed to rollback migrations for any module")
 	}
 
-	slog.Info("Module migrations rollback completed", "count", rolledBackCount, "total", modulesWithMigrations)
+	slog.Info("All module migrations rolled back successfully", "count", rolledBackCount, "total", modulesWithMigrations)
 	return nil
 }
 
