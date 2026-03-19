@@ -10,7 +10,7 @@ SCHEMA_DIR="${PROJECT_ROOT}/internal/graphql/schema"
 
 # Check if GraphQL is initialized
 if [ ! -f "${PROJECT_ROOT}/gqlgen.yml" ]; then
-    echo "❌ GraphQL not initialized. Run: make graphql-init"
+    echo "❌ GraphQL not initialized. Run: just graphql-init"
     exit 1
 fi
 
@@ -23,7 +23,7 @@ fi
 # Check if schema directory exists
 if [ ! -d "${SCHEMA_DIR}" ]; then
     echo "❌ GraphQL schema directory not found: ${SCHEMA_DIR}"
-    echo "   Run 'make graphql-init' to initialize GraphQL"
+    echo "   Run 'just graphql-init' to initialize GraphQL"
     exit 1
 fi
 
@@ -33,7 +33,7 @@ echo "🔍 Discovering modules with GraphQL schemas..."
 ROOT_SCHEMA="${SCHEMA_DIR}/schema.graphql"
 if [ ! -f "${ROOT_SCHEMA}" ]; then
     echo "❌ Root schema not found: ${ROOT_SCHEMA}"
-    echo "   Run 'make graphql-init' to initialize GraphQL"
+    echo "   Run 'just graphql-init' to initialize GraphQL"
     exit 1
 fi
 

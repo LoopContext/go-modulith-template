@@ -111,7 +111,7 @@ func testGRPCClient(t *testing.T, grpcServer *testutil.GRPCTestServer) {
 		t.Fatal("gRPC client is nil")
 	}
 
-	// At this point, you would use the client to make actual gRPC calls
+	// At this point, you would use the client to just actual gRPC calls
 	// Example:
 	// authClient := authv1.NewAuthServiceClient(client)
 	// resp, err := authClient.RequestLogin(ctx, &authv1.RequestLoginRequest{

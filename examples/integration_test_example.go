@@ -13,7 +13,7 @@
 //
 // Or use the Makefile:
 //
-//	make test-integration
+//	just test-integration
 package examples
 
 import (

@@ -28,7 +28,7 @@ fi
 # Check if database container is running
 if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_db"; then
     echo -e "${RED}Error: Database container is not running${NC}"
-    echo "  Start it with: make docker-up"
+    echo "  Start it with: just docker-up"
     exit 1
 fi
 

@@ -53,7 +53,7 @@ This is a professional template for building Go applications following the **Mod
 The fastest way to get started is using the automated quickstart script:
 
 ```bash
-make quickstart
+just quickstart
 ```
 
 This will:
@@ -64,7 +64,7 @@ This will:
 4. Run database migrations
 5. Optionally run seed data
 
-> 💡 **Tip**: For a minimal setup (database + Redis only), use `make docker-up-minimal`.
+> 💡 **Tip**: For a minimal setup (database + Redis only), use `just docker-up-minimal`.
 
 ### Manual Setup
 
@@ -73,13 +73,13 @@ This will:
 Check that all prerequisites are installed:
 
 ```bash
-make validate-setup
+just validate-setup
 ```
 
 #### 2. Install dependencies
 
 ```bash
-make install-deps
+just install-deps
 ```
 
 #### 3. Start Complete Infrastructure
@@ -87,7 +87,7 @@ make install-deps
 The template includes a complete observability stack for local development:
 
 ```bash
-make docker-up
+just docker-up
 ```
 
 This starts:
@@ -98,7 +98,7 @@ This starts:
 -   **Prometheus**: Metrics and alerts (UI at http://localhost:9090)
 -   **Grafana**: Visualization dashboards (UI at http://localhost:3000, user: `admin`, password: `admin`)
 
-> 💡 **Tip**: To start only the database and Redis, use `make docker-up-minimal`.
+> 💡 **Tip**: To start only the database and Redis, use `just docker-up-minimal`.
 
 #### 4. Configure (Optional)
 
@@ -121,21 +121,21 @@ On startup, you'll see a log showing the source of each configuration variable.
 #### 5. Run in Development (Hot Reload)
 
 ```bash
-make dev
+just dev
 ```
 
 To run a specific module with hot reload:
 
 ```bash
-make dev-module auth
+just dev-module auth
 ```
 
 To run the worker process (background tasks):
 
 ```bash
-make dev-worker
+just dev-worker
 # or
-make build-worker && ./bin/worker
+just build-worker && ./bin/worker
 ```
 
 > 💡 **Tip**: Air automatically monitors changes in `.go`, `.yaml`, `.env`, `.proto`, `.sql` and configuration files, restarting the server instantly.
@@ -198,7 +198,7 @@ The template includes an administrative task system for maintenance operations:
 
 ```bash
 # Run an administrative task
-make admin TASK=cleanup-sessions
+just admin TASK=cleanup-sessions
 
 # Or directly with the binary
 ./bin/server admin cleanup-sessions
@@ -233,7 +233,7 @@ Administrative tasks run as independent commands and are useful for:
 
 The project automatically generates OpenAPI/Swagger documentation:
 
--   **Location**: `gen/openapiv2/proto/` (generated with `make proto`)
+-   **Location**: `gen/openapiv2/proto/` (generated with `just proto`)
 -   **Format**: JSON compatible with Swagger UI
 -   **Usage**: Import `.swagger.json` files into [Swagger Editor](https://editor.swagger.io/) or any compatible tool
 
@@ -241,7 +241,7 @@ Example for the auth module:
 
 ```bash
 # Generate documentation
-make proto
+just proto
 
 # View the API
 open gen/openapiv2/proto/auth/v1/auth.swagger.json
@@ -251,97 +251,97 @@ open gen/openapiv2/proto/auth/v1/auth.swagger.json
 
 ### Code Generation
 
--   `make proto`: Generates gRPC code from `.proto` files (includes OpenAPI/Swagger in `gen/openapiv2/`).
--   `make sqlc`: Generates Type-safe code for SQL queries.
+-   `just proto`: Generates gRPC code from `.proto` files (includes OpenAPI/Swagger in `gen/openapiv2/`).
+-   `just sqlc`: Generates Type-safe code for SQL queries.
 
 ### Build
 
--   `make build`: Compiles the monolith binary in `bin/server`.
--   `make build-module MODULE_NAME`: Compiles the binary for a specific module (e.g.: `make build-module auth`).
--   `make build-all`: Compiles all binaries (server + all modules).
--   `make clean`: Removes all build artifacts (`bin/` directory).
+-   `just build`: Compiles the monolith binary in `bin/server`.
+-   `just build-module MODULE_NAME`: Compiles the binary for a specific module (e.g.: `just build-module auth`).
+-   `just build-all`: Compiles all binaries (server + all modules).
+-   `just clean`: Removes all build artifacts (`bin/` directory).
 
 ### Setup & Validation
 
--   `make quickstart`: Automated setup process (installs deps, starts docker, runs migrations).
--   `make validate-setup`: Validates development environment setup (prerequisites, tools, ports).
--   `make doctor`: Comprehensive development environment diagnostics (containers, connectivity, configuration).
+-   `just quickstart`: Automated setup process (installs deps, starts docker, runs migrations).
+-   `just validate-setup`: Validates development environment setup (prerequisites, tools, ports).
+-   `just doctor`: Comprehensive development environment diagnostics (containers, connectivity, configuration).
 
 ### Docker
 
--   `make docker-up`: Starts all infrastructure services (PostgreSQL, Redis, Jaeger, Prometheus, Grafana).
--   `make docker-up-minimal`: Starts minimal services (PostgreSQL + Redis only) for faster startup.
--   `make docker-down`: Stops Docker containers.
--   `make docker-build`: Builds the server Docker image (`modulith-server:latest`).
--   `make docker-build-module MODULE_NAME`: Builds the Docker image for a specific module (e.g.: `make docker-build-module auth`).
+-   `just docker-up`: Starts all infrastructure services (PostgreSQL, Redis, Jaeger, Prometheus, Grafana).
+-   `just docker-up-minimal`: Starts minimal services (PostgreSQL + Redis only) for faster startup.
+-   `just docker-down`: Stops Docker containers.
+-   `just docker-build`: Builds the server Docker image (`modulith-server:latest`).
+-   `just docker-build-module MODULE_NAME`: Builds the Docker image for a specific module (e.g.: `just docker-build-module auth`).
 
 ### Code Quality
 
--   `make lint`: Runs the strict linter (**MANDATORY** after changes to `.go` files).
--   `make test`: Runs all unit tests.
--   `make test-unit`: Runs unit tests with mocks (fast, no DB).
--   `make test-coverage`: Runs tests and generates HTML coverage report.
--   `make coverage-report`: Shows detailed coverage report in terminal.
--   `make coverage-html`: Opens coverage report in browser.
--   `make generate-mocks`: Generates interface mocks for testing.
--   `make install-mocks`: Installs gomock for mock generation.
+-   `just lint`: Runs the strict linter (**MANDATORY** after changes to `.go` files).
+-   `just test`: Runs all unit tests.
+-   `just test-unit`: Runs unit tests with mocks (fast, no DB).
+-   `just test-coverage`: Runs tests and generates HTML coverage report.
+-   `just coverage-report`: Shows detailed coverage report in terminal.
+-   `just coverage-html`: Opens coverage report in browser.
+-   `just generate-mocks`: Generates interface mocks for testing.
+-   `just install-mocks`: Installs gomock for mock generation.
 
 ### Development
 
--   `make dev`: Runs the monolith server with hot reload.
--   `make dev-module MODULE_NAME`: Runs a specific module with hot reload (e.g.: `make dev-module auth`).
--   `make new-module MODULE_NAME`: Creates boilerplate for a new functional module with automatic configuration (generates structure + `.air.{MODULE_NAME}.toml`).
+-   `just dev`: Runs the monolith server with hot reload.
+-   `just dev-module MODULE_NAME`: Runs a specific module with hot reload (e.g.: `just dev-module auth`).
+-   `just new-module MODULE_NAME`: Creates boilerplate for a new functional module with automatic configuration (generates structure + `.air.{MODULE_NAME}.toml`).
 
 ### Database
 
--   `make migrate-up` / `make migrate`: Runs migrations for all modules (the modulith discovers them automatically).
--   `make migrate-down MODULE=auth`: Reverts the last migration for a specific module.
--   `make migrate-create MODULE=auth NAME=add_users`: Creates a new migration for a specific module.
--   `make db-down`: ⚠️ Deletes all database tables (destructive).
--   `make db-reset`: ⚠️ Deletes everything and runs all migrations (equivalent to `db-down` + `migrate-up`).
+-   `just migrate-up` / `just migrate`: Runs migrations for all modules (the modulith discovers them automatically).
+-   `just migrate-down MODULE=auth`: Reverts the last migration for a specific module.
+-   `just migrate-create MODULE=auth NAME=add_users`: Creates a new migration for a specific module.
+-   `just db-down`: ⚠️ Deletes all database tables (destructive).
+-   `just db-reset`: ⚠️ Deletes everything and runs all migrations (equivalent to `db-down` + `migrate-up`).
 
 **Note:** Migrations run automatically when you start the server. The modulith discovers and applies migrations for all registered modules.
 
 ### Administrative Tasks
 
--   `make admin TASK=cleanup-sessions`: Runs administrative task to clean expired sessions.
--   `make admin TASK=cleanup-magic-codes`: Runs administrative task to clean expired magic codes.
+-   `just admin TASK=cleanup-sessions`: Runs administrative task to clean expired sessions.
+-   `just admin TASK=cleanup-magic-codes`: Runs administrative task to clean expired magic codes.
 -   `./bin/server admin <task_name>`: Runs an administrative task directly.
 
 **Note:** Administrative tasks run as independent commands. You can list available tasks by running `./bin/server admin` without arguments.
 
 ### GraphQL (Optional)
 
--   `make graphql-init`: Adds optional GraphQL support using gqlgen and automatically generates code (one command does everything).
--   `make graphql-generate-all`: Generates GraphQL code from schemas for all modules.
--   `make graphql-generate-module MODULE_NAME=<name>`: Generates GraphQL code for a specific module (auto-generates schema from proto if missing).
--   `make graphql-from-proto`: Generates GraphQL schemas from OpenAPI/Swagger definitions for all modules.
--   `make graphql-validate`: Validates GraphQL schema.
+-   `just graphql-init`: Adds optional GraphQL support using gqlgen and automatically generates code (one command does everything).
+-   `just graphql-generate-all`: Generates GraphQL code from schemas for all modules.
+-   `just graphql-generate-module MODULE_NAME=<name>`: Generates GraphQL code for a specific module (auto-generates schema from proto if missing).
+-   `just graphql-from-proto`: Generates GraphQL schemas from OpenAPI/Swagger definitions for all modules.
+-   `just graphql-validate`: Validates GraphQL schema.
 
 ### ⚠️ Quality Workflow
 
 **After modifying `.go` files:**
 
-1. Run `make lint` and fix **all** errors (0 issues).
-2. Run `make test` to verify you didn't break anything.
+1. Run `just lint` and fix **all** errors (0 issues).
+2. Run `just test` to verify you didn't break anything.
 3. **NEVER** modify `.golangci.yaml` to ignore errors - implement proper fixes.
 
 ### Troubleshooting
 
 If you encounter issues with your development environment:
 
-1. **Run diagnostics**: `make doctor` - Comprehensive health check of your environment
-2. **Validate setup**: `make validate-setup` - Check prerequisites and configuration
+1. **Run diagnostics**: `just doctor` - Comprehensive health check of your environment
+2. **Validate setup**: `just validate-setup` - Check prerequisites and configuration
 3. **Check containers**: `docker-compose ps` - Verify Docker containers are running
 4. **View logs**: `docker-compose logs [service]` - Check service logs
-5. **Reset database**: `make db-reset` - Drop and recreate database (destructive)
+5. **Reset database**: `just db-reset` - Drop and recreate database (destructive)
 
 Common issues:
 
--   **Port conflicts**: Use `make doctor` to identify which ports are in use
+-   **Port conflicts**: Use `just doctor` to identify which ports are in use
 -   **Docker not running**: Start Docker Desktop or docker service
--   **Database connection errors**: Ensure containers are running with `make docker-up`
--   **Missing tools**: Run `make install-deps` to install all development tools
+-   **Database connection errors**: Ensure containers are running with `just docker-up`
+-   **Missing tools**: Run `just install-deps` to install all development tools
 
 ---
 

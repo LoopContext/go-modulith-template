@@ -14,7 +14,7 @@ echo "🔄 Generating GraphQL schemas from OpenAPI definitions..."
 
 # Check if GraphQL is initialized
 if [ ! -d "${SCHEMA_DIR}" ]; then
-    echo "❌ GraphQL not initialized. Run: make graphql-init"
+    echo "❌ GraphQL not initialized. Run: just graphql-init"
     exit 1
 fi
 
@@ -38,7 +38,7 @@ for swagger_file in "${OPENAPI_DIR}"/*/v1/*.swagger.json; do
 done
 
 if [ ${#MODULES[@]} -eq 0 ]; then
-    echo "⚠️  No OpenAPI files found. Run 'make proto' first to generate OpenAPI definitions."
+    echo "⚠️  No OpenAPI files found. Run 'just proto' first to generate OpenAPI definitions."
     exit 0
 fi
 
@@ -71,7 +71,7 @@ if [ $GENERATED -gt 0 ]; then
     echo ""
     echo "📝 Next steps:"
     echo "   1. Review and customize the generated schemas in ${SCHEMA_DIR}/"
-    echo "   2. Run 'make graphql-generate-all' to generate resolver code"
+    echo "   2. Run 'just graphql-generate-all' to generate resolver code"
     echo "   3. Implement resolvers in internal/graphql/resolver/"
 else
     echo "⚠️  No schemas were generated"

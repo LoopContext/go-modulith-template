@@ -60,6 +60,46 @@ test-e2e-reschedule: be-test-e2e-reschedule
 # Run E2E tests for no-winners settlement (redistribute + void policies)
 test-e2e-nowinners: be-test-e2e-nowinners
 
+# Generate code from SQL
+sqlc: be-sqlc
+
+# Generate code from Protobuf
+proto: be-proto
+
+# Format code
+format: be-format
+
+# Tidy dependencies
+tidy: be-tidy
+
+# Scaffold a new module
+new-module name: (be-new-module name)
+
+# Destroy a module
+destroy-module name: (be-destroy-module name)
+
+# --- GraphQL Aliases ---
+add-graphql: be-graphql-add
+graphql-init: be-graphql-init
+graphql-add: be-graphql-add
+graphql-generate: be-graphql-generate
+graphql-generate-all: be-graphql-generate-all
+graphql-generate-module name: (be-graphql-generate-module name)
+graphql-from-proto: be-graphql-from-proto
+
+# --- Build Aliases ---
+build-module name: (be-build-module name)
+build-worker: be-build-worker
+build-all: be-build-all
+
+# --- Docker Aliases ---
+docker-build: be-docker-build
+docker-build-module name: (be-docker-build-module name)
+
+# --- Dev Aliases ---
+dev-worker: be-dev-worker
+dev-module name: (be-dev-module name)
+
 # Run admin panel E2E tests
 
 # Run admin panel E2E tests in UI mode

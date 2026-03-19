@@ -18,7 +18,7 @@ The visualization tool analyzes your codebase to discover:
 Generate an HTML visualization and open it in your browser:
 
 ```bash
-make visualize
+just visualize
 ```
 
 This will:
@@ -34,7 +34,7 @@ This will:
 Interactive web-based visualization with D3.js:
 
 ```bash
-make visualize FORMAT=html
+just visualize FORMAT=html
 ```
 
 Opens an interactive graph where you can:
@@ -48,7 +48,7 @@ Opens an interactive graph where you can:
 Raw graph data for programmatic use:
 
 ```bash
-make visualize FORMAT=json
+just visualize FORMAT=json
 ```
 
 Generates `docs/module-graph.json` with complete graph structure.
@@ -58,7 +58,7 @@ Generates `docs/module-graph.json` with complete graph structure.
 Generate a DOT file for rendering with GraphViz:
 
 ```bash
-make visualize FORMAT=dot
+just visualize FORMAT=dot
 ```
 
 Then render with:
@@ -74,7 +74,7 @@ dot -Tpng docs/module-graph.dot -o docs/graph.png
 Start a local web server to view the visualization:
 
 ```bash
-make visualize SERVE=true
+just visualize SERVE=true
 ```
 
 This will start a server on port 8081 (default) and open the visualization in your browser.
@@ -155,7 +155,7 @@ Visualize your module structure to ensure:
 -   Proper module boundaries
 
 ```bash
-make visualize FORMAT=html
+just visualize FORMAT=html
 # Review the graph, then commit
 ```
 
@@ -164,7 +164,7 @@ make visualize FORMAT=html
 Generate a static visualization for documentation:
 
 ```bash
-make visualize FORMAT=dot
+just visualize FORMAT=dot
 dot -Tsvg docs/module-graph.dot -o docs/module-graph.svg
 ```
 
@@ -173,7 +173,7 @@ dot -Tsvg docs/module-graph.dot -o docs/module-graph.svg
 Generate JSON output for automated analysis:
 
 ```bash
-make visualize FORMAT=json
+just visualize FORMAT=json
 # Use docs/module-graph.json in CI to validate architecture
 ```
 
@@ -229,21 +229,21 @@ Use filters or generate separate graphs for:
 ### View current architecture
 
 ```bash
-make visualize
+just visualize
 # Opens docs/module-graph.html
 ```
 
 ### Generate documentation image
 
 ```bash
-make visualize FORMAT=dot
+just visualize FORMAT=dot
 dot -Tpng docs/module-graph.dot -o docs/architecture.png
 ```
 
 ### Analyze specific module
 
 ```bash
-make visualize FORMAT=json
+just visualize FORMAT=json
 # Filter docs/module-graph.json for specific module
 ```
 

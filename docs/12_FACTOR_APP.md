@@ -142,8 +142,8 @@ db, err := sql.Open("pgx", cfg.DBDSN)  // DB_DSN desde env
 1. **Build:**
 
     ```bash
-    make build              # Compila binario
-    make docker-build       # Crea imagen Docker
+    just build              # Compila binario
+    just docker-build       # Crea imagen Docker
     ```
 
 2. **Release:**
@@ -335,18 +335,18 @@ log_level: info # debug, info, warn, error
 ```bash
 # Ejecutar migraciones
 go run cmd/server/main.go migrate
-# o: make migrate
+# o: just migrate
 
 # Ejecutar seed data
 go run cmd/server/main.go seed
-# o: make seed
+# o: just seed
 
 # Ejecutar tarea administrativa
 ./bin/server admin cleanup-sessions
 ./bin/server admin cleanup-magic-codes
 
 # O con make
-make admin TASK=cleanup-sessions
+just admin TASK=cleanup-sessions
 ```
 
 **Ver también:** `cmd/server/commands/admin.go` (función `RunAdminCommand`), `internal/admin/runner.go`, `internal/migration/seeder.go`
@@ -482,10 +482,10 @@ git push origin v1.0.0
 
 ```bash
 # Ejecutar tests de integración (requiere Docker)
-make test-integration
+just test-integration
 
 # Ejecutar todos los tests
-make test-all
+just test-all
 
 # Saltar tests de integración en CI
 go test -short ./...
@@ -499,11 +499,11 @@ go test -short ./...
 
 1. **Zero Boilerplate para Tareas Comunes**:
    -   Las migraciones se ejecutan automáticamente
-   -   Seed data con `make seed`
+   -   Seed data con `just seed`
    -   Admin tasks via interfaz simple
 
 2. **Estructura de Módulo Consistente**:
-   -   `make new-module name` crea todo
+   -   `just new-module name` crea todo
    -   Directorio de seed data incluido
    -   Lifecycle hooks disponibles
 
@@ -627,7 +627,7 @@ Antes de desplegar a producción, verificar:
 El template está ahora listo para producción con compliance completo de 12-factor. Áreas de enfoque:
 
 1. **Lógica de Negocio**: Los desarrolladores pueden enfocarse puramente en reglas de negocio
-2. **Desarrollo de Módulos**: Usar `make new-module` para scaffold de nuevas características
+2. **Desarrollo de Módulos**: Usar `just new-module` para scaffold de nuevas características
 3. **Testing**: Escribir integration tests usando testcontainers
 4. **Despliegue**: Usar Helm charts para despliegue en Kubernetes
 5. **Monitoreo**: Aprovechar telemetría existente (métricas, traces, logs)

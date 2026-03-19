@@ -153,7 +153,7 @@ func generateGraphQLSchema(openAPI OpenAPI2, _ string) string {
 	// Header (GraphQL uses # for comments, not //)
 	sb.WriteString("# Auto-generated GraphQL schema from OpenAPI/Swagger definition\n")
 	sb.WriteString("# DO NOT EDIT - This file is generated from proto definitions\n")
-	sb.WriteString("# Run 'make proto' and 'make graphql-from-proto' to regenerate\n\n")
+	sb.WriteString("# Run 'just proto' and 'just graphql-from-proto' to regenerate\n\n")
 
 	// Generate types from definitions
 	generateTypes(&sb, openAPI.Defs)

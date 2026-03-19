@@ -21,7 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	AuthService_RequestLogin_FullMethodName             = "/auth.v1.AuthService/RequestLogin"
 	AuthService_CompleteLogin_FullMethodName            = "/auth.v1.AuthService/CompleteLogin"
-	AuthService_RefreshToken_FullMethodName             = "/auth.v1.AuthService/RefreshToken" // #nosec G101
+	AuthService_RefreshToken_FullMethodName             = "/auth.v1.AuthService/RefreshToken"
 	AuthService_Logout_FullMethodName                   = "/auth.v1.AuthService/Logout"
 	AuthService_GetProfile_FullMethodName               = "/auth.v1.AuthService/GetProfile"
 	AuthService_UpdateProfile_FullMethodName            = "/auth.v1.AuthService/UpdateProfile"

@@ -13,18 +13,18 @@ Thank you for your interest in contributing! This document provides guidelines f
 
 3. **Install dependencies**:
    ```bash
-   make install-deps
+   just install-deps
    ```
 
 4. **Start infrastructure**:
    ```bash
-   make docker-up
+   just docker-up
    ```
 
 5. **Run tests**:
    ```bash
-   make test
-   make lint
+   just test
+   just lint
    ```
 
 ## 📋 Contribution Process
@@ -50,13 +50,13 @@ Ensure you follow the project conventions:
 
 ```bash
 # Linter (must pass with 0 errors)
-make lint
+just lint
 
 # Tests
-make test
+just test
 
 # Coverage (optional but recommended)
-make coverage-report
+just coverage-report
 ```
 
 ### 4. Commit and Push

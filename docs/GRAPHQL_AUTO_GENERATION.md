@@ -8,9 +8,9 @@ The project includes a tool that automatically generates GraphQL schema files fr
 
 ## How It Works
 
-1. **Proto → OpenAPI**: When you run `make proto`, `buf` generates OpenAPI/Swagger JSON files from your proto definitions
+1. **Proto → OpenAPI**: When you run `just proto`, `buf` generates OpenAPI/Swagger JSON files from your proto definitions
 2. **OpenAPI → GraphQL**: The `graphql-from-proto` tool parses these OpenAPI files and generates GraphQL schema files
-3. **GraphQL Code Generation**: Run `make graphql-generate-all` to generate resolver code from the schemas
+3. **GraphQL Code Generation**: Run `just graphql-generate-all` to generate resolver code from the schemas
 
 ## Usage
 
@@ -18,10 +18,10 @@ The project includes a tool that automatically generates GraphQL schema files fr
 
 ```bash
 # First, ensure proto files are compiled to OpenAPI
-make proto
+just proto
 
 # Then generate GraphQL schemas from OpenAPI
-make graphql-from-proto
+just graphql-from-proto
 ```
 
 This will:
@@ -38,7 +38,7 @@ The `graphql-generate-module` command now automatically generates schemas from p
 
 ```bash
 # This will automatically generate the schema from proto if auth.graphql doesn't exist
-make graphql-generate-module MODULE_NAME=auth
+just graphql-generate-module MODULE_NAME=auth
 ```
 
 This workflow:
@@ -54,20 +54,20 @@ This workflow:
 # Edit proto/auth/v1/auth.proto
 
 # 2. Generate gRPC and OpenAPI code
-make proto
+just proto
 
 # 3. Generate GraphQL schemas and code (automatic!)
 # Option A: Generate schemas for all modules
-make graphql-from-proto
+just graphql-from-proto
 
 # Option B: Generate for one module (auto-generates schema if missing)
-make graphql-generate-module MODULE_NAME=auth
+just graphql-generate-module MODULE_NAME=auth
 
 # 4. Review and customize schemas (optional)
 # Edit internal/graphql/schema/auth.graphql if needed
 
 # 5. Generate GraphQL resolver code (if using Option A)
-make graphql-generate-all
+just graphql-generate-all
 
 # 6. Implement resolvers
 # Edit internal/graphql/resolver/auth.go
@@ -161,7 +161,7 @@ The generated schemas are meant to be a starting point. You can:
 
 ### Regeneration
 
-⚠️ **Important**: The generated schema files have a header indicating they're auto-generated. If you make manual changes, they will be overwritten when you regenerate.
+⚠️ **Important**: The generated schema files have a header indicating they're auto-generated. If you just manual changes, they will be overwritten when you regenerate.
 
 **Best Practice**:
 
@@ -171,28 +171,28 @@ The generated schemas are meant to be a starting point. You can:
 
 ## Integration with Module Scaffolding
 
-When you create a new module with `make new-module <name>`, if GraphQL is initialized, it will:
+When you create a new module with `just new-module <name>`, if GraphQL is initialized, it will:
 
 1. Create a basic GraphQL schema template
-2. After you define your proto file and run `make proto`
-3. You can then run `make graphql-generate-module MODULE_NAME=<name>` which will automatically generate the schema from proto if missing, then generate the GraphQL code
+2. After you define your proto file and run `just proto`
+3. You can then run `just graphql-generate-module MODULE_NAME=<name>` which will automatically generate the schema from proto if missing, then generate the GraphQL code
 
 ## Troubleshooting
 
 ### "No OpenAPI files found"
 
-**Solution**: Run `make proto` first to generate OpenAPI definitions from your proto files.
+**Solution**: Run `just proto` first to generate OpenAPI definitions from your proto files.
 
 ### "GraphQL not initialized"
 
-**Solution**: Run `make graphql-init` first to set up GraphQL infrastructure.
+**Solution**: Run `just graphql-init` first to set up GraphQL infrastructure.
 
 ### Schema validation errors
 
 **Solution**:
 
 1. Check that your proto files are valid
-2. Ensure OpenAPI generation succeeded (`make proto`)
+2. Ensure OpenAPI generation succeeded (`just proto`)
 3. Review the generated schema for any issues
 4. You may need to manually fix type mappings for complex types
 

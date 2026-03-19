@@ -349,7 +349,7 @@ If you're adding OAuth to an existing installation:
 
 1. Run migrations:
    ```bash
-   make migrate-up
+   just migrate-up
    ```
 
 2. Configure environment variables

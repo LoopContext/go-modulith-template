@@ -208,7 +208,7 @@ check_database() {
     # Check if docker containers are running
     if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_db"; then
         echo -e "${YELLOW}⚠${NC} (containers not running)"
-        echo "  Info: Database container is not running. Run 'make docker-up' to start it."
+        echo "  Info: Database container is not running. Run 'just docker-up' to start it."
         return 0  # Not an error, just informational
     fi
 
@@ -233,11 +233,11 @@ check_docker_compose
 
 echo ""
 echo "Checking development tools..."
-check_tool "sqlc" "make install-deps"
-check_tool "buf" "make install-deps"
-check_tool "migrate" "make install-deps"
-check_tool "air" "make install-deps"
-check_tool "golangci-lint" "make install-deps"
+check_tool "sqlc" "just install-deps"
+check_tool "buf" "just install-deps"
+check_tool "migrate" "just install-deps"
+check_tool "air" "just install-deps"
+check_tool "golangci-lint" "just install-deps"
 
 echo ""
 echo "Checking port availability..."
