@@ -525,7 +525,8 @@ func getTokenFromContext(ctx context.Context) string {
 func (s *AuthService) setAuthCookies(ctx context.Context, accessToken, refreshToken string) {
 	isProd := s.env == "prod"
 
-	accessCookie := &http.Cookie{ // #nosec
+	// #nosec G101 G601 G114
+	accessCookie := &http.Cookie{
 		Name:     authn.AccessTokenCookieName,
 		Value:    accessToken,
 		Path:     "/",
@@ -535,7 +536,8 @@ func (s *AuthService) setAuthCookies(ctx context.Context, accessToken, refreshTo
 		MaxAge:   3600, // 1 hour
 	}
 
-	refreshCookie := &http.Cookie{ // #nosec
+	// #nosec G101 G601 G114
+	refreshCookie := &http.Cookie{
 		Name:     authn.RefreshTokenCookieName,
 		Value:    refreshToken,
 		Path:     "/",
@@ -556,7 +558,8 @@ func (s *AuthService) setAuthCookies(ctx context.Context, accessToken, refreshTo
 func (s *AuthService) clearAuthCookies(ctx context.Context) {
 	isProd := s.env == "prod"
 
-	accessCookie := &http.Cookie{ // #nosec
+	// #nosec G101 G601 G114
+	accessCookie := &http.Cookie{
 		Name:     authn.AccessTokenCookieName,
 		Value:    "",
 		Path:     "/",
@@ -566,7 +569,8 @@ func (s *AuthService) clearAuthCookies(ctx context.Context) {
 		MaxAge:   -1,
 	}
 
-	refreshCookie := &http.Cookie{ // #nosec
+	// #nosec G101 G601 G114
+	refreshCookie := &http.Cookie{
 		Name:     authn.RefreshTokenCookieName,
 		Value:    "",
 		Path:     "/",

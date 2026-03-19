@@ -1870,7 +1870,7 @@ Separation is achieved by creating different entry points (`cmd/`) that point to
 
 ### Inter-Module Communication in Microservices
 
-When modules live in different binaries, gRPC calls that were previously in-process (direct) must now travel over the network. To just this transparent:
+When modules live in different binaries, gRPC calls that were previously in-process (direct) must now travel over the network. To make this transparent:
 
 -   A **Service Discovery** or internal **Load Balancer** is used.
 -   The gRPC client injected in a module must point to the external microservice address instead of `127.0.0.1` (or use the same client interface).

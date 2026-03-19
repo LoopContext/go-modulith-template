@@ -31,7 +31,7 @@ jobs:
 
       - name: Build binaries
         run: |
-          make build-all
+          just build-all
 
       - name: Create changelog
         id: changelog

@@ -24,6 +24,9 @@ doctor: be-doctor
 # Run complete setup process (install deps, start docker, run migrations)
 quickstart: be-quickstart
 
+# Install developer tools
+install-deps: be-install-deps
+
 # Run full docker-compose stack
 docker-up: be-docker-up
 

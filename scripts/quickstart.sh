@@ -61,7 +61,7 @@ echo ""
 echo -e "${BLUE}Step 3/5:${NC} Starting Docker infrastructure..."
 
 # Check if containers are already running
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "template_db"; then
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_db"; then
     echo -e "${YELLOW}⚠ Docker containers are already running${NC}"
     echo -n "Restart containers? [y/N] "
     read -r response
@@ -86,8 +86,8 @@ WAIT_COUNT=0
 
 while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
     echo -n "Waiting for database to be ready... "
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "template_db"; then
-        if docker exec template_db pg_isready -U postgres > /dev/null 2>&1; then
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_db"; then
+        if docker exec modulith_db pg_isready -U postgres > /dev/null 2>&1; then
             echo -e "${GREEN}✓ Database is ready${NC}"
             break
         fi
@@ -103,11 +103,11 @@ if [ $WAIT_COUNT -eq $MAX_WAIT ]; then
     exit 1
 fi
 
-# Check Valkey
-echo -n "Checking Valkey connection... "
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "template_valkey"; then
-    if docker exec template_valkey valkey-cli ping > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ Valkey is ready${NC}"
+# Check Redis
+echo -n "Checking Redis connection... "
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_redis"; then
+    if docker exec modulith_redis redis-cli ping > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ Redis is ready${NC}"
     fi
 fi
 echo ""

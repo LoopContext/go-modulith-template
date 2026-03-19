@@ -22,8 +22,8 @@ Maintain this repo as a **base template** for a **Modular Monolith (Modulith)** 
 
 ## When adding a new module
 
--   Use `make new-module <name>`.
+-   Use `just new-module <name>`.
 -   Then:
-    -   `make generate-all` (generates sqlc + proto + mocks)
+    -   `just generate-all` (generates sqlc + proto + mocks)
     -   Register the module in `cmd/server/main.go` (and in its `<mod>-svc` if applicable).
-    -   Run migrations: `make migrate-up`
+    -   Run migrations: `just migrate-up`

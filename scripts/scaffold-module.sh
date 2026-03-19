@@ -142,7 +142,7 @@ if ! grep -q "modules/${MODULE_NAME}/internal/db/store" sqlc.yaml; then
       go:
         package: "store"
         out: "modules/${MODULE_NAME}/internal/db/store"
-        sql_package: "pgx/v5"
+        sql_package: "database/sql"
         emit_interface: true
         emit_json_tags: true
 EOF

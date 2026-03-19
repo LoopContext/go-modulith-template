@@ -116,7 +116,7 @@ The module scaffolding template (`templates/module/proto/module.proto.tmpl`) alr
 - Validation import
 - Example validation annotations on request messages
 
-New modules created with `make new-module` will have validation examples by default.
+New modules created with `just new-module` will have validation examples by default.
 
 ### Examples
 
