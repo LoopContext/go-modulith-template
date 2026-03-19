@@ -1,4 +1,9 @@
 # Go Modulith Template 🚀
+ 
+<p align="center">
+  <img src="docs/assets/hero.png" width="800" alt="Go Modulith Architecture">
+</p>
+
 
 ![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-19.9%25-yellow)
