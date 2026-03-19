@@ -19,10 +19,8 @@ func InitDB(cfg *config.AppConfig) (*pgxpool.Pool, error) {
 	}
 
 	// Configure connection pool
-	//nolint:gosec
-	poolConfig.MaxConns = int32(cfg.DBMaxOpenConns)
-	//nolint:gosec
-	poolConfig.MinConns = int32(cfg.DBMaxIdleConns)
+	poolConfig.MaxConns = int32(cfg.DBMaxOpenConns) // #nosec G115
+	poolConfig.MinConns = int32(cfg.DBMaxIdleConns) // #nosec G115
 
 	// Parse lifetime duration
 	if cfg.DBConnMaxLifetime != "" {

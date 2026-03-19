@@ -872,8 +872,7 @@ func (r *SQLRepository) StoreOutbox(ctx context.Context, eventName string, paylo
 
 // GetUnpublished retrieves unpublished events from the outbox.
 func (r *SQLRepository) GetUnpublished(ctx context.Context, limit int) ([]outbox.Entry, error) {
-	//nolint:gosec // limit is controlled by the publisher and won't exceed int32
-	rows, err := r.q.GetUnpublishedOutbox(ctx, int32(limit))
+	rows, err := r.q.GetUnpublishedOutbox(ctx, int32(limit)) // #nosec G115
 	if err != nil {
 		return nil, fmt.Errorf("failed to get unpublished outbox entries: %w", err)
 	}
