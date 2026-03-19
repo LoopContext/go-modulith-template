@@ -523,32 +523,46 @@ func getTokenFromContext(ctx context.Context) string {
 
 // setAuthCookies sends Set-Cookie via gRPC response metadata (HttpOnly, Secure, SameSite=Lax).
 func (s *AuthService) setAuthCookies(ctx context.Context, accessToken, refreshToken string) {
-	isProd := s.env == "prod"
+	var accessCookie, refreshCookie *http.Cookie
 
-	accessCookie := &http.Cookie{
-		Name:     authn.AccessTokenCookieName,
-		Value:    accessToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true, // Standard secure default
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   3600, // 1 hour
-	}
-	if !isProd {
-		accessCookie.Secure = false
-	}
-
-	refreshCookie := &http.Cookie{
-		Name:     authn.RefreshTokenCookieName,
-		Value:    refreshToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true, // Standard secure default
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   24 * 3600, // 24 hours
-	}
-	if !isProd {
-		refreshCookie.Secure = false
+	if s.env == "prod" {
+		accessCookie = &http.Cookie{
+			Name:     authn.AccessTokenCookieName,
+			Value:    accessToken,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   3600, // 1 hour
+		}
+		refreshCookie = &http.Cookie{
+			Name:     authn.RefreshTokenCookieName,
+			Value:    refreshToken,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   24 * 3600, // 24 hours
+		}
+	} else {
+		accessCookie = &http.Cookie{
+			Name:     authn.AccessTokenCookieName,
+			Value:    accessToken,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   false,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   3600,
+		}
+		refreshCookie = &http.Cookie{
+			Name:     authn.RefreshTokenCookieName,
+			Value:    refreshToken,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   false,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   24 * 3600,
+		}
 	}
 
 	// Add both cookies to metadata
@@ -560,32 +574,46 @@ func (s *AuthService) setAuthCookies(ctx context.Context, accessToken, refreshTo
 
 // clearAuthCookies sends Set-Cookie to clear auth cookies.
 func (s *AuthService) clearAuthCookies(ctx context.Context) {
-	isProd := s.env == "prod"
+	var accessCookie, refreshCookie *http.Cookie
 
-	accessCookie := &http.Cookie{
-		Name:     authn.AccessTokenCookieName,
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true, // Standard secure default
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   -1,
-	}
-	if !isProd {
-		accessCookie.Secure = false
-	}
-
-	refreshCookie := &http.Cookie{
-		Name:     authn.RefreshTokenCookieName,
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true, // Standard secure default
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   -1,
-	}
-	if !isProd {
-		refreshCookie.Secure = false
+	if s.env == "prod" {
+		accessCookie = &http.Cookie{
+			Name:     authn.AccessTokenCookieName,
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   -1,
+		}
+		refreshCookie = &http.Cookie{
+			Name:     authn.RefreshTokenCookieName,
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   -1,
+		}
+	} else {
+		accessCookie = &http.Cookie{
+			Name:     authn.AccessTokenCookieName,
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   false,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   -1,
+		}
+		refreshCookie = &http.Cookie{
+			Name:     authn.RefreshTokenCookieName,
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   false,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   -1,
+		}
 	}
 
 	_ = grpc.SetHeader(ctx, metadata.Pairs(
