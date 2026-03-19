@@ -2,14 +2,12 @@ version: "2"
 sql:
   - engine: "postgresql"
     queries: "modules/auth/internal/db/query/"
-    schema:
-      - "modules/auth/resources/db/migration/000001_initial_schema.up.sql"
-      - "modules/auth/resources/db/migration/000002_sessions_and_profile.up.sql"
-      - "modules/auth/resources/db/migration/000003_external_accounts.up.sql"
+    schema: "modules/auth/resources/db/migration"
     gen:
       go:
         package: "store"
         out: "modules/auth/internal/db/store"
-        sql_package: "database/sql"
+        sql_package: "pgx/v5"
         emit_interface: true
         emit_json_tags: true
+

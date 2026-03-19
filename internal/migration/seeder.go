@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 )
 
 // ModuleSeeder defines the interface for modules that provide seed data.
@@ -21,20 +23,28 @@ type ModuleSeeder interface {
 	SeedPath() string
 }
 
+// ModuleProgrammaticSeeder defines the interface for modules that provide seed data programmatically.
+type ModuleProgrammaticSeeder interface {
+	// Seed runs programmatic seed data using the application's registry/dependencies.
+	Seed(ctx context.Context, r interface{}) error
+}
+
 // ModuleRegistry defines the basic interface for accessing registered modules.
 type ModuleRegistry interface {
-	Modules() []interface{}
+	Modules() []registry.Module
 }
 
 // ModuleProvider defines the interface for accessing registered modules.
 type ModuleProvider interface {
-	GetModules() []ModuleSeeder
+	GetSQLSeeders() []ModuleSeeder
+	GetProgrammaticSeeders() []ModuleProgrammaticSeeder
 }
 
 // Seeder manages seed data execution for modules.
 type Seeder struct {
 	db       *sql.DB
 	provider ModuleProvider
+	registry ModuleRegistry
 }
 
 // registryAdapter adapts a ModuleRegistry to ModuleProvider.
@@ -42,7 +52,7 @@ type registryAdapter struct {
 	registry ModuleRegistry
 }
 
-func (r *registryAdapter) GetModules() []ModuleSeeder {
+func (r *registryAdapter) GetSQLSeeders() []ModuleSeeder {
 	modules := r.registry.Modules()
 	seeders := make([]ModuleSeeder, 0)
 
@@ -55,8 +65,21 @@ func (r *registryAdapter) GetModules() []ModuleSeeder {
 	return seeders
 }
 
+func (r *registryAdapter) GetProgrammaticSeeders() []ModuleProgrammaticSeeder {
+	modules := r.registry.Modules()
+	seeders := make([]ModuleProgrammaticSeeder, 0)
+
+	for _, mod := range modules {
+		if seeder, ok := mod.(ModuleProgrammaticSeeder); ok {
+			seeders = append(seeders, seeder)
+		}
+	}
+
+	return seeders
+}
+
 // NewSeeder creates a new seed data runner.
-func NewSeeder(dbDSN string, registry ModuleRegistry) (*Seeder, error) {
+func NewSeeder(dbDSN string, r ModuleRegistry) (*Seeder, error) {
 	db, err := sql.Open("pgx", dbDSN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
@@ -69,7 +92,8 @@ func NewSeeder(dbDSN string, registry ModuleRegistry) (*Seeder, error) {
 
 	return &Seeder{
 		db:       db,
-		provider: &registryAdapter{registry: registry},
+		provider: &registryAdapter{registry: r},
+		registry: r,
 	}, nil
 }
 
@@ -84,15 +108,83 @@ func (s *Seeder) Close() error {
 	return nil
 }
 
-// SeedAll runs seed data for all modules that implement ModuleSeeder.
+// SeedAll runs seed data for all modules that implement ModuleSeeder or ModuleProgrammaticSeeder.
 func (s *Seeder) SeedAll(ctx context.Context) error {
-	modules := s.provider.GetModules()
-	if len(modules) == 0 {
+	sqlSeeders := s.provider.GetSQLSeeders()
+	progSeeders := s.provider.GetProgrammaticSeeders()
+
+	if len(sqlSeeders) == 0 && len(progSeeders) == 0 {
 		slog.Info("No modules with seed data registered")
 		return nil
 	}
 
-	for _, seeder := range modules {
+	// 1. Run SQL Seeds
+	if err := s.runSQLSeeds(ctx, sqlSeeders); err != nil {
+		return err
+	}
+
+	// 2. Run Programmatic Seeds
+	if err := s.runProgrammaticSeeds(ctx, progSeeders); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SeedModule runs seed data for a single module.
+// SeedModule runs seed data for a single module.
+func (s *Seeder) SeedModule(ctx context.Context, moduleName string) error {
+	ranSQL, err := s.seedSQLModule(ctx, moduleName)
+	if err != nil {
+		return err
+	}
+
+	ranProg, err := s.seedProgrammaticModule(ctx, moduleName)
+	if err != nil {
+		return err
+	}
+
+	if !ranSQL && !ranProg {
+		return fmt.Errorf("module %s not found or has no seed data", moduleName)
+	}
+
+	return nil
+}
+
+func (s *Seeder) seedSQLModule(ctx context.Context, moduleName string) (bool, error) {
+	sqlSeeders := s.provider.GetSQLSeeders()
+
+	for _, seeder := range sqlSeeders {
+		if seeder.Name() == moduleName {
+			if err := s.runSQLSeeds(ctx, []ModuleSeeder{seeder}); err != nil {
+				return true, err
+			}
+
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (s *Seeder) seedProgrammaticModule(ctx context.Context, moduleName string) (bool, error) {
+	progSeeders := s.provider.GetProgrammaticSeeders()
+
+	for _, seeder := range progSeeders {
+		if m, ok := seeder.(interface{ Name() string }); ok && m.Name() == moduleName {
+			if err := s.runProgrammaticSeeds(ctx, []ModuleProgrammaticSeeder{seeder}); err != nil {
+				return true, err
+			}
+
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (s *Seeder) runSQLSeeds(ctx context.Context, seeders []ModuleSeeder) error {
+	for _, seeder := range seeders {
 		seedPath := seeder.SeedPath()
 		if seedPath == "" {
 			continue
@@ -106,13 +198,33 @@ func (s *Seeder) SeedAll(ctx context.Context) error {
 			continue
 		}
 
-		slog.Info("Running seed data", "module", moduleName, "path", seedPath)
+		slog.Info("Running SQL seed data", "module", moduleName, "path", seedPath)
 
 		if err := s.runSeedFiles(ctx, seedPath, moduleName); err != nil {
-			return fmt.Errorf("failed to seed module %s: %w", moduleName, err)
+			return fmt.Errorf("failed to SQL seed module %s: %w", moduleName, err)
 		}
 
-		slog.Info("Seed data completed", "module", moduleName)
+		slog.Info("SQL seed data completed", "module", moduleName)
+	}
+
+	return nil
+}
+
+func (s *Seeder) runProgrammaticSeeds(ctx context.Context, seeders []ModuleProgrammaticSeeder) error {
+	for _, seeder := range seeders {
+		// We need the module name for logging, we can type assert to registry.Module if needed
+		moduleName := "unknown"
+		if m, ok := seeder.(interface{ Name() string }); ok {
+			moduleName = m.Name()
+		}
+
+		slog.Info("Running programmatic seed data", "module", moduleName)
+
+		if err := seeder.Seed(ctx, s.registry); err != nil {
+			return fmt.Errorf("failed to programmatic seed module %s: %w", moduleName, err)
+		}
+
+		slog.Info("Programmatic seed data completed", "module", moduleName)
 	}
 
 	return nil

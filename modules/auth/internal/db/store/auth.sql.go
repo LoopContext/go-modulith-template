@@ -7,11 +7,25 @@ package store
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
-	"github.com/sqlc-dev/pqtype"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const assignUserRole = `-- name: AssignUserRole :exec
+INSERT INTO auth.user_roles (user_id, role_id, created_at, updated_at)
+VALUES ($1, (SELECT id FROM auth.roles WHERE LOWER(name) = LOWER($2) AND deleted_at IS NULL), NOW(), NOW())
+ON CONFLICT (user_id, role_id) DO UPDATE SET updated_at = NOW()
+`
+
+type AssignUserRoleParams struct {
+	UserID   string `json:"user_id"`
+	RoleName string `json:"role_name"`
+}
+
+func (q *Queries) AssignUserRole(ctx context.Context, arg AssignUserRoleParams) error {
+	_, err := q.db.Exec(ctx, assignUserRole, arg.UserID, arg.RoleName)
+	return err
+}
 
 const blacklistToken = `-- name: BlacklistToken :exec
 
@@ -21,17 +35,17 @@ ON CONFLICT (token_hash) DO NOTHING
 `
 
 type BlacklistTokenParams struct {
-	TokenHash string         `json:"token_hash"`
-	UserID    string         `json:"user_id"`
-	ExpiresAt time.Time      `json:"expires_at"`
-	Reason    sql.NullString `json:"reason"`
+	TokenHash string             `json:"token_hash"`
+	UserID    string             `json:"user_id"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	Reason    pgtype.Text        `json:"reason"`
 }
 
 // ========================
 // Token Blacklist
 // ========================
 func (q *Queries) BlacklistToken(ctx context.Context, arg BlacklistTokenParams) error {
-	_, err := q.db.ExecContext(ctx, blacklistToken,
+	_, err := q.db.Exec(ctx, blacklistToken,
 		arg.TokenHash,
 		arg.UserID,
 		arg.ExpiresAt,
@@ -45,7 +59,7 @@ DELETE FROM auth.token_blacklist WHERE expires_at < CURRENT_TIMESTAMP
 `
 
 func (q *Queries) CleanupExpiredBlacklistEntries(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, cleanupExpiredBlacklistEntries)
+	_, err := q.db.Exec(ctx, cleanupExpiredBlacklistEntries)
 	return err
 }
 
@@ -54,7 +68,7 @@ DELETE FROM auth.magic_codes WHERE expires_at < CURRENT_TIMESTAMP
 `
 
 func (q *Queries) CleanupExpiredMagicCodes(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, cleanupExpiredMagicCodes)
+	_, err := q.db.Exec(ctx, cleanupExpiredMagicCodes)
 	return err
 }
 
@@ -63,7 +77,7 @@ DELETE FROM auth.oauth_states WHERE expires_at < CURRENT_TIMESTAMP
 `
 
 func (q *Queries) CleanupExpiredOAuthStates(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, cleanupExpiredOAuthStates)
+	_, err := q.db.Exec(ctx, cleanupExpiredOAuthStates)
 	return err
 }
 
@@ -72,7 +86,7 @@ DELETE FROM auth.sessions WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '7 day
 `
 
 func (q *Queries) CleanupExpiredSessions(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, cleanupExpiredSessions)
+	_, err := q.db.Exec(ctx, cleanupExpiredSessions)
 	return err
 }
 
@@ -81,7 +95,7 @@ SELECT COUNT(*) FROM auth.user_external_accounts WHERE user_id = $1
 `
 
 func (q *Queries) CountExternalAccountsByUserID(ctx context.Context, userID string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countExternalAccountsByUserID, userID)
+	row := q.db.QueryRow(ctx, countExternalAccountsByUserID, userID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -94,24 +108,24 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `
 
 type CreateExternalAccountParams struct {
-	ID             string                `json:"id"`
-	UserID         string                `json:"user_id"`
-	Provider       string                `json:"provider"`
-	ProviderUserID string                `json:"provider_user_id"`
-	Email          sql.NullString        `json:"email"`
-	Name           sql.NullString        `json:"name"`
-	AvatarUrl      sql.NullString        `json:"avatar_url"`
-	AccessToken    sql.NullString        `json:"access_token"`
-	RefreshToken   sql.NullString        `json:"refresh_token"`
-	TokenExpiresAt sql.NullTime          `json:"token_expires_at"`
-	RawData        pqtype.NullRawMessage `json:"raw_data"`
+	ID             string             `json:"id"`
+	UserID         string             `json:"user_id"`
+	Provider       string             `json:"provider"`
+	ProviderUserID string             `json:"provider_user_id"`
+	Email          pgtype.Text        `json:"email"`
+	Name           pgtype.Text        `json:"name"`
+	AvatarUrl      pgtype.Text        `json:"avatar_url"`
+	AccessToken    pgtype.Text        `json:"access_token"`
+	RefreshToken   pgtype.Text        `json:"refresh_token"`
+	TokenExpiresAt pgtype.Timestamptz `json:"token_expires_at"`
+	RawData        []byte             `json:"raw_data"`
 }
 
 // ========================
 // External OAuth Accounts
 // ========================
 func (q *Queries) CreateExternalAccount(ctx context.Context, arg CreateExternalAccountParams) error {
-	_, err := q.db.ExecContext(ctx, createExternalAccount,
+	_, err := q.db.Exec(ctx, createExternalAccount,
 		arg.ID,
 		arg.UserID,
 		arg.Provider,
@@ -133,17 +147,17 @@ INSERT INTO auth.magic_codes (code, user_email, user_phone, expires_at) VALUES (
 `
 
 type CreateMagicCodeParams struct {
-	Code      string         `json:"code"`
-	UserEmail sql.NullString `json:"user_email"`
-	UserPhone sql.NullString `json:"user_phone"`
-	ExpiresAt time.Time      `json:"expires_at"`
+	Code      string             `json:"code"`
+	UserEmail pgtype.Text        `json:"user_email"`
+	UserPhone pgtype.Text        `json:"user_phone"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
 // ========================
 // Magic Codes (Passwordless)
 // ========================
 func (q *Queries) CreateMagicCode(ctx context.Context, arg CreateMagicCodeParams) error {
-	_, err := q.db.ExecContext(ctx, createMagicCode,
+	_, err := q.db.Exec(ctx, createMagicCode,
 		arg.Code,
 		arg.UserEmail,
 		arg.UserPhone,
@@ -159,19 +173,19 @@ VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateOAuthStateParams struct {
-	State       string         `json:"state"`
-	Provider    string         `json:"provider"`
-	RedirectUrl sql.NullString `json:"redirect_url"`
-	UserID      sql.NullString `json:"user_id"`
-	Action      string         `json:"action"`
-	ExpiresAt   time.Time      `json:"expires_at"`
+	State       string             `json:"state"`
+	Provider    string             `json:"provider"`
+	RedirectUrl pgtype.Text        `json:"redirect_url"`
+	UserID      pgtype.Text        `json:"user_id"`
+	Action      string             `json:"action"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
 }
 
 // ========================
 // OAuth State Tokens
 // ========================
 func (q *Queries) CreateOAuthState(ctx context.Context, arg CreateOAuthStateParams) error {
-	_, err := q.db.ExecContext(ctx, createOAuthState,
+	_, err := q.db.Exec(ctx, createOAuthState,
 		arg.State,
 		arg.Provider,
 		arg.RedirectUrl,
@@ -189,19 +203,19 @@ VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreatePendingContactChangeParams struct {
-	ID               string    `json:"id"`
-	UserID           string    `json:"user_id"`
-	ChangeType       string    `json:"change_type"`
-	NewValue         string    `json:"new_value"`
-	VerificationCode string    `json:"verification_code"`
-	ExpiresAt        time.Time `json:"expires_at"`
+	ID               string             `json:"id"`
+	UserID           string             `json:"user_id"`
+	ChangeType       string             `json:"change_type"`
+	NewValue         string             `json:"new_value"`
+	VerificationCode string             `json:"verification_code"`
+	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
 }
 
 // ========================
 // Pending Contact Changes
 // ========================
 func (q *Queries) CreatePendingContactChange(ctx context.Context, arg CreatePendingContactChangeParams) error {
-	_, err := q.db.ExecContext(ctx, createPendingContactChange,
+	_, err := q.db.Exec(ctx, createPendingContactChange,
 		arg.ID,
 		arg.UserID,
 		arg.ChangeType,
@@ -219,19 +233,19 @@ VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateSessionParams struct {
-	ID               string         `json:"id"`
-	UserID           string         `json:"user_id"`
-	RefreshTokenHash string         `json:"refresh_token_hash"`
-	UserAgent        sql.NullString `json:"user_agent"`
-	IpAddress        sql.NullString `json:"ip_address"`
-	ExpiresAt        time.Time      `json:"expires_at"`
+	ID               string             `json:"id"`
+	UserID           string             `json:"user_id"`
+	RefreshTokenHash string             `json:"refresh_token_hash"`
+	UserAgent        pgtype.Text        `json:"user_agent"`
+	IpAddress        pgtype.Text        `json:"ip_address"`
+	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
 }
 
 // ========================
 // Sessions
 // ========================
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) error {
-	_, err := q.db.ExecContext(ctx, createSession,
+	_, err := q.db.Exec(ctx, createSession,
 		arg.ID,
 		arg.UserID,
 		arg.RefreshTokenHash,
@@ -248,16 +262,16 @@ INSERT INTO auth.users (id, email, phone) VALUES ($1, $2, $3)
 `
 
 type CreateUserParams struct {
-	ID    string         `json:"id"`
-	Email sql.NullString `json:"email"`
-	Phone sql.NullString `json:"phone"`
+	ID    string      `json:"id"`
+	Email pgtype.Text `json:"email"`
+	Phone pgtype.Text `json:"phone"`
 }
 
 // ========================
 // User Management
 // ========================
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
-	_, err := q.db.ExecContext(ctx, createUser, arg.ID, arg.Email, arg.Phone)
+	_, err := q.db.Exec(ctx, createUser, arg.ID, arg.Email, arg.Phone)
 	return err
 }
 
@@ -266,7 +280,7 @@ DELETE FROM auth.pending_contact_changes WHERE expires_at < CURRENT_TIMESTAMP
 `
 
 func (q *Queries) DeleteExpiredPendingContactChanges(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, deleteExpiredPendingContactChanges)
+	_, err := q.db.Exec(ctx, deleteExpiredPendingContactChanges)
 	return err
 }
 
@@ -280,7 +294,7 @@ type DeleteExternalAccountParams struct {
 }
 
 func (q *Queries) DeleteExternalAccount(ctx context.Context, arg DeleteExternalAccountParams) error {
-	_, err := q.db.ExecContext(ctx, deleteExternalAccount, arg.ID, arg.UserID)
+	_, err := q.db.Exec(ctx, deleteExternalAccount, arg.ID, arg.UserID)
 	return err
 }
 
@@ -294,7 +308,7 @@ type DeleteExternalAccountByProviderParams struct {
 }
 
 func (q *Queries) DeleteExternalAccountByProvider(ctx context.Context, arg DeleteExternalAccountByProviderParams) error {
-	_, err := q.db.ExecContext(ctx, deleteExternalAccountByProvider, arg.UserID, arg.Provider)
+	_, err := q.db.Exec(ctx, deleteExternalAccountByProvider, arg.UserID, arg.Provider)
 	return err
 }
 
@@ -302,8 +316,8 @@ const deleteMagicCodesByEmail = `-- name: DeleteMagicCodesByEmail :exec
 DELETE FROM auth.magic_codes WHERE user_email = $1
 `
 
-func (q *Queries) DeleteMagicCodesByEmail(ctx context.Context, userEmail sql.NullString) error {
-	_, err := q.db.ExecContext(ctx, deleteMagicCodesByEmail, userEmail)
+func (q *Queries) DeleteMagicCodesByEmail(ctx context.Context, userEmail pgtype.Text) error {
+	_, err := q.db.Exec(ctx, deleteMagicCodesByEmail, userEmail)
 	return err
 }
 
@@ -311,8 +325,8 @@ const deleteMagicCodesByPhone = `-- name: DeleteMagicCodesByPhone :exec
 DELETE FROM auth.magic_codes WHERE user_phone = $1
 `
 
-func (q *Queries) DeleteMagicCodesByPhone(ctx context.Context, userPhone sql.NullString) error {
-	_, err := q.db.ExecContext(ctx, deleteMagicCodesByPhone, userPhone)
+func (q *Queries) DeleteMagicCodesByPhone(ctx context.Context, userPhone pgtype.Text) error {
+	_, err := q.db.Exec(ctx, deleteMagicCodesByPhone, userPhone)
 	return err
 }
 
@@ -321,7 +335,7 @@ DELETE FROM auth.oauth_states WHERE state = $1
 `
 
 func (q *Queries) DeleteOAuthState(ctx context.Context, state string) error {
-	_, err := q.db.ExecContext(ctx, deleteOAuthState, state)
+	_, err := q.db.Exec(ctx, deleteOAuthState, state)
 	return err
 }
 
@@ -330,7 +344,7 @@ DELETE FROM auth.pending_contact_changes WHERE id = $1
 `
 
 func (q *Queries) DeletePendingContactChange(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deletePendingContactChange, id)
+	_, err := q.db.Exec(ctx, deletePendingContactChange, id)
 	return err
 }
 
@@ -339,12 +353,12 @@ SELECT id, user_id, provider, provider_user_id, email, name, avatar_url, access_
 `
 
 type GetExternalAccountByProviderAndEmailParams struct {
-	Provider string         `json:"provider"`
-	Email    sql.NullString `json:"email"`
+	Provider string      `json:"provider"`
+	Email    pgtype.Text `json:"email"`
 }
 
 func (q *Queries) GetExternalAccountByProviderAndEmail(ctx context.Context, arg GetExternalAccountByProviderAndEmailParams) (AuthUserExternalAccount, error) {
-	row := q.db.QueryRowContext(ctx, getExternalAccountByProviderAndEmail, arg.Provider, arg.Email)
+	row := q.db.QueryRow(ctx, getExternalAccountByProviderAndEmail, arg.Provider, arg.Email)
 	var i AuthUserExternalAccount
 	err := row.Scan(
 		&i.ID,
@@ -374,7 +388,7 @@ type GetExternalAccountByProviderAndUserIDParams struct {
 }
 
 func (q *Queries) GetExternalAccountByProviderAndUserID(ctx context.Context, arg GetExternalAccountByProviderAndUserIDParams) (AuthUserExternalAccount, error) {
-	row := q.db.QueryRowContext(ctx, getExternalAccountByProviderAndUserID, arg.Provider, arg.ProviderUserID)
+	row := q.db.QueryRow(ctx, getExternalAccountByProviderAndUserID, arg.Provider, arg.ProviderUserID)
 	var i AuthUserExternalAccount
 	err := row.Scan(
 		&i.ID,
@@ -399,7 +413,7 @@ SELECT id, user_id, provider, provider_user_id, email, name, avatar_url, access_
 `
 
 func (q *Queries) GetExternalAccountsByUserID(ctx context.Context, userID string) ([]AuthUserExternalAccount, error) {
-	rows, err := q.db.QueryContext(ctx, getExternalAccountsByUserID, userID)
+	rows, err := q.db.Query(ctx, getExternalAccountsByUserID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -426,9 +440,6 @@ func (q *Queries) GetExternalAccountsByUserID(ctx context.Context, userID string
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -436,11 +447,11 @@ func (q *Queries) GetExternalAccountsByUserID(ctx context.Context, userID string
 }
 
 const getOAuthState = `-- name: GetOAuthState :one
-SELECT state, provider, redirect_url, user_id, action, created_at, expires_at FROM auth.oauth_states WHERE state = $1 AND expires_at > CURRENT_TIMESTAMP LIMIT 1
+SELECT state, provider, redirect_url, user_id, action, created_at, updated_at, expires_at FROM auth.oauth_states WHERE state = $1 AND expires_at > CURRENT_TIMESTAMP LIMIT 1
 `
 
 func (q *Queries) GetOAuthState(ctx context.Context, state string) (AuthOauthState, error) {
-	row := q.db.QueryRowContext(ctx, getOAuthState, state)
+	row := q.db.QueryRow(ctx, getOAuthState, state)
 	var i AuthOauthState
 	err := row.Scan(
 		&i.State,
@@ -449,13 +460,14 @@ func (q *Queries) GetOAuthState(ctx context.Context, state string) (AuthOauthSta
 		&i.UserID,
 		&i.Action,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 		&i.ExpiresAt,
 	)
 	return i, err
 }
 
 const getPendingContactChange = `-- name: GetPendingContactChange :one
-SELECT id, user_id, change_type, new_value, verification_code, created_at, expires_at FROM auth.pending_contact_changes
+SELECT id, user_id, change_type, new_value, verification_code, created_at, updated_at, expires_at FROM auth.pending_contact_changes
 WHERE user_id = $1 AND change_type = $2 AND verification_code = $3 AND expires_at > CURRENT_TIMESTAMP
 LIMIT 1
 `
@@ -467,7 +479,7 @@ type GetPendingContactChangeParams struct {
 }
 
 func (q *Queries) GetPendingContactChange(ctx context.Context, arg GetPendingContactChangeParams) (AuthPendingContactChange, error) {
-	row := q.db.QueryRowContext(ctx, getPendingContactChange, arg.UserID, arg.ChangeType, arg.VerificationCode)
+	row := q.db.QueryRow(ctx, getPendingContactChange, arg.UserID, arg.ChangeType, arg.VerificationCode)
 	var i AuthPendingContactChange
 	err := row.Scan(
 		&i.ID,
@@ -476,17 +488,18 @@ func (q *Queries) GetPendingContactChange(ctx context.Context, arg GetPendingCon
 		&i.NewValue,
 		&i.VerificationCode,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 		&i.ExpiresAt,
 	)
 	return i, err
 }
 
 const getSessionByID = `-- name: GetSessionByID :one
-SELECT id, user_id, refresh_token_hash, user_agent, ip_address, created_at, last_active_at, expires_at, revoked_at FROM auth.sessions WHERE id = $1 AND revoked_at IS NULL LIMIT 1
+SELECT id, user_id, refresh_token_hash, user_agent, ip_address, created_at, updated_at, last_active_at, expires_at, revoked_at FROM auth.sessions WHERE id = $1 AND revoked_at IS NULL LIMIT 1
 `
 
 func (q *Queries) GetSessionByID(ctx context.Context, id string) (AuthSession, error) {
-	row := q.db.QueryRowContext(ctx, getSessionByID, id)
+	row := q.db.QueryRow(ctx, getSessionByID, id)
 	var i AuthSession
 	err := row.Scan(
 		&i.ID,
@@ -495,6 +508,7 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (AuthSession, e
 		&i.UserAgent,
 		&i.IpAddress,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 		&i.LastActiveAt,
 		&i.ExpiresAt,
 		&i.RevokedAt,
@@ -503,11 +517,11 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (AuthSession, e
 }
 
 const getSessionByRefreshTokenHash = `-- name: GetSessionByRefreshTokenHash :one
-SELECT id, user_id, refresh_token_hash, user_agent, ip_address, created_at, last_active_at, expires_at, revoked_at FROM auth.sessions WHERE refresh_token_hash = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP LIMIT 1
+SELECT id, user_id, refresh_token_hash, user_agent, ip_address, created_at, updated_at, last_active_at, expires_at, revoked_at FROM auth.sessions WHERE refresh_token_hash = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP LIMIT 1
 `
 
 func (q *Queries) GetSessionByRefreshTokenHash(ctx context.Context, refreshTokenHash string) (AuthSession, error) {
-	row := q.db.QueryRowContext(ctx, getSessionByRefreshTokenHash, refreshTokenHash)
+	row := q.db.QueryRow(ctx, getSessionByRefreshTokenHash, refreshTokenHash)
 	var i AuthSession
 	err := row.Scan(
 		&i.ID,
@@ -516,6 +530,7 @@ func (q *Queries) GetSessionByRefreshTokenHash(ctx context.Context, refreshToken
 		&i.UserAgent,
 		&i.IpAddress,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 		&i.LastActiveAt,
 		&i.ExpiresAt,
 		&i.RevokedAt,
@@ -524,11 +539,11 @@ func (q *Queries) GetSessionByRefreshTokenHash(ctx context.Context, refreshToken
 }
 
 const getSessionsByUserID = `-- name: GetSessionsByUserID :many
-SELECT id, user_id, refresh_token_hash, user_agent, ip_address, created_at, last_active_at, expires_at, revoked_at FROM auth.sessions WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY last_active_at DESC
+SELECT id, user_id, refresh_token_hash, user_agent, ip_address, created_at, updated_at, last_active_at, expires_at, revoked_at FROM auth.sessions WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY last_active_at DESC
 `
 
 func (q *Queries) GetSessionsByUserID(ctx context.Context, userID string) ([]AuthSession, error) {
-	rows, err := q.db.QueryContext(ctx, getSessionsByUserID, userID)
+	rows, err := q.db.Query(ctx, getSessionsByUserID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -543,6 +558,7 @@ func (q *Queries) GetSessionsByUserID(ctx context.Context, userID string) ([]Aut
 			&i.UserAgent,
 			&i.IpAddress,
 			&i.CreatedAt,
+			&i.UpdatedAt,
 			&i.LastActiveAt,
 			&i.ExpiresAt,
 			&i.RevokedAt,
@@ -551,8 +567,39 @@ func (q *Queries) GetSessionsByUserID(ctx context.Context, userID string) ([]Aut
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	return items, nil
+}
+
+const getUnpublishedOutbox = `-- name: GetUnpublishedOutbox :many
+SELECT id, event_name, payload, created_at, updated_at, published_at FROM auth.outbox
+WHERE published_at IS NULL
+ORDER BY created_at ASC
+LIMIT $1
+`
+
+func (q *Queries) GetUnpublishedOutbox(ctx context.Context, limit int32) ([]AuthOutbox, error) {
+	rows, err := q.db.Query(ctx, getUnpublishedOutbox, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AuthOutbox
+	for rows.Next() {
+		var i AuthOutbox
+		if err := rows.Scan(
+			&i.ID,
+			&i.EventName,
+			&i.Payload,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PublishedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -561,76 +608,104 @@ func (q *Queries) GetSessionsByUserID(ctx context.Context, userID string) ([]Aut
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, phone, created_at, updated_at, display_name, avatar_url FROM auth.users WHERE email = $1 LIMIT 1
+SELECT id, email, phone, display_name, avatar_url, status, email_verified, phone_verified, timezone, created_at, updated_at FROM auth.users WHERE email = $1 LIMIT 1
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (AuthUser, error) {
-	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
+func (q *Queries) GetUserByEmail(ctx context.Context, email pgtype.Text) (AuthUser, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
 	var i AuthUser
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
 		&i.Phone,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.DisplayName,
 		&i.AvatarUrl,
+		&i.Status,
+		&i.EmailVerified,
+		&i.PhoneVerified,
+		&i.Timezone,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, phone, created_at, updated_at, display_name, avatar_url FROM auth.users WHERE id = $1 LIMIT 1
+SELECT id, email, phone, display_name, avatar_url, status, email_verified, phone_verified, timezone, created_at, updated_at FROM auth.users WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (AuthUser, error) {
-	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	row := q.db.QueryRow(ctx, getUserByID, id)
 	var i AuthUser
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
 		&i.Phone,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.DisplayName,
 		&i.AvatarUrl,
+		&i.Status,
+		&i.EmailVerified,
+		&i.PhoneVerified,
+		&i.Timezone,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getUserByPhone = `-- name: GetUserByPhone :one
-SELECT id, email, phone, created_at, updated_at, display_name, avatar_url FROM auth.users WHERE phone = $1 LIMIT 1
+SELECT id, email, phone, display_name, avatar_url, status, email_verified, phone_verified, timezone, created_at, updated_at FROM auth.users WHERE phone = $1 LIMIT 1
 `
 
-func (q *Queries) GetUserByPhone(ctx context.Context, phone sql.NullString) (AuthUser, error) {
-	row := q.db.QueryRowContext(ctx, getUserByPhone, phone)
+func (q *Queries) GetUserByPhone(ctx context.Context, phone pgtype.Text) (AuthUser, error) {
+	row := q.db.QueryRow(ctx, getUserByPhone, phone)
 	var i AuthUser
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
 		&i.Phone,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.DisplayName,
 		&i.AvatarUrl,
+		&i.Status,
+		&i.EmailVerified,
+		&i.PhoneVerified,
+		&i.Timezone,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
+const getUserRole = `-- name: GetUserRole :one
+SELECT r.name
+FROM auth.roles r
+JOIN auth.user_roles ur ON r.id = ur.role_id
+WHERE ur.user_id = $1
+  AND r.deleted_at IS NULL
+LIMIT 1
+`
+
+func (q *Queries) GetUserRole(ctx context.Context, userID string) (string, error) {
+	row := q.db.QueryRow(ctx, getUserRole, userID)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
 const getValidMagicCodeByEmail = `-- name: GetValidMagicCodeByEmail :one
-SELECT code, user_email, user_phone, expires_at, created_at FROM auth.magic_codes
+SELECT code, user_email, user_phone, expires_at, created_at, updated_at FROM auth.magic_codes
 WHERE user_email = $1 AND code = $2 AND expires_at > $3
 ORDER BY created_at DESC LIMIT 1
 `
 
 type GetValidMagicCodeByEmailParams struct {
-	UserEmail sql.NullString `json:"user_email"`
-	Code      string         `json:"code"`
-	ExpiresAt time.Time      `json:"expires_at"`
+	UserEmail pgtype.Text        `json:"user_email"`
+	Code      string             `json:"code"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
 func (q *Queries) GetValidMagicCodeByEmail(ctx context.Context, arg GetValidMagicCodeByEmailParams) (AuthMagicCode, error) {
-	row := q.db.QueryRowContext(ctx, getValidMagicCodeByEmail, arg.UserEmail, arg.Code, arg.ExpiresAt)
+	row := q.db.QueryRow(ctx, getValidMagicCodeByEmail, arg.UserEmail, arg.Code, arg.ExpiresAt)
 	var i AuthMagicCode
 	err := row.Scan(
 		&i.Code,
@@ -638,24 +713,25 @@ func (q *Queries) GetValidMagicCodeByEmail(ctx context.Context, arg GetValidMagi
 		&i.UserPhone,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getValidMagicCodeByPhone = `-- name: GetValidMagicCodeByPhone :one
-SELECT code, user_email, user_phone, expires_at, created_at FROM auth.magic_codes
+SELECT code, user_email, user_phone, expires_at, created_at, updated_at FROM auth.magic_codes
 WHERE user_phone = $1 AND code = $2 AND expires_at > $3
 ORDER BY created_at DESC LIMIT 1
 `
 
 type GetValidMagicCodeByPhoneParams struct {
-	UserPhone sql.NullString `json:"user_phone"`
-	Code      string         `json:"code"`
-	ExpiresAt time.Time      `json:"expires_at"`
+	UserPhone pgtype.Text        `json:"user_phone"`
+	Code      string             `json:"code"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
 func (q *Queries) GetValidMagicCodeByPhone(ctx context.Context, arg GetValidMagicCodeByPhoneParams) (AuthMagicCode, error) {
-	row := q.db.QueryRowContext(ctx, getValidMagicCodeByPhone, arg.UserPhone, arg.Code, arg.ExpiresAt)
+	row := q.db.QueryRow(ctx, getValidMagicCodeByPhone, arg.UserPhone, arg.Code, arg.ExpiresAt)
 	var i AuthMagicCode
 	err := row.Scan(
 		&i.Code,
@@ -663,6 +739,7 @@ func (q *Queries) GetValidMagicCodeByPhone(ctx context.Context, arg GetValidMagi
 		&i.UserPhone,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -672,10 +749,48 @@ SELECT EXISTS(SELECT 1 FROM auth.token_blacklist WHERE token_hash = $1 AND expir
 `
 
 func (q *Queries) IsTokenBlacklisted(ctx context.Context, tokenHash string) (bool, error) {
-	row := q.db.QueryRowContext(ctx, isTokenBlacklisted, tokenHash)
+	row := q.db.QueryRow(ctx, isTokenBlacklisted, tokenHash)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const markEmailVerified = `-- name: MarkEmailVerified :exec
+UPDATE auth.users SET email_verified = TRUE, updated_at = NOW() WHERE id = $1
+`
+
+func (q *Queries) MarkEmailVerified(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, markEmailVerified, id)
+	return err
+}
+
+const markOutboxAsPublished = `-- name: MarkOutboxAsPublished :exec
+UPDATE auth.outbox
+SET published_at = NOW()
+WHERE id = ANY($1::varchar[])
+`
+
+func (q *Queries) MarkOutboxAsPublished(ctx context.Context, dollar_1 []string) error {
+	_, err := q.db.Exec(ctx, markOutboxAsPublished, dollar_1)
+	return err
+}
+
+const markPhoneVerified = `-- name: MarkPhoneVerified :exec
+UPDATE auth.users SET phone_verified = TRUE, updated_at = NOW() WHERE id = $1
+`
+
+func (q *Queries) MarkPhoneVerified(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, markPhoneVerified, id)
+	return err
+}
+
+const removeUserRoles = `-- name: RemoveUserRoles :exec
+DELETE FROM auth.user_roles WHERE user_id = $1
+`
+
+func (q *Queries) RemoveUserRoles(ctx context.Context, userID string) error {
+	_, err := q.db.Exec(ctx, removeUserRoles, userID)
+	return err
 }
 
 const revokeAllUserSessions = `-- name: RevokeAllUserSessions :execrows
@@ -688,11 +803,11 @@ type RevokeAllUserSessionsParams struct {
 }
 
 func (q *Queries) RevokeAllUserSessions(ctx context.Context, arg RevokeAllUserSessionsParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, revokeAllUserSessions, arg.UserID, arg.Column2)
+	result, err := q.db.Exec(ctx, revokeAllUserSessions, arg.UserID, arg.Column2)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const revokeSession = `-- name: RevokeSession :exec
@@ -700,7 +815,27 @@ UPDATE auth.sessions SET revoked_at = CURRENT_TIMESTAMP WHERE id = $1
 `
 
 func (q *Queries) RevokeSession(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, revokeSession, id)
+	_, err := q.db.Exec(ctx, revokeSession, id)
+	return err
+}
+
+const storeOutbox = `-- name: StoreOutbox :exec
+
+INSERT INTO auth.outbox (id, event_name, payload, created_at)
+VALUES ($1, $2, $3, NOW())
+`
+
+type StoreOutboxParams struct {
+	ID        string `json:"id"`
+	EventName string `json:"event_name"`
+	Payload   []byte `json:"payload"`
+}
+
+// ========================
+// Outbox
+// ========================
+func (q *Queries) StoreOutbox(ctx context.Context, arg StoreOutboxParams) error {
+	_, err := q.db.Exec(ctx, storeOutbox, arg.ID, arg.EventName, arg.Payload)
 	return err
 }
 
@@ -711,16 +846,16 @@ WHERE provider = $1 AND provider_user_id = $2
 `
 
 type UpdateExternalAccountProfileParams struct {
-	Provider       string                `json:"provider"`
-	ProviderUserID string                `json:"provider_user_id"`
-	Name           sql.NullString        `json:"name"`
-	AvatarUrl      sql.NullString        `json:"avatar_url"`
-	Email          sql.NullString        `json:"email"`
-	RawData        pqtype.NullRawMessage `json:"raw_data"`
+	Provider       string      `json:"provider"`
+	ProviderUserID string      `json:"provider_user_id"`
+	Name           pgtype.Text `json:"name"`
+	AvatarUrl      pgtype.Text `json:"avatar_url"`
+	Email          pgtype.Text `json:"email"`
+	RawData        []byte      `json:"raw_data"`
 }
 
 func (q *Queries) UpdateExternalAccountProfile(ctx context.Context, arg UpdateExternalAccountProfileParams) error {
-	_, err := q.db.ExecContext(ctx, updateExternalAccountProfile,
+	_, err := q.db.Exec(ctx, updateExternalAccountProfile,
 		arg.Provider,
 		arg.ProviderUserID,
 		arg.Name,
@@ -738,15 +873,15 @@ WHERE provider = $1 AND provider_user_id = $2
 `
 
 type UpdateExternalAccountTokensParams struct {
-	Provider       string         `json:"provider"`
-	ProviderUserID string         `json:"provider_user_id"`
-	AccessToken    sql.NullString `json:"access_token"`
-	RefreshToken   sql.NullString `json:"refresh_token"`
-	TokenExpiresAt sql.NullTime   `json:"token_expires_at"`
+	Provider       string             `json:"provider"`
+	ProviderUserID string             `json:"provider_user_id"`
+	AccessToken    pgtype.Text        `json:"access_token"`
+	RefreshToken   pgtype.Text        `json:"refresh_token"`
+	TokenExpiresAt pgtype.Timestamptz `json:"token_expires_at"`
 }
 
 func (q *Queries) UpdateExternalAccountTokens(ctx context.Context, arg UpdateExternalAccountTokensParams) error {
-	_, err := q.db.ExecContext(ctx, updateExternalAccountTokens,
+	_, err := q.db.Exec(ctx, updateExternalAccountTokens,
 		arg.Provider,
 		arg.ProviderUserID,
 		arg.AccessToken,
@@ -761,21 +896,27 @@ UPDATE auth.sessions SET last_active_at = CURRENT_TIMESTAMP WHERE id = $1
 `
 
 func (q *Queries) UpdateSessionActivity(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, updateSessionActivity, id)
+	_, err := q.db.Exec(ctx, updateSessionActivity, id)
 	return err
 }
 
 const updateUserProfile = `-- name: UpdateUserProfile :exec
-UPDATE auth.users SET display_name = $2, avatar_url = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1
+UPDATE auth.users SET display_name = $2, avatar_url = $3, timezone = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $1
 `
 
 type UpdateUserProfileParams struct {
-	ID          string         `json:"id"`
-	DisplayName sql.NullString `json:"display_name"`
-	AvatarUrl   sql.NullString `json:"avatar_url"`
+	ID          string      `json:"id"`
+	DisplayName pgtype.Text `json:"display_name"`
+	AvatarUrl   pgtype.Text `json:"avatar_url"`
+	Timezone    pgtype.Text `json:"timezone"`
 }
 
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error {
-	_, err := q.db.ExecContext(ctx, updateUserProfile, arg.ID, arg.DisplayName, arg.AvatarUrl)
+	_, err := q.db.Exec(ctx, updateUserProfile,
+		arg.ID,
+		arg.DisplayName,
+		arg.AvatarUrl,
+		arg.Timezone,
+	)
 	return err
 }

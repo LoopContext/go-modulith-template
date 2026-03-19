@@ -3,11 +3,15 @@ package setup
 
 import (
 	"context"
-	"database/sql"
+	"fmt"
 	"log/slog"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/cmelgarejo/go-modulith-template/internal/audit"
+	"github.com/cmelgarejo/go-modulith-template/internal/cache"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/feature"
 	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
@@ -15,7 +19,7 @@ import (
 )
 
 // CreateRegistry creates a new registry with all dependencies.
-func CreateRegistry(cfg *config.AppConfig, db *sql.DB) *registry.Registry {
+func CreateRegistry(cfg *config.AppConfig, db *pgxpool.Pool) *registry.Registry {
 	// Create shared services
 	ebus := events.NewBus()
 	wsHub := websocket.NewHub(context.Background())
@@ -34,6 +38,37 @@ func CreateRegistry(cfg *config.AppConfig, db *sql.DB) *registry.Registry {
 
 	slog.Info("WebSocket hub initialized")
 
+	// Initialize Audit Logger
+	auditLogger := audit.NewEventBusLogger(ebus)
+
+	// Initialize Cache
+	var cacheImpl cache.Cache
+
+	valkeyCfg := cache.ValkeyConfig{
+		Addr:         cfg.ValkeyAddr,
+		Password:     cfg.ValkeyPassword,
+		DB:           cfg.ValkeyDB,
+		PoolSize:     cfg.ValkeyPoolSize,
+		MinIdleConns: cfg.ValkeyMinIdleConns,
+	}
+
+	valkeyCache, err := cache.NewValkeyCache(valkeyCfg)
+	if err != nil {
+		slog.Error("Failed to initialize Valkey cache", "error", err)
+		// We could decide to fail here or continue without cache
+		// Given it's critical for rate limiting, let's fail in prod
+		if cfg.Env == "prod" {
+			panic(fmt.Errorf("failed to initialize Valkey cache: %w", err))
+		}
+	} else {
+		slog.Info("Valkey cache initialized", "addr", cfg.ValkeyAddr)
+
+		cacheImpl = valkeyCache
+	}
+
+	// Initialize Feature Flag Manager
+	featureMgr := feature.NewSQLManager(db)
+
 	// Create registry with all dependencies
 	return registry.New(
 		registry.WithConfig(cfg),
@@ -41,14 +76,18 @@ func CreateRegistry(cfg *config.AppConfig, db *sql.DB) *registry.Registry {
 		registry.WithEventBus(ebus),
 		registry.WithNotifier(ntf),
 		registry.WithWebSocketHub(wsHub),
+		registry.WithAuditLogger(auditLogger),
+		registry.WithFeature(featureMgr),
+		registry.WithCache(cacheImpl),
 	)
 }
 
 // RegisterModules registers all modules with the registry.
 func RegisterModules(reg *registry.Registry) {
 	// Register all modules here
+	// Order matters: modules that are dependencies must be registered first
 	reg.Register(auth.NewModule())
 	// Add more modules as needed:
-	// reg.Register(order.NewModule())
-	// reg.Register(payment.NewModule())
+	// reg.Register(wallet.NewModule())
 }
+

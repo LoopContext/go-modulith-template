@@ -18,11 +18,8 @@ package examples
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 	"time"
-
-	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver
 
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
@@ -30,6 +27,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // ExampleIntegrationTest demonstrates a complete integration test for a module.
@@ -37,7 +35,7 @@ import (
 // 1. Sets up a real PostgreSQL database using testcontainers
 // 2. Runs migrations to create the schema
 // 3. Initializes the module with real dependencies
-// 4. Tests the service layer end-to-end
+// 4. Tests the repository layer through SQL queries
 // 5. Verifies event bus integration
 func ExampleIntegrationTest(t *testing.T) {
 	if testing.Short() {
@@ -58,20 +56,16 @@ func ExampleIntegrationTest(t *testing.T) {
 		}
 	}()
 
-	// Step 2: Get database connection
-	db, err := pgContainer.DB(ctx)
+	// Step 2: Get database connection pool
+	pool, err := pgContainer.Pool(ctx)
 	if err != nil {
 		t.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("Failed to close database: %v", err)
-		}
-	}()
+	defer pool.Close()
 
 	// Step 3: Run migrations
-	reg := setupRegistry(t, db)
+	reg := setupRegistry(t, pool)
 
 	// Run migrations
 	migrationRunner := migration.NewRunner(pgContainer.DSN, reg)
@@ -83,13 +77,13 @@ func ExampleIntegrationTest(t *testing.T) {
 	eventBus := reg.EventBus()
 
 	// Step 5: Test through database queries
-	testDatabaseOperations(ctx, t, db)
+	testDatabaseOperations(ctx, t, pool)
 
 	// Step 6: Test event bus integration
 	testEventBusIntegration(ctx, t, eventBus)
 }
 
-func setupRegistry(t *testing.T, db *sql.DB) *registry.Registry {
+func setupRegistry(t *testing.T, db *pgxpool.Pool) *registry.Registry {
 	t.Helper()
 
 	// Create a minimal registry for migration discovery
@@ -97,7 +91,7 @@ func setupRegistry(t *testing.T, db *sql.DB) *registry.Registry {
 		Env:      "test",
 		LogLevel: "debug",
 		Auth: config.AuthConfig{
-			JWTSecret: "test-secret-key-that-is-at-least-32-bytes-long-for-testing",
+			JWTPrivateKeyPEM: "test-auth-private-key",
 		},
 	}
 
@@ -118,29 +112,29 @@ func setupRegistry(t *testing.T, db *sql.DB) *registry.Registry {
 	return reg
 }
 
-func testDatabaseOperations(ctx context.Context, t *testing.T, db *sql.DB) {
+func testDatabaseOperations(ctx context.Context, t *testing.T, db *pgxpool.Pool) {
 	t.Helper()
 
 	// Test that migrations created the expected tables
 	var tableExists bool
 
-	err := db.QueryRowContext(ctx,
-		"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'magic_codes')",
+	err := db.QueryRow(ctx,
+		"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'magic_codes')",
 	).Scan(&tableExists)
 	if err != nil {
 		t.Fatalf("Failed to check table existence: %v", err)
 	}
 
 	if !tableExists {
-		t.Error("Expected magic_codes table to exist after migrations")
+		t.Error("Expected auth.magic_codes table to exist after migrations")
 	}
 
 	// Test inserting and querying data
 	email := "test@example.com"
 	code := "123456"
 
-	_, err = db.ExecContext(ctx,
-		"INSERT INTO magic_codes (email, code, expires_at) VALUES ($1, $2, NOW() + INTERVAL '10 minutes')",
+	_, err = db.Exec(ctx,
+		"INSERT INTO auth.magic_codes (email, code, expires_at) VALUES ($1, $2, NOW() + INTERVAL '10 minutes')",
 		email, code,
 	)
 	if err != nil {
@@ -149,8 +143,8 @@ func testDatabaseOperations(ctx context.Context, t *testing.T, db *sql.DB) {
 
 	var storedCode string
 
-	err = db.QueryRowContext(ctx,
-		"SELECT code FROM magic_codes WHERE email = $1 ORDER BY created_at DESC LIMIT 1",
+	err = db.QueryRow(ctx,
+		"SELECT code FROM auth.magic_codes WHERE email = $1 ORDER BY created_at DESC LIMIT 1",
 		email,
 	).Scan(&storedCode)
 	if err != nil {
@@ -199,23 +193,12 @@ func testEventBusIntegration(ctx context.Context, t *testing.T, eventBus *events
 }
 
 // ExampleRepositoryIntegrationTest demonstrates testing database operations directly.
-// Note: This example doesn't use internal packages - it tests through SQL.
 func ExampleRepositoryIntegrationTest(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
 	ctx := context.Background()
-	db := setupTestDatabase(ctx, t)
-
-	// Example: Test database operations directly
-	t.Run("DatabaseOperations", func(t *testing.T) {
-		testUserOperations(ctx, t, db)
-	})
-}
-
-func setupTestDatabase(ctx context.Context, t *testing.T) *sql.DB {
-	t.Helper()
 
 	// Set up test database
 	pgContainer, err := testutil.NewPostgresContainer(ctx, t)
@@ -229,20 +212,15 @@ func setupTestDatabase(ctx context.Context, t *testing.T) *sql.DB {
 		}
 	}()
 
-	db, err := pgContainer.DB(ctx)
+	pool, err := pgContainer.Pool(ctx)
 	if err != nil {
 		t.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("Failed to close database: %v", err)
-		}
-	}()
+	defer pool.Close()
 
-	// Run migrations (simplified - in real tests, use migration runner)
 	// For this example, we'll create a simple table
-	_, err = db.ExecContext(ctx, `
+	_, err = pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS test_users (
 			id TEXT PRIMARY KEY,
 			email TEXT UNIQUE NOT NULL,
@@ -253,17 +231,20 @@ func setupTestDatabase(ctx context.Context, t *testing.T) *sql.DB {
 		t.Fatalf("Failed to create test table: %v", err)
 	}
 
-	return db
+	// Example: Test database operations directly
+	t.Run("DatabaseOperations", func(t *testing.T) {
+		testUserOperations(ctx, t, pool)
+	})
 }
 
-func testUserOperations(ctx context.Context, t *testing.T, db *sql.DB) {
+func testUserOperations(ctx context.Context, t *testing.T, db *pgxpool.Pool) {
 	t.Helper()
 
 	userID := "test-user-123"
 	email := "test@example.com"
 
 	// Insert
-	_, err := db.ExecContext(ctx,
+	_, err := db.Exec(ctx,
 		"INSERT INTO test_users (id, email) VALUES ($1, $2)",
 		userID, email,
 	)
@@ -274,7 +255,7 @@ func testUserOperations(ctx context.Context, t *testing.T, db *sql.DB) {
 	// Query
 	var storedEmail string
 
-	err = db.QueryRowContext(ctx,
+	err = db.QueryRow(ctx,
 		"SELECT email FROM test_users WHERE id = $1",
 		userID,
 	).Scan(&storedEmail)
@@ -288,19 +269,11 @@ func testUserOperations(ctx context.Context, t *testing.T, db *sql.DB) {
 }
 
 // ExampleGRPCIntegrationTest demonstrates testing gRPC endpoints.
-// This requires setting up a gRPC server and client.
 func ExampleGRPCIntegrationTest(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	// This is a template for gRPC integration tests
-	// In practice, you would:
-	// 1. Set up test database (as shown above)
-	// 2. Create a gRPC server
-	// 3. Register your service
-	// 4. Create a gRPC client
-	// 5. Make RPC calls and verify responses
-
 	t.Log("gRPC integration test template - implement based on your needs")
 }
+

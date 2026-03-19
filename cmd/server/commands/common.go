@@ -3,11 +3,11 @@ package commands
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 	"os"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
 	"github.com/cmelgarejo/go-modulith-template/cmd/server/setup"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
@@ -16,7 +16,7 @@ import (
 )
 
 // CommonSetup loads configuration, initializes database, and creates registry.
-func CommonSetup() (*config.AppConfig, *sql.DB, *registry.Registry) {
+func CommonSetup() (*config.AppConfig, *pgxpool.Pool, *registry.Registry) {
 	observability.InitLoggerEarly()
 
 	systemEnvVars := setup.CaptureSystemEnvVars()
@@ -60,10 +60,7 @@ func RunMigrations(dbDSN string, reg *registry.Registry) error {
 
 // RunSeedData runs seed data for all modules.
 func RunSeedData(dbDSN string, reg *registry.Registry) error {
-	// Create adapter for the registry to match migration.ModuleRegistry interface
-	adapter := &registryAdapter{reg: reg}
-
-	seeder, err := migration.NewSeeder(dbDSN, adapter)
+	seeder, err := migration.NewSeeder(dbDSN, reg)
 	if err != nil {
 		return fmt.Errorf("failed to create seeder: %w", err)
 	}
@@ -81,18 +78,3 @@ func RunSeedData(dbDSN string, reg *registry.Registry) error {
 	return nil
 }
 
-// registryAdapter adapts registry.Registry to migration.ModuleRegistry.
-type registryAdapter struct {
-	reg *registry.Registry
-}
-
-func (r *registryAdapter) Modules() []interface{} {
-	modules := r.reg.Modules()
-	result := make([]interface{}, len(modules))
-
-	for i, mod := range modules {
-		result[i] = mod
-	}
-
-	return result
-}

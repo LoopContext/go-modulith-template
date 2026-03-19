@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"log/slog"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/cmelgarejo/go-modulith-template/cmd/server/commands"
 	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
 	"github.com/cmelgarejo/go-modulith-template/cmd/server/setup"
@@ -78,16 +79,15 @@ func main() {
 	runServer(ctx, cfg, reg, stop)
 }
 
+
 func handleSubcommand(args []string) {
 	command := args[0]
 
 	switch command {
-	case "migrate":
-		commands.RunMigrateCommand()
-	case "migrate-down":
-		commands.RunMigrateDownCommand()
+	case "migrate", "migrate-down":
+		handleMigrateSubcommand(command, args)
 	case "seed":
-		commands.RunSeedCommand()
+		handleSeedSubcommand(command, args)
 	case "admin":
 		if len(args) < 2 {
 			slog.Error("Usage: admin <task_name>")
@@ -102,7 +102,31 @@ func handleSubcommand(args []string) {
 	}
 }
 
-func initializeServices(ctx context.Context, cfg *config.AppConfig) (func(), *sql.DB) {
+func handleMigrateSubcommand(command string, _ []string) {
+	switch command {
+	case "migrate":
+		commands.RunMigrateCommand()
+	case "migrate-down":
+		commands.RunMigrateDownCommand()
+	}
+}
+
+func handleSeedSubcommand(command string, args []string) {
+	switch command {
+	case "seed":
+		commands.RunSeedCommand()
+	case "seed-module":
+		if len(args) < 2 {
+			slog.Error("Usage: seed-module <module_name>")
+			os.Exit(1)
+		}
+
+		commands.RunSeedModuleCommand(args[1])
+	}
+}
+
+
+func initializeServices(ctx context.Context, cfg *config.AppConfig) (func(), *pgxpool.Pool) {
 	shutdownObs, err := observability.InitObservability(ctx, cfg)
 	if err != nil {
 		slog.Error("Failed to initialize observability", "error", err)
@@ -139,6 +163,7 @@ func handleSpecialFlags(dbDSN string, reg *registry.Registry) bool {
 	return false
 }
 
+
 func runServer(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry, stop context.CancelFunc) {
 	// Call module lifecycle OnStart hooks
 	if err := reg.OnStartAll(ctx); err != nil {
@@ -167,6 +192,7 @@ func runServer(ctx context.Context, cfg *config.AppConfig, reg *registry.Registr
 	setup.ShutdownServers(cfg, httpServer, grpcServer, reg.WebSocketHub())
 	// runServer returns after graceful shutdown, main() will exit with code 0
 }
+
 
 func closeGatewayConn(conn *grpc.ClientConn) {
 	if conn != nil {

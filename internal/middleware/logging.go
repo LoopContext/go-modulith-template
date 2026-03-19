@@ -2,7 +2,10 @@
 package middleware
 
 import (
+	"bufio"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 )
@@ -34,6 +37,19 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := rw.ResponseWriter.(http.Hijacker); ok {
+		conn, rw, err := hj.Hijack()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to hijack connection: %w", err)
+		}
+
+		return conn, rw, nil
+	}
+
+	return nil, nil, fmt.Errorf("http.ResponseWriter does not implement http.Hijacker")
+}
+
 // LoggingConfig configures the logging middleware behavior.
 type LoggingConfig struct {
 	// SkipPaths are paths that should not be logged (e.g., health checks).
@@ -53,6 +69,7 @@ func DefaultLoggingConfig() LoggingConfig {
 			"/healthz",
 			"/readyz",
 			"/metrics",
+			"/ws",
 		},
 		LogRequestBody:       false,
 		LogResponseBody:      false,
@@ -85,44 +102,78 @@ func Logging(config LoggingConfig) func(http.Handler) http.Handler {
 			// Calculate duration
 			duration := time.Since(start)
 
-			// Build log attributes
-			attrs := []slog.Attr{
-				slog.String("method", r.Method),
-				slog.String("path", r.URL.Path),
-				slog.Int("status", wrapped.statusCode),
-				slog.Duration("duration", duration),
-				slog.Int("bytes", wrapped.bytesWritten),
-				slog.String("remote_addr", r.RemoteAddr),
-				slog.String("user_agent", r.UserAgent()),
-			}
-
-			// Add request ID if present
-			if reqID := GetRequestID(r.Context()); reqID != "" {
-				attrs = append(attrs, slog.String("request_id", reqID))
-			}
-
-			// Add query params if present (be careful with PII)
-			if r.URL.RawQuery != "" {
-				attrs = append(attrs, slog.String("query", r.URL.RawQuery))
-			}
-
-			// Determine log level based on status and duration
-			ctx := r.Context()
-			msg := "HTTP request"
-
-			switch {
-			case wrapped.statusCode >= 500:
-				slog.LogAttrs(ctx, slog.LevelError, msg, attrs...)
-			case wrapped.statusCode >= 400:
-				slog.LogAttrs(ctx, slog.LevelWarn, msg, attrs...)
-			case duration > config.SlowRequestThreshold:
-				attrs = append(attrs, slog.Bool("slow", true))
-				slog.LogAttrs(ctx, slog.LevelWarn, msg, attrs...)
-			default:
-				slog.LogAttrs(ctx, slog.LevelInfo, msg, attrs...)
-			}
+			// Build and execute log
+			attrs := buildLogAttrs(r, wrapped, duration)
+			executeLog(r, wrapped, duration, config.SlowRequestThreshold, attrs)
 		})
 	}
+}
+
+func buildLogAttrs(r *http.Request, wrapped *responseWriter, duration time.Duration) []slog.Attr {
+	attrs := []slog.Attr{
+		slog.String("method", r.Method),
+		slog.String("path", r.URL.Path),
+		slog.Int("status", wrapped.statusCode),
+		slog.Duration("duration", duration),
+		slog.Int("bytes", wrapped.bytesWritten),
+		slog.String("remote_addr", r.RemoteAddr),
+		slog.String("user_agent", r.UserAgent()),
+	}
+
+	if reqID := GetRequestID(r.Context()); reqID != "" {
+		attrs = append(attrs, slog.String("request_id", reqID))
+	}
+
+	if r.URL.RawQuery != "" {
+		q := r.URL.Query()
+		for k := range q {
+			if isSensitiveField(k) {
+				q.Set(k, "[REDACTED]")
+			}
+		}
+
+		attrs = append(attrs, slog.String("query", q.Encode()))
+	}
+
+	return attrs
+}
+
+func executeLog(r *http.Request, wrapped *responseWriter, duration, threshold time.Duration, attrs []slog.Attr) {
+	ctx := r.Context()
+	msg := "HTTP request"
+
+	switch {
+	case wrapped.statusCode >= 500:
+		slog.LogAttrs(ctx, slog.LevelError, msg, attrs...)
+	case wrapped.statusCode >= 400:
+		slog.LogAttrs(ctx, slog.LevelWarn, msg, attrs...)
+	case duration > threshold:
+		attrs = append(attrs, slog.Bool("slow", true))
+		slog.LogAttrs(ctx, slog.LevelWarn, msg, attrs...)
+	default:
+		slog.LogAttrs(ctx, slog.LevelInfo, msg, attrs...)
+	}
+}
+
+// isSensitiveField returns true if the key name indicates a sensitive field.
+func isSensitiveField(key string) bool {
+	// Add common sensitive field names here
+	sensitive := map[string]bool{
+		"password":      true,
+		"token":         true,
+		"access_token":  true,
+		"refresh_token": true,
+		"auth":          true,
+		"authorization": true,
+		"secret":        true,
+		"key":           true,
+		"apikey":        true,
+		"api_key":       true,
+		"session":       true,
+		"sessionid":     true,
+	}
+
+	return sensitive[key]
 }
 
 // LoggingWithDefaults returns the logging middleware with default configuration.

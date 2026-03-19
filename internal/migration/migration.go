@@ -2,17 +2,18 @@
 package migration
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 
-	// Import postgres driver for migrations
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	// Import pgx5 driver for migrations
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	// Import file source driver for migrations
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
@@ -119,6 +120,11 @@ func (r *Runner) buildModuleDSN(moduleName string) (string, error) {
 		return "", fmt.Errorf("failed to parse DSN: %w", err)
 	}
 
+	// For golang-migrate with pgx/v5, the scheme must be pgx5
+	if parsedDSN.Scheme == "postgres" || parsedDSN.Scheme == "postgresql" {
+		parsedDSN.Scheme = "pgx5"
+	}
+
 	// Get existing query parameters
 	query := parsedDSN.Query()
 
@@ -218,22 +224,25 @@ func (r *Runner) rollbackMigrations(m *migrate.Migrate, moduleName string) error
 }
 
 // rollbackAllMigrations rolls back all migrations to version 0 and logs the result.
+// rollbackAllMigrations rolls back all migrations to version 0 and logs the result.
+// If the database is in a dirty state, it will log a warning and still try to proceed
+// with a full rollback (Down), as that's often the best way to clean up an inconsistent state.
 func (r *Runner) rollbackAllMigrations(m *migrate.Migrate, moduleName string) error {
 	// Check current version first to handle version 0 case
 	version, dirty, err := m.Version()
 	if err != nil && err != migrate.ErrNilVersion {
-		return fmt.Errorf("failed to get migration version: %w", err)
+		// Log error but don't return if we're trying to nuke everything
+		slog.Warn("Could not determine migration version, proceeding with nuke", "module", moduleName, "error", err)
 	}
 
 	// If no migrations are applied (version 0 or ErrNilVersion), there's nothing to rollback
-	if err == migrate.ErrNilVersion || version == 0 {
+	if (err == migrate.ErrNilVersion || version == 0) && !dirty {
 		slog.Debug("No migrations to rollback (database is at version 0)", "module", moduleName)
 		return nil
 	}
 
-	// If database is dirty, we can't rollback
 	if dirty {
-		return fmt.Errorf("database is in dirty state at version %d, use migrate-force to fix", version)
+		slog.Warn("Database is in dirty state, attempting forced rollback", "module", moduleName, "version", version)
 	}
 
 	// Rollback all migrations to version 0
@@ -247,6 +256,44 @@ func (r *Runner) rollbackAllMigrations(m *migrate.Migrate, moduleName string) er
 	} else {
 		slog.Info("All migrations rolled back successfully", "module", moduleName, "from_version", version)
 	}
+
+	return nil
+}
+
+// DropModuleSchema is a drastic fallback that drops the module's schema and its migration table.
+// This is used when standard migration rollbacks fail.
+func (r *Runner) DropModuleSchema(moduleName string) error {
+	slog.Warn("🔥 Attempting drastic fallback: dropping module schema", "module", moduleName)
+
+	// Since we're using pgxpool for regular DB operations but golang-migrate for others,
+	// we'll get a connection from our shared pool to execute the DROP SCHEMA.
+	db := r.reg.DB()
+	if db == nil {
+		return fmt.Errorf("database connection pool not available")
+	}
+
+	ctx := context.Background()
+
+	// 1. Drop the module schema (CASCADE drops all tables, views, etc.)
+	query := fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", moduleName)
+	if _, err := db.Exec(ctx, query); err != nil {
+		return fmt.Errorf("failed to drop schema %s: %w", moduleName, err)
+	}
+
+	// 2. Drop the migration tracking table
+	migTable := fmt.Sprintf("%s_schema_migrations", moduleName)
+
+	query = fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", migTable)
+	if _, err := db.Exec(ctx, query); err != nil {
+		slog.Warn("Failed to drop migration table, it might be in a different schema", "table", migTable, "error", err)
+		// Try public schema explicitly as a last resort
+		query = fmt.Sprintf("DROP TABLE IF EXISTS public.%s CASCADE", migTable)
+		if _, err := db.Exec(ctx, query); err != nil {
+			return fmt.Errorf("failed to drop migration table in public schema: %w", err)
+		}
+	}
+
+	slog.Info("✅ Module schema and migration table dropped successfully", "module", moduleName)
 
 	return nil
 }
@@ -286,7 +333,11 @@ func (r *Runner) DownAll() error {
 
 	var lastError error
 
-	for _, mod := range modules {
+	// Rollback modules in reverse order of registration
+	// This is important because modules registered later often depend on those registered earlier
+	for i := len(modules) - 1; i >= 0; i-- {
+		mod := modules[i]
+
 		migMod, ok := mod.(registry.ModuleMigrations)
 		if !ok {
 			continue
@@ -302,11 +353,15 @@ func (r *Runner) DownAll() error {
 		slog.Info("Rolling back all migrations for module", "module", mod.Name(), "path", path)
 
 		if err := r.runModuleMigrationWithDirection(mod.Name(), path, "down-all"); err != nil {
-			// Log error but continue with other modules
-			slog.Error("Failed to rollback all migrations for module", "module", mod.Name(), "error", err)
-			lastError = err
-			// Don't return error immediately - try to rollback other modules
-			continue
+			slog.Error("Failed to rollback migrations for module, attempting fallback", "module", mod.Name(), "error", err)
+
+			// Fallback: Drop the schema directly
+			if fallbackErr := r.DropModuleSchema(mod.Name()); fallbackErr != nil {
+				slog.Error("Fallback also failed", "module", mod.Name(), "error", fallbackErr)
+				lastError = fallbackErr
+
+				continue
+			}
 		}
 
 		rolledBackCount++
@@ -352,6 +407,93 @@ func (r *Runner) DownForModule(moduleName string) error {
 	slog.Info("Rolling back last migration for module", "module", moduleName, "path", path)
 
 	return r.runModuleMigrationWithDirection(moduleName, path, "down")
+}
+
+// NukeModule forcibly drops a specific module schema.
+func (r *Runner) NukeModule(moduleName string) error {
+	mod := r.reg.GetModule(moduleName)
+	if mod == nil {
+		return fmt.Errorf("module %s not found", moduleName)
+	}
+
+	migMod, ok := mod.(registry.ModuleMigrations)
+	if !ok {
+		return fmt.Errorf("module %s does not implement ModuleMigrations", moduleName)
+	}
+
+	path := migMod.MigrationPath()
+	if path == "" {
+		return fmt.Errorf("module %s has no migration path", moduleName)
+	}
+
+	slog.Info("Nuking module schema", "module", moduleName)
+
+	if err := r.DropModuleSchema(moduleName); err != nil {
+		return fmt.Errorf("failed to nuke module schema: %w", err)
+	}
+
+	return nil
+}
+
+// NukeAll forcibly drops all registered module schemas.
+// This is a destructive operation that bypasses standard migration rollbacks
+// and ensures a clean state by dropping schemas directly.
+func (r *Runner) NukeAll() error {
+	modules := r.reg.Modules()
+	if len(modules) == 0 {
+		slog.Info("No modules registered, skipping nuke")
+		return nil
+	}
+
+	modulesWithMigrations := 0
+	droppedCount := 0
+
+	var lastError error
+
+	// Drop modules in reverse order of registration
+	for i := len(modules) - 1; i >= 0; i-- {
+		mod := modules[i]
+
+		migMod, ok := mod.(registry.ModuleMigrations)
+		if !ok {
+			continue
+		}
+
+		path := migMod.MigrationPath()
+		if path == "" {
+			continue
+		}
+
+		modulesWithMigrations++
+
+		slog.Info("Nuking all tables for module", "module", mod.Name())
+
+		if err := r.DropModuleSchema(mod.Name()); err != nil {
+			slog.Error("Failed to nuke module schema", "module", mod.Name(), "error", err)
+			lastError = err
+
+			continue
+		}
+
+		droppedCount++
+	}
+
+	if modulesWithMigrations == 0 {
+		slog.Info("No modules with migrations found to nuke")
+		return nil
+	}
+
+	if droppedCount == 0 {
+		if lastError != nil {
+			return fmt.Errorf("all module nukes failed, last error: %w", lastError)
+		}
+
+		return fmt.Errorf("failed to nuke any module")
+	}
+
+	slog.Info("All module schemas nuked successfully", "count", droppedCount, "total", modulesWithMigrations)
+
+	return nil
 }
 
 // findProjectRoot finds the project root by looking for go.mod file.

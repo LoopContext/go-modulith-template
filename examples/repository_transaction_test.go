@@ -3,11 +3,10 @@ package examples
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
-
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 )
 
@@ -35,19 +34,13 @@ func TestExampleRepositoryTransaction(t *testing.T) {
 		}
 	}()
 
-	db, err := pgContainer.DB(ctx)
+	db, err := pgContainer.Pool(ctx)
 	if err != nil {
 		t.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("Failed to close database: %v", err)
-		}
-	}()
-
 	// Step 2: Create test table
-	_, err = db.ExecContext(ctx, `
+	_, err = db.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS test_transactions (
 			id TEXT PRIMARY KEY,
 			value TEXT NOT NULL,
@@ -76,27 +69,27 @@ func TestExampleRepositoryTransaction(t *testing.T) {
 	t.Log("Repository transaction tests complete")
 }
 
-func testSuccessfulTransaction(ctx context.Context, t *testing.T, db *sql.DB) {
-	tx, err := db.BeginTx(ctx, nil)
+func testSuccessfulTransaction(ctx context.Context, t *testing.T, db *pgxpool.Pool) {
+	tx, err := db.Begin(ctx)
 	if err != nil {
 		t.Fatalf("Failed to begin transaction: %v", err)
 	}
 
-	_, err = tx.ExecContext(ctx, "INSERT INTO test_transactions (id, value) VALUES ($1, $2)", "tx-1", "value-1")
+	_, err = tx.Exec(ctx, "INSERT INTO test_transactions (id, value) VALUES ($1, $2)", "tx-1", "value-1")
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		t.Fatalf("Failed to insert: %v", err)
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		t.Fatalf("Failed to commit: %v", err)
 	}
 
 	// Verify data was committed
 	var value string
 
-	err = db.QueryRowContext(ctx, "SELECT value FROM test_transactions WHERE id = $1", "tx-1").Scan(&value)
+	err = db.QueryRow(ctx, "SELECT value FROM test_transactions WHERE id = $1", "tx-1").Scan(&value)
 	if err != nil {
 		t.Fatalf("Failed to query: %v", err)
 	}
@@ -106,29 +99,29 @@ func testSuccessfulTransaction(ctx context.Context, t *testing.T, db *sql.DB) {
 	}
 }
 
-func testRollbackTransaction(ctx context.Context, t *testing.T, db *sql.DB) {
-	tx, err := db.BeginTx(ctx, nil)
+func testRollbackTransaction(ctx context.Context, t *testing.T, db *pgxpool.Pool) {
+	tx, err := db.Begin(ctx)
 	if err != nil {
 		t.Fatalf("Failed to begin transaction: %v", err)
 	}
 
-	_, err = tx.ExecContext(ctx, "INSERT INTO test_transactions (id, value) VALUES ($1, $2)", "tx-2", "value-2")
+	_, err = tx.Exec(ctx, "INSERT INTO test_transactions (id, value) VALUES ($1, $2)", "tx-2", "value-2")
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		t.Fatalf("Failed to insert: %v", err)
 	}
 
 	// Rollback instead of commit
-	if err := tx.Rollback(); err != nil {
+	if err := tx.Rollback(ctx); err != nil {
 		t.Fatalf("Failed to rollback: %v", err)
 	}
 
 	// Verify data was NOT committed
 	var value string
 
-	err = db.QueryRowContext(ctx, "SELECT value FROM test_transactions WHERE id = $1", "tx-2").Scan(&value)
-	if err != sql.ErrNoRows {
+	err = db.QueryRow(ctx, "SELECT value FROM test_transactions WHERE id = $1", "tx-2").Scan(&value)
+	if err != pgx.ErrNoRows {
 		if err == nil {
 			t.Error("Expected no rows, but found data after rollback")
 		} else {
@@ -137,55 +130,55 @@ func testRollbackTransaction(ctx context.Context, t *testing.T, db *sql.DB) {
 	}
 }
 
-func testConcurrentTransactions(ctx context.Context, t *testing.T, db *sql.DB) {
+func testConcurrentTransactions(ctx context.Context, t *testing.T, db *pgxpool.Pool) {
 	// This would test concurrent access patterns
 	// In a real scenario, you would:
 	// 1. Start multiple transactions concurrently
 	// 2. Perform operations in each
 	// 3. Verify isolation and consistency
-	tx1, err := db.BeginTx(ctx, nil)
+	tx1, err := db.Begin(ctx)
 	if err != nil {
 		t.Fatalf("Failed to begin transaction 1: %v", err)
 	}
 
-	tx2, err := db.BeginTx(ctx, nil)
+	tx2, err := db.Begin(ctx)
 	if err != nil {
-		_ = tx1.Rollback()
+		_ = tx1.Rollback(ctx)
 
 		t.Fatalf("Failed to begin transaction 2: %v", err)
 	}
 
-	_, err = tx1.ExecContext(ctx, "INSERT INTO test_transactions (id, value) VALUES ($1, $2)", "tx-3", "value-3")
+	_, err = tx1.Exec(ctx, "INSERT INTO test_transactions (id, value) VALUES ($1, $2)", "tx-3", "value-3")
 	if err != nil {
-		_ = tx1.Rollback()
-		_ = tx2.Rollback()
+		_ = tx1.Rollback(ctx)
+		_ = tx2.Rollback(ctx)
 
 		t.Fatalf("Failed to insert in tx1: %v", err)
 	}
 
-	_, err = tx2.ExecContext(ctx, "INSERT INTO test_transactions (id, value) VALUES ($1, $2)", "tx-4", "value-4")
+	_, err = tx2.Exec(ctx, "INSERT INTO test_transactions (id, value) VALUES ($1, $2)", "tx-4", "value-4")
 	if err != nil {
-		_ = tx1.Rollback()
-		_ = tx2.Rollback()
+		_ = tx1.Rollback(ctx)
+		_ = tx2.Rollback(ctx)
 
 		t.Fatalf("Failed to insert in tx2: %v", err)
 	}
 
 	// Commit both
-	if err := tx1.Commit(); err != nil {
-		_ = tx2.Rollback()
+	if err := tx1.Commit(ctx); err != nil {
+		_ = tx2.Rollback(ctx)
 
 		t.Fatalf("Failed to commit tx1: %v", err)
 	}
 
-	if err := tx2.Commit(); err != nil {
+	if err := tx2.Commit(ctx); err != nil {
 		t.Fatalf("Failed to commit tx2: %v", err)
 	}
 
 	// Verify both were committed
 	var count int
 
-	err = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM test_transactions WHERE id IN ('tx-3', 'tx-4')").Scan(&count)
+	err = db.QueryRow(ctx, "SELECT COUNT(*) FROM test_transactions WHERE id IN ('tx-3', 'tx-4')").Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to query: %v", err)
 	}
@@ -194,3 +187,4 @@ func testConcurrentTransactions(ctx context.Context, t *testing.T, db *sql.DB) {
 		t.Errorf("Expected 2 rows, got %d", count)
 	}
 }
+

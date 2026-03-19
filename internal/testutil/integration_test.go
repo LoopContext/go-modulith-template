@@ -4,8 +4,6 @@ import (
 	"context"
 	"testing"
 
-	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver
-
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 )
 
@@ -28,26 +26,22 @@ func TestPostgresContainer(t *testing.T) {
 	}()
 
 	// Test database connection
-	db, err := container.DB(ctx)
+	pool, err := container.Pool(ctx)
 	if err != nil {
 		t.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("Failed to close database: %v", err)
-		}
-	}()
+	defer pool.Close()
 
 	// Verify connection
-	if err := db.PingContext(ctx); err != nil {
+	if err := pool.Ping(ctx); err != nil {
 		t.Errorf("Failed to ping database: %v", err)
 	}
 
 	// Test a simple query
 	var result int
 
-	err = db.QueryRowContext(ctx, "SELECT 1").Scan(&result)
+	err = pool.QueryRow(ctx, "SELECT 1").Scan(&result)
 	if err != nil {
 		t.Errorf("Failed to execute query: %v", err)
 	}

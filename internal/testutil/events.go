@@ -4,6 +4,7 @@ package testutil
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -52,6 +53,27 @@ func (c *EventCollector) WaitForEvent(timeout time.Duration) (events.Event, erro
 	}
 }
 
+// WaitForEventByName waits until the named event is observed or the timeout expires.
+func (c *EventCollector) WaitForEventByName(eventName string, timeout time.Duration) (events.Event, error) {
+	if event, ok := c.EventByName(eventName); ok {
+		return event, nil
+	}
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	for {
+		select {
+		case event := <-c.ch:
+			if event.Name == eventName {
+				return event, nil
+			}
+		case <-timer.C:
+			return events.Event{}, fmt.Errorf("timeout waiting for event %s", eventName)
+		}
+	}
+}
+
 // AllEvents returns all collected events.
 func (c *EventCollector) AllEvents() []events.Event {
 	c.mu.RLock()
@@ -77,6 +99,26 @@ func (c *EventCollector) Clear() {
 			return
 		}
 	}
+}
+
+// EventByName returns the first collected event that matches the given name.
+func (c *EventCollector) EventByName(eventName string) (events.Event, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	for _, event := range c.events {
+		if event.Name == eventName {
+			return event, true
+		}
+	}
+
+	return events.Event{}, false
+}
+
+// HasEvent reports whether an event with the given name was collected.
+func (c *EventCollector) HasEvent(eventName string) bool {
+	_, ok := c.EventByName(eventName)
+	return ok
 }
 
 // Count returns the number of collected events.

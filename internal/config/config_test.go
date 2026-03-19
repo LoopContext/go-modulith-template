@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+const envDev = "dev"
+
 func TestLoad_Defaults(t *testing.T) {
 	// Clear environment
 	clearTestEnv(t)
@@ -15,7 +17,7 @@ func TestLoad_Defaults(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if cfg.Env != "dev" {
+	if cfg.Env != envDev {
 		t.Errorf("expected default env 'dev', got %s", cfg.Env)
 	}
 
@@ -59,8 +61,8 @@ func TestLoad_EnvironmentVariables(t *testing.T) {
 		t.Errorf("expected OTLP endpoint 'http://localhost:4317', got %s", cfg.OTLPEndpoint)
 	}
 
-	if cfg.Auth.JWTSecret != "test-secret-key-that-is-at-least-32-bytes-long" {
-		t.Errorf("expected JWT secret to be set")
+	if cfg.Auth.JWTPublicKeyPEM != "test-public-key-pem-that-is-at-least-100-characters-long-to-pass-validation-logic-for-pem-format-checking-in-config-validation" {
+		t.Errorf("expected JWTPublicKeyPEM to be set")
 	}
 }
 
@@ -77,7 +79,7 @@ grpc_port: "9999"
 db_dsn: "postgres://localhost/staging"
 otlp_endpoint: "http://otlp:4317"
 auth:
-  jwt_secret: "yaml-secret-key-that-is-at-least-32-bytes-long"
+  jwt_public_key: "yaml-public-key-pem-that-is-at-least-100-characters-long-to-pass-validation-logic-for-pem-format-checking-in-config-validation"
 `
 
 	if err := os.WriteFile(yamlPath, []byte(yamlContent), 0o600); err != nil {
@@ -109,8 +111,8 @@ auth:
 		t.Errorf("expected OTLP endpoint 'http://otlp:4317', got %s", cfg.OTLPEndpoint)
 	}
 
-	if cfg.Auth.JWTSecret != "yaml-secret-key-that-is-at-least-32-bytes-long" {
-		t.Errorf("expected JWT secret to be set from YAML")
+	if cfg.Auth.JWTPublicKeyPEM != "yaml-public-key-pem-that-is-at-least-100-characters-long-to-pass-validation-logic-for-pem-format-checking-in-config-validation" {
+		t.Errorf("expected JWTPublicKeyPEM to be set from YAML")
 	}
 }
 
@@ -181,7 +183,7 @@ func TestValidate_ProductionRequirements(t *testing.T) {
 			GRPCPort: "9050",
 			DBDSN:    "",
 			Auth: AuthConfig{
-				JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
+				JWTPublicKeyPEM: "valid-public-key-pem-that-is-at-least-100-characters-long-to-pass-validation-logic-for-pem-format-checking-in-config-validation",
 			},
 		}
 
@@ -198,7 +200,7 @@ func TestValidate_ProductionRequirements(t *testing.T) {
 			GRPCPort: "9050",
 			DBDSN:    "postgres://localhost/db",
 			Auth: AuthConfig{
-				JWTSecret: "",
+				JWTPublicKeyPEM: "",
 			},
 		}
 
@@ -215,7 +217,7 @@ func TestValidate_ProductionRequirements(t *testing.T) {
 			GRPCPort: "9050",
 			DBDSN:    "postgres://localhost/db",
 			Auth: AuthConfig{
-				JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
+				JWTPublicKeyPEM: "valid-public-key-pem-that-is-at-least-100-characters-long-to-pass-validation-logic-for-pem-format-checking-in-config-validation",
 			},
 		}
 
@@ -226,39 +228,41 @@ func TestValidate_ProductionRequirements(t *testing.T) {
 	})
 }
 
-func TestValidate_JWTSecretLength(t *testing.T) {
-	t.Run("JWT secret too short", func(t *testing.T) {
+func TestValidate_JWTPEMLength(t *testing.T) {
+	t.Run("JWT public key too short", func(t *testing.T) {
 		cfg := &AppConfig{
-			Env:      "dev",
+			Env:      envDev,
 			HTTPPort: "8080",
 			GRPCPort: "9050",
 			Auth: AuthConfig{
-				JWTSecret: "short",
+				JWTPublicKeyPEM: "short-pem",
 			},
 		}
 
 		err := cfg.Validate()
 		if err == nil {
-			t.Fatal("expected error for short JWT secret")
+			t.Fatal("expected error for short JWT public key")
 		}
 	})
 
-	t.Run("JWT secret exactly 32 bytes", func(t *testing.T) {
+
+	t.Run("JWT public key long enough", func(t *testing.T) {
 		cfg := &AppConfig{
-			Env:      "dev",
+			Env:      envDev,
 			HTTPPort: "8080",
 			GRPCPort: "9050",
 			Auth: AuthConfig{
-				JWTSecret: "12345678901234567890123456789012",
+				JWTPublicKeyPEM: "valid-public-key-pem-that-is-at-least-100-characters-long-to-pass-validation-logic-for-pem-format-checking-in-config-validation",
 			},
 		}
 
 		err := cfg.Validate()
 		if err != nil {
-			t.Errorf("expected no error for 32-byte secret, got %v", err)
+			t.Errorf("expected no error for long enough PEM, got %v", err)
 		}
 	})
 }
+
 
 func TestLoad_InvalidYAMLFile(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -285,7 +289,7 @@ func setupTestEnv(t *testing.T) {
 		"GRPC_PORT":     "4000",
 		"DB_DSN":        "postgres://localhost/test",
 		"OTLP_ENDPOINT": "http://localhost:4317",
-		"JWT_SECRET":    "test-secret-key-that-is-at-least-32-bytes-long",
+		"JWT_PUBLIC_KEY": "test-public-key-pem-that-is-at-least-100-characters-long-to-pass-validation-logic-for-pem-format-checking-in-config-validation",
 	}
 
 	for key, value := range envVars {
@@ -318,7 +322,8 @@ func clearTestEnv(t *testing.T) {
 	_ = os.Unsetenv("GRPC_PORT")
 	_ = os.Unsetenv("DB_DSN")
 	_ = os.Unsetenv("OTLP_ENDPOINT")
-	_ = os.Unsetenv("JWT_SECRET")
+	_ = os.Unsetenv("JWT_PUBLIC_KEY")
+	_ = os.Unsetenv("JWT_PRIVATE_KEY")
 
 	// OAuth vars
 	_ = os.Unsetenv("OAUTH_ENABLED")
@@ -394,7 +399,7 @@ func setupOAuthEnv(t *testing.T) {
 	_ = os.Setenv("FACEBOOK_CLIENT_SECRET", "facebook-client-secret")
 	_ = os.Setenv("GITHUB_CLIENT_ID", "github-client-id")
 	_ = os.Setenv("GITHUB_CLIENT_SECRET", "github-client-secret")
-	_ = os.Setenv("JWT_SECRET", "test-secret-key-that-is-at-least-32-bytes-long")
+	_ = os.Setenv("JWT_PUBLIC_KEY", "test-public-key-pem-that-is-at-least-100-characters-long-to-pass-validation-logic-for-pem-format-checking-in-config-validation")
 }
 
 func TestLoad_OAuthYAMLConfiguration(t *testing.T) {
@@ -448,7 +453,7 @@ func createOAuthYAMLConfig(t *testing.T) string {
 http_port: "8080"
 grpc_port: "9050"
 auth:
-  jwt_secret: "test-secret-key-that-is-at-least-32-bytes-long"
+  jwt_public_key: "test-public-key-pem-that-is-at-least-100-characters-long-to-pass-validation-logic-for-pem-format-checking-in-config-validation"
   oauth:
     enabled: true
     auto_link_by_email: true
@@ -523,11 +528,11 @@ func TestValidate_OAuthConfig(t *testing.T) {
 
 	t.Run("OAuth disabled, no validation required", func(t *testing.T) {
 		cfg := &AppConfig{
-			Env:      "dev",
+			Env:      envDev,
 			HTTPPort: "8080",
 			GRPCPort: "9050",
 			Auth: AuthConfig{
-				JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
+				JWTPublicKeyPEM: "valid-public-key-pem-that-is-at-least-100-characters-long-to-pass-validation-logic-for-pem-format-checking-in-config-validation",
 				OAuth: OAuthConfig{
 					Enabled: false,
 				},
@@ -543,11 +548,11 @@ func TestValidate_OAuthConfig(t *testing.T) {
 
 func validOAuthConfig() *AppConfig {
 	return &AppConfig{
-		Env:      "dev",
+		Env:      envDev,
 		HTTPPort: "8080",
 		GRPCPort: "9050",
 		Auth: AuthConfig{
-			JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
+			JWTPublicKeyPEM: "valid-public-key-pem-that-is-at-least-100-characters-long-to-pass-validation-logic-for-pem-format-checking-in-config-validation",
 			OAuth: OAuthConfig{
 				Enabled:            true,
 				BaseURL:            "http://localhost:8080",

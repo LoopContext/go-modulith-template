@@ -3,19 +3,20 @@ package health
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
 )
 
 const healthStatusHealthy = "healthy"
+const errNotInitialized = "unhealthy: not initialized"
 
 // SetupHealthChecks registers all health check endpoints.
-func SetupHealthChecks(mux *http.ServeMux, db *sql.DB, wsHub *websocket.Hub, reg *registry.Registry) {
+func SetupHealthChecks(mux *http.ServeMux, db *pgxpool.Pool, wsHub *websocket.Hub, reg *registry.Registry) {
 	SetupLivenessProbe(mux)
 	SetupReadinessProbe(mux, db, wsHub, reg)
 	SetupWebSocketHealthCheck(mux, wsHub)
@@ -37,7 +38,7 @@ func SetupLivenessProbe(mux *http.ServeMux) {
 }
 
 // SetupReadinessProbe registers the readiness probe endpoint.
-func SetupReadinessProbe(mux *http.ServeMux, db *sql.DB, wsHub *websocket.Hub, reg *registry.Registry) {
+func SetupReadinessProbe(mux *http.ServeMux, db *pgxpool.Pool, wsHub *websocket.Hub, reg *registry.Registry) {
 	// Readiness probe - checks all dependencies
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -63,7 +64,7 @@ func SetupReadinessProbe(mux *http.ServeMux, db *sql.DB, wsHub *websocket.Hub, r
 }
 
 // CheckReadinessDependencies checks all dependencies and updates the checks map.
-func CheckReadinessDependencies(ctx context.Context, checks map[string]string, db *sql.DB, wsHub *websocket.Hub, reg *registry.Registry) bool {
+func CheckReadinessDependencies(ctx context.Context, checks map[string]string, db *pgxpool.Pool, wsHub *websocket.Hub, reg *registry.Registry) bool {
 	allHealthy := true
 
 	// Check module health
@@ -75,7 +76,7 @@ func CheckReadinessDependencies(ctx context.Context, checks map[string]string, d
 	}
 
 	// Check database connectivity
-	if err := db.PingContext(ctx); err != nil {
+	if err := db.Ping(ctx); err != nil {
 		checks["database"] = fmt.Sprintf("unhealthy: %v", err)
 		allHealthy = false
 	} else {
@@ -86,7 +87,7 @@ func CheckReadinessDependencies(ctx context.Context, checks map[string]string, d
 	if reg.EventBus() != nil {
 		checks["event_bus"] = healthStatusHealthy
 	} else {
-		checks["event_bus"] = "unhealthy: not initialized"
+		checks["event_bus"] = errNotInitialized
 		allHealthy = false
 	}
 
@@ -94,7 +95,20 @@ func CheckReadinessDependencies(ctx context.Context, checks map[string]string, d
 	if wsHub != nil {
 		checks["websocket"] = healthStatusHealthy
 	} else {
-		checks["websocket"] = "unhealthy: not initialized"
+		checks["websocket"] = errNotInitialized
+		allHealthy = false
+	}
+
+	// Check Valkey Cache
+	if reg.Cache() != nil {
+		if err := reg.Cache().Ping(ctx); err != nil {
+			checks["valkey"] = fmt.Sprintf("unhealthy: %v", err)
+			allHealthy = false
+		} else {
+			checks["valkey"] = healthStatusHealthy
+		}
+	} else {
+		checks["valkey"] = errNotInitialized
 		allHealthy = false
 	}
 

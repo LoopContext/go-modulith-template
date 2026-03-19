@@ -3,9 +3,9 @@ package examples
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
@@ -28,7 +28,7 @@ func TestExampleGRPCService(t *testing.T) {
 
 	// Step 1: Set up test database
 	pgContainer, db := setupTestDatabaseGRPC(ctx, t)
-	defer cleanupTestDatabaseGRPC(ctx, t, pgContainer, db)
+	defer cleanupTestDatabaseGRPC(ctx, t, pgContainer)
 
 	// Step 2: Create registry and run migrations
 	cfg := testutil.TestConfig()
@@ -52,13 +52,13 @@ func TestExampleGRPCService(t *testing.T) {
 	testGRPCClient(t, grpcServer)
 }
 
-func setupTestDatabaseGRPC(ctx context.Context, t *testing.T) (*testutil.PostgresContainer, *sql.DB) {
+func setupTestDatabaseGRPC(ctx context.Context, t *testing.T) (*testutil.PostgresContainer, *pgxpool.Pool) {
 	pgContainer, err := testutil.NewPostgresContainer(ctx, t)
 	if err != nil {
 		t.Fatalf("Failed to create postgres container: %v", err)
 	}
 
-	db, err := pgContainer.DB(ctx)
+	db, err := pgContainer.Pool(ctx)
 	if err != nil {
 		_ = pgContainer.Close(ctx)
 
@@ -68,17 +68,13 @@ func setupTestDatabaseGRPC(ctx context.Context, t *testing.T) (*testutil.Postgre
 	return pgContainer, db
 }
 
-func cleanupTestDatabaseGRPC(ctx context.Context, t *testing.T, pgContainer *testutil.PostgresContainer, db *sql.DB) {
-	if err := db.Close(); err != nil {
-		t.Errorf("Failed to close database: %v", err)
-	}
-
+func cleanupTestDatabaseGRPC(ctx context.Context, t *testing.T, pgContainer *testutil.PostgresContainer) {
 	if err := pgContainer.Close(ctx); err != nil {
 		t.Errorf("Failed to close container: %v", err)
 	}
 }
 
-func setupRegistryGRPC(_ *testing.T, db *sql.DB, cfg *config.AppConfig) *registry.Registry {
+func setupRegistryGRPC(_ *testing.T, db *pgxpool.Pool, cfg *config.AppConfig) *registry.Registry {
 	reg := testutil.NewTestRegistryBuilder().
 		WithDatabase(db).
 		WithConfig(cfg).
@@ -140,7 +136,7 @@ func TestExampleGRPCErrorHandling(t *testing.T) {
 
 	// Set up test environment (similar to above)
 	pgContainer, db := setupTestDatabaseGRPC(ctx, t)
-	defer cleanupTestDatabaseGRPC(ctx, t, pgContainer, db)
+	defer cleanupTestDatabaseGRPC(ctx, t, pgContainer)
 
 	cfg := testutil.TestConfig()
 	cfg.DBDSN = pgContainer.DSN

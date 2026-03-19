@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"gopkg.in/yaml.v3"
 )
@@ -18,10 +19,12 @@ const (
 	sourceSystem  = "system"
 	sourceDefault = "default"
 	envTrue       = "true"
+	envProd       = "prod"
 )
 
 // AppConfig is the root configuration for the entire modulith
 type AppConfig struct {
+	AppName  string `yaml:"app_name" env:"APP_NAME"`
 	Env      string `yaml:"env" env:"ENV"`
 	LogLevel string `yaml:"log_level" env:"LOG_LEVEL"`
 	HTTPPort string `yaml:"http_port" env:"HTTP_PORT"`
@@ -46,6 +49,13 @@ type AppConfig struct {
 	RateLimitRPS     int  `yaml:"rate_limit_rps" env:"RATE_LIMIT_RPS"`
 	RateLimitBurst   int  `yaml:"rate_limit_burst" env:"RATE_LIMIT_BURST"`
 
+	// Redis/Valkey
+	ValkeyAddr         string `yaml:"valkey_addr" env:"VALKEY_ADDR"`
+	ValkeyPassword     string `yaml:"valkey_password" env:"VALKEY_PASSWORD"`
+	ValkeyDB           int    `yaml:"valkey_db" env:"VALKEY_DB"`
+	ValkeyPoolSize     int    `yaml:"valkey_pool_size" env:"VALKEY_POOL_SIZE"`
+	ValkeyMinIdleConns int    `yaml:"valkey_min_idle_conns" env:"VALKEY_MIN_IDLE_CONNS"`
+
 	// Timeouts
 	ReadTimeout     string `yaml:"read_timeout" env:"READ_TIMEOUT"`         // HTTP server read timeout (e.g., "5s")
 	WriteTimeout    string `yaml:"write_timeout" env:"WRITE_TIMEOUT"`       // HTTP server write timeout (e.g., "10s")
@@ -58,8 +68,55 @@ type AppConfig struct {
 	// Swagger/OpenAPI documentation
 	SwaggerAPITitle string `yaml:"swagger_api_title" env:"SWAGGER_API_TITLE"` // API title shown in Swagger UI
 
+	// Outbox configuration
+	OutboxPollInterval string `yaml:"outbox_poll_interval" env:"OUTBOX_POLL_INTERVAL"` // e.g. "5s", "100ms"
+
 	// Module specific configs
-	Auth AuthConfig `yaml:"auth"`
+	Auth  AuthConfig  `yaml:"auth"`
+	KYC   KycConfig   `yaml:"kyc"`
+	Feeds FeedsConfig `yaml:"feeds"`
+	Seeds SeedConfig  `yaml:"seeds"`
+	E2E   E2EConfig   `yaml:"e2e"`
+}
+
+// FeedsConfig contains configuration for the data feeds module.
+type FeedsConfig struct {
+	TheOddsAPIKey  string `yaml:"the_odds_api_key" env:"THE_ODDS_API_KEY"`
+	APIFootballKey string `yaml:"api_football_key" env:"API_FOOTBALL_KEY"`
+}
+
+// SeedConfig contains configuration for seeding data.
+type SeedConfig struct {
+	Users []SeedUser `yaml:"users"`
+}
+
+// SeedUser represents a user to be seeded.
+type SeedUser struct {
+	Name           string  `yaml:"name"`
+	Email          string  `yaml:"email"`
+	Role           string  `yaml:"role"`
+	Phone          string  `yaml:"phone"`
+	InitialBalance float64 `yaml:"initial_balance"`
+	Currency       string  `yaml:"currency"`
+}
+
+// PlatformEmail returns the email of the platform-role user from the seed config.
+// Falls back to "system@opos.dev" if no platform user is configured.
+func (s *SeedConfig) PlatformEmail() string {
+	for _, u := range s.Users {
+		if u.Role == "platform" {
+			return u.Email
+		}
+	}
+
+	return "system@opos.dev"
+}
+
+// E2EConfig contains configuration for E2E tests.
+type E2EConfig struct {
+	GRPCAddr     string `yaml:"grpc_addr" env:"E2E_GRPC_ADDR"`
+	CreatorEmail string `yaml:"creator_email" env:"E2E_CREATOR_EMAIL"`
+	AdminEmail   string `yaml:"admin_email" env:"E2E_ADMIN_EMAIL"`
 }
 
 // Load loads the configuration following this priority order (from lowest to highest):
@@ -69,26 +126,34 @@ type AppConfig struct {
 //
 // Priority: YAML > .env > system ENV vars
 // systemEnvVars should be captured BEFORE godotenv.Load() is called in main()
+//
+//nolint:funlen // Configuration loading requires many sequential steps
 func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) {
 	cfg := &AppConfig{
-		Env:               "dev",
-		LogLevel:          "debug",
-		HTTPPort:          "8080",
-		GRPCPort:          "9050",
-		ServiceName:       "modulith-server",
-		DBMaxOpenConns:    25,
-		DBMaxIdleConns:    25,
-		DBConnMaxLifetime: "5m",
-		DBConnectTimeout:  "10s",
-		RateLimitEnabled:  false,
-		RateLimitRPS:      100,
-		RateLimitBurst:    50,
-		ReadTimeout:       "5s",
-		WriteTimeout:      "10s",
-		RequestTimeout:    "30s",
-		ShutdownTimeout:   "30s",
-		DefaultLocale:     "en",
-		SwaggerAPITitle:   "Modulith API",
+		AppName:            "Modulith Project",
+		Env:                "dev",
+		LogLevel:           "debug",
+		HTTPPort:           "8080",
+		GRPCPort:           "9050",
+		ServiceName:        "modulith-server",
+		DBMaxOpenConns:     25,
+		DBMaxIdleConns:     25,
+		DBConnMaxLifetime:  "5m",
+		DBConnectTimeout:   "10s",
+		RateLimitEnabled:   false,
+		RateLimitRPS:       100,
+		RateLimitBurst:     50,
+		ReadTimeout:        "5s",
+		WriteTimeout:       "10s",
+		RequestTimeout:     "30s",
+		ShutdownTimeout:    "30s",
+		DefaultLocale:      "en",
+		SwaggerAPITitle:    "Modulith API",
+		ValkeyAddr:         "localhost:6379",
+		ValkeyPassword:     "",
+		ValkeyDB:           0,
+		ValkeyPoolSize:     10,
+		ValkeyMinIdleConns: 2,
 	}
 
 	// Track sources for each config value
@@ -106,6 +171,18 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 		return nil, err
 	}
 
+	// Step 3.5: Load Seeds YAML config file based on env
+	seedPath := fmt.Sprintf("configs/seeds/%s.yaml", cfg.Env)
+	if _, err := os.Stat(seedPath); err == nil {
+		if err := loadYAMLConfig(seedPath, cfg, sources); err != nil {
+			return nil, fmt.Errorf("failed to load seed config: %w", err)
+		}
+	} else if cfg.Env == "dev" {
+		// Fallback to development.yaml if env is dev and file missing?
+		// Or just ignore if missing.
+		slog.Info("Seed config not found, skipping", "path", seedPath)
+	}
+
 	// Step 4: Apply standard PORT env var (12-factor app compliance)
 	// PORT takes precedence over HTTP_PORT for compatibility with Heroku, Cloud Run, Railway, etc.
 	// Priority: PORT > HTTP_PORT > default
@@ -115,19 +192,23 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 	}
 
 	// Log configuration sources in a readable format
-	//nolint:gosec
 	slog.Info("Configuration sources",
-		"ENV", fmt.Sprintf("%s = %s", cfg.Env, getSource(sources, "ENV")),
-		"LOG_LEVEL", fmt.Sprintf("%s = %s", cfg.LogLevel, getSource(sources, "LOG_LEVEL")),
-		"HTTP_PORT", fmt.Sprintf("%s = %s", cfg.HTTPPort, getSource(sources, "HTTP_PORT")),
-		"GRPC_PORT", fmt.Sprintf("%s = %s", cfg.GRPCPort, getSource(sources, "GRPC_PORT")),
-		"DB_DSN", fmt.Sprintf("%s = %s", cfg.DBDSN, getSource(sources, "DB_DSN")),
-		"OTLP_ENDPOINT", fmt.Sprintf("%s = %s", cfg.OTLPEndpoint, getSource(sources, "OTLP_ENDPOINT")),
-		"SERVICE_NAME", fmt.Sprintf("%s = %s", cfg.ServiceName, getSource(sources, "SERVICE_NAME")),
-		"JWT_SECRET", fmt.Sprintf("[%d bytes] = %s", len(cfg.Auth.JWTSecret), getSource(sources, "JWT_SECRET")),
-		"RATE_LIMIT_ENABLED", fmt.Sprintf("%v = %s", cfg.RateLimitEnabled, getSource(sources, "RATE_LIMIT_ENABLED")),
-		"CORS_ALLOWED_ORIGINS", fmt.Sprintf("%v = %s", cfg.CORSAllowedOrigins, getSource(sources, "CORS_ALLOWED_ORIGINS")),
-		"SWAGGER_API_TITLE", fmt.Sprintf("%s = %s", cfg.SwaggerAPITitle, getSource(sources, "SWAGGER_API_TITLE")),
+		"APP_NAME", formatConfigSourceValue(cfg.AppName, getSource(sources, "APP_NAME")),
+		"ENV", formatConfigSourceValue(cfg.Env, getSource(sources, "ENV")),
+		"LOG_LEVEL", formatConfigSourceValue(cfg.LogLevel, getSource(sources, "LOG_LEVEL")),
+		"HTTP_PORT", formatConfigSourceValue(cfg.HTTPPort, getSource(sources, "HTTP_PORT")),
+		"GRPC_PORT", formatConfigSourceValue(cfg.GRPCPort, getSource(sources, "GRPC_PORT")),
+		"DB_DSN", formatConfigSecretValue(cfg.DBDSN, getSource(sources, "DB_DSN"), "chars"),
+		"OTLP_ENDPOINT", formatConfigSourceValue(cfg.OTLPEndpoint, getSource(sources, "OTLP_ENDPOINT")),
+		"SERVICE_NAME", formatConfigSourceValue(cfg.ServiceName, getSource(sources, "SERVICE_NAME")),
+		"JWT_PRIVATE_KEY", formatConfigSecretValue(cfg.Auth.JWTPrivateKeyPEM, getSource(sources, "JWT_PRIVATE_KEY"), "bytes"),
+		"JWT_PUBLIC_KEY", formatConfigSecretValue(cfg.Auth.JWTPublicKeyPEM, getSource(sources, "JWT_PUBLIC_KEY"), "bytes"),
+		"KYC_ENFORCEMENT_ENABLED", formatConfigBoolValue(cfg.KYC.EnforcementEnabled, getSource(sources, "KYC_ENFORCEMENT_ENABLED")),
+		"RATE_LIMIT_ENABLED", formatConfigBoolValue(cfg.RateLimitEnabled, getSource(sources, "RATE_LIMIT_ENABLED")),
+		"CORS_ALLOWED_ORIGINS", formatConfigSourceValue(strings.Join(cfg.CORSAllowedOrigins, ","), getSource(sources, "CORS_ALLOWED_ORIGINS")),
+		"SWAGGER_API_TITLE", formatConfigSourceValue(cfg.SwaggerAPITitle, getSource(sources, "SWAGGER_API_TITLE")),
+		"THE_ODDS_API_KEY", formatConfigSecretValue(cfg.Feeds.TheOddsAPIKey, getSource(sources, "THE_ODDS_API_KEY"), "chars"),
+		"API_FOOTBALL_KEY", formatConfigSecretValue(cfg.Feeds.APIFootballKey, getSource(sources, "API_FOOTBALL_KEY"), "chars"),
 	)
 
 	// Validation
@@ -143,8 +224,14 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 // Updates the sources map to track where each value came from.
 // In a production app, consider using a library like cleanenv or envconfig.
 //
-//nolint:cyclop,funlen,gocognit // Configuration parsing requires many sequential environment variable checks
+//nolint:cyclop,funlen,gocognit,gocyclo // Configuration parsing requires many sequential environment variable checks
+//nolint:gocyclo // Complexity is needed for config overrides
 func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string) {
+	if appName := os.Getenv("APP_NAME"); appName != "" {
+		c.AppName = appName
+		sources["APP_NAME"] = sourceName
+	}
+
 	if env := os.Getenv("ENV"); env != "" {
 		c.Env = env
 		sources["ENV"] = sourceName
@@ -204,9 +291,14 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 		sources["SERVICE_NAME"] = sourceName
 	}
 
-	if secret := os.Getenv("JWT_SECRET"); secret != "" {
-		c.Auth.JWTSecret = secret
-		sources["JWT_SECRET"] = sourceName
+	if key := os.Getenv("JWT_PRIVATE_KEY"); key != "" {
+		c.Auth.JWTPrivateKeyPEM = key
+		sources["JWT_PRIVATE_KEY"] = sourceName
+	}
+
+	if key := os.Getenv("JWT_PUBLIC_KEY"); key != "" {
+		c.Auth.JWTPublicKeyPEM = key
+		sources["JWT_PUBLIC_KEY"] = sourceName
 	}
 
 	if timeout := os.Getenv("READ_TIMEOUT"); timeout != "" {
@@ -273,6 +365,22 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 
 	// OAuth configuration
 	c.overrideOAuthEnv(sources, sourceName)
+
+	// KYC configuration
+	if enabled := os.Getenv("KYC_ENFORCEMENT_ENABLED"); enabled == envTrue {
+		c.KYC.EnforcementEnabled = true
+		sources["KYC_ENFORCEMENT_ENABLED"] = sourceName
+	}
+
+	if apiKey := os.Getenv("THE_ODDS_API_KEY"); apiKey != "" {
+		c.Feeds.TheOddsAPIKey = apiKey
+		sources["THE_ODDS_API_KEY"] = sourceName
+	}
+
+	if apiKey := os.Getenv("API_FOOTBALL_KEY"); apiKey != "" {
+		c.Feeds.APIFootballKey = apiKey
+		sources["API_FOOTBALL_KEY"] = sourceName
+	}
 }
 
 // overrideOAuthEnv handles OAuth-specific environment variables.
@@ -386,6 +494,7 @@ func (c *AppConfig) overrideOAuthEnv(sources map[string]string, sourceName strin
 // 1. The variable was not in system ENV vars (new variable from .env), OR
 // 2. The value changed from system ENV vars (overridden by .env)
 func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]string, sourceName string) {
+	c.overrideEnvVar("APP_NAME", func(val string) { c.AppName = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("ENV", func(val string) { c.Env = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("LOG_LEVEL", func(val string) { c.LogLevel = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("HTTP_PORT", func(val string) { c.HTTPPort = val }, sources, systemEnvVars, sourceName)
@@ -405,7 +514,8 @@ func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]
 	c.overrideEnvVar("DB_CONNECT_TIMEOUT", func(val string) { c.DBConnectTimeout = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("OTLP_ENDPOINT", func(val string) { c.OTLPEndpoint = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("SERVICE_NAME", func(val string) { c.ServiceName = val }, sources, systemEnvVars, sourceName)
-	c.overrideEnvVar("JWT_SECRET", func(val string) { c.Auth.JWTSecret = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("JWT_PRIVATE_KEY", func(val string) { c.Auth.JWTPrivateKeyPEM = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("JWT_PUBLIC_KEY", func(val string) { c.Auth.JWTPublicKeyPEM = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("READ_TIMEOUT", func(val string) { c.ReadTimeout = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("WRITE_TIMEOUT", func(val string) { c.WriteTimeout = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("REQUEST_TIMEOUT", func(val string) { c.RequestTimeout = val }, sources, systemEnvVars, sourceName)
@@ -437,6 +547,13 @@ func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]
 
 	// Swagger/OpenAPI from .env
 	c.overrideEnvVar("SWAGGER_API_TITLE", func(val string) { c.SwaggerAPITitle = val }, sources, systemEnvVars, sourceName)
+
+	// KYC from .env
+	c.overrideEnvVar("KYC_ENFORCEMENT_ENABLED", func(val string) { c.KYC.EnforcementEnabled = val == envTrue }, sources, systemEnvVars, sourceName)
+
+	// Feeds from .env
+	c.overrideEnvVar("THE_ODDS_API_KEY", func(val string) { c.Feeds.TheOddsAPIKey = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("API_FOOTBALL_KEY", func(val string) { c.Feeds.APIFootballKey = val }, sources, systemEnvVars, sourceName)
 
 	// OAuth configuration from .env
 	c.overrideOAuthEnvFromDotenv(sources, systemEnvVars, sourceName)
@@ -497,22 +614,51 @@ func (c *AppConfig) overrideEnvVar(key string, setter func(string), sources, sys
 
 // Validate ensures the configuration is semantically correct.
 func (c *AppConfig) Validate() error {
-	if c.DBDSN == "" && c.Env == "prod" {
-		return fmt.Errorf("DB_DSN is required in production")
+	if c.Env == envProd {
+		if c.DBDSN == "" {
+			return fmt.Errorf("DB_DSN is required in production")
+		}
+
+		if c.Auth.JWTPublicKeyPEM == "" {
+			return fmt.Errorf("JWT_PUBLIC_KEY is required in production (RS256 verification)")
+		}
 	}
 
-	if c.Auth.JWTSecret == "" && c.Env == "prod" {
-		return fmt.Errorf("JWT_SECRET is required in production")
-	}
-
-	// Validate JWT secret length (HS256 requires at least 32 bytes)
-	if c.Auth.JWTSecret != "" && len(c.Auth.JWTSecret) < 32 {
-		return fmt.Errorf("JWT_SECRET must be at least 32 bytes (256 bits) for HS256 algorithm, got %d bytes", len(c.Auth.JWTSecret))
-	}
-
-	// Validate OAuth configuration
-	if err := c.validateOAuthConfig(); err != nil {
+	if err := c.validateJWT(); err != nil {
 		return err
+	}
+
+	if err := c.validateCORS(); err != nil {
+		return err
+	}
+
+	return c.validateOAuthConfig()
+}
+
+func (c *AppConfig) validateJWT() error {
+	// RS256: public key required for verification; private key required only for auth/admin token issuance
+	if c.Auth.JWTPublicKeyPEM != "" {
+		// Basic PEM structure check
+		if len(c.Auth.JWTPublicKeyPEM) < 100 {
+			return fmt.Errorf("JWT_PUBLIC_KEY appears invalid (PEM too short)")
+		}
+	}
+
+	if c.Auth.JWTPrivateKeyPEM != "" && len(c.Auth.JWTPrivateKeyPEM) < 100 {
+		return fmt.Errorf("JWT_PRIVATE_KEY appears invalid (PEM too short)")
+	}
+
+	return nil
+}
+
+func (c *AppConfig) validateCORS() error {
+	// Enforce strict CORS in production
+	if c.Env == envProd {
+		for _, origin := range c.CORSAllowedOrigins {
+			if origin == "*" {
+				return fmt.Errorf("wildcard CORS origin '*' is not allowed in production")
+			}
+		}
 	}
 
 	return nil
@@ -614,8 +760,23 @@ func loadYAMLConfig(yamlPath string, cfg *AppConfig, sources map[string]string) 
 
 // applyYAMLConfig applies YAML configuration values to the config struct
 //
-//nolint:cyclop,funlen // Configuration parsing requires many sequential YAML value checks
+//nolint:cyclop,funlen,gocyclo,gocognit // Configuration parsing requires many sequential YAML value checks
 func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
+	if len(yamlOnly.Seeds.Users) > 0 {
+		cfg.Seeds = yamlOnly.Seeds
+		sources["SEEDS"] = sourceYAML
+	}
+
+	if yamlOnly.E2E.GRPCAddr != "" {
+		cfg.E2E = yamlOnly.E2E
+		sources["E2E"] = sourceYAML
+	}
+
+	if yamlOnly.AppName != "" {
+		cfg.AppName = yamlOnly.AppName
+		sources["APP_NAME"] = sourceYAML
+	}
+
 	if yamlOnly.Env != "" {
 		cfg.Env = yamlOnly.Env
 		sources["ENV"] = sourceYAML
@@ -639,6 +800,31 @@ func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 	if yamlOnly.DBDSN != "" {
 		cfg.DBDSN = yamlOnly.DBDSN
 		sources["DB_DSN"] = sourceYAML
+	}
+
+	if yamlOnly.ValkeyAddr != "" {
+		cfg.ValkeyAddr = yamlOnly.ValkeyAddr
+		sources["VALKEY_ADDR"] = sourceYAML
+	}
+
+	if yamlOnly.ValkeyPassword != "" {
+		cfg.ValkeyPassword = yamlOnly.ValkeyPassword
+		sources["VALKEY_PASSWORD"] = sourceYAML
+	}
+
+	if yamlOnly.ValkeyDB >= 0 {
+		cfg.ValkeyDB = yamlOnly.ValkeyDB
+		sources["VALKEY_DB"] = sourceYAML
+	}
+
+	if yamlOnly.ValkeyPoolSize > 0 {
+		cfg.ValkeyPoolSize = yamlOnly.ValkeyPoolSize
+		sources["VALKEY_POOL_SIZE"] = sourceYAML
+	}
+
+	if yamlOnly.ValkeyMinIdleConns > 0 {
+		cfg.ValkeyMinIdleConns = yamlOnly.ValkeyMinIdleConns
+		sources["VALKEY_MIN_IDLE_CONNS"] = sourceYAML
 	}
 
 	if yamlOnly.DBMaxOpenConns > 0 {
@@ -671,9 +857,14 @@ func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 		sources["SERVICE_NAME"] = sourceYAML
 	}
 
-	if yamlOnly.Auth.JWTSecret != "" {
-		cfg.Auth.JWTSecret = yamlOnly.Auth.JWTSecret
-		sources["JWT_SECRET"] = sourceYAML
+	if yamlOnly.Auth.JWTPrivateKeyPEM != "" {
+		cfg.Auth.JWTPrivateKeyPEM = yamlOnly.Auth.JWTPrivateKeyPEM
+		sources["JWT_PRIVATE_KEY"] = sourceYAML
+	}
+
+	if yamlOnly.Auth.JWTPublicKeyPEM != "" {
+		cfg.Auth.JWTPublicKeyPEM = yamlOnly.Auth.JWTPublicKeyPEM
+		sources["JWT_PUBLIC_KEY"] = sourceYAML
 	}
 
 	if yamlOnly.ReadTimeout != "" {
@@ -730,6 +921,16 @@ func applyYAMLConfig(cfg, yamlOnly *AppConfig, sources map[string]string) {
 
 	// Apply OAuth configuration from YAML
 	applyYAMLOAuthConfig(cfg, yamlOnly, sources)
+
+	if yamlOnly.Feeds.TheOddsAPIKey != "" {
+		cfg.Feeds.TheOddsAPIKey = yamlOnly.Feeds.TheOddsAPIKey
+		sources["THE_ODDS_API_KEY"] = sourceYAML
+	}
+
+	if yamlOnly.Feeds.APIFootballKey != "" {
+		cfg.Feeds.APIFootballKey = yamlOnly.Feeds.APIFootballKey
+		sources["API_FOOTBALL_KEY"] = sourceYAML
+	}
 }
 
 // applyYAMLOAuthConfig applies OAuth configuration from YAML.
@@ -782,6 +983,12 @@ func applyYAMLOAuthProviders(cfg, yamlOnly *AppConfig, sources map[string]string
 		sources["GITHUB_CLIENT_ID"] = sourceYAML
 	}
 
+	// KYC
+	if yamlOnly.KYC.EnforcementEnabled {
+		cfg.KYC.EnforcementEnabled = true
+		sources["KYC_ENFORCEMENT_ENABLED"] = sourceYAML
+	}
+
 	// Microsoft
 	if providers.Microsoft.ClientID != "" {
 		cfg.Auth.OAuth.Providers.Microsoft = providers.Microsoft
@@ -808,6 +1015,31 @@ func getSource(sources map[string]string, key string) string {
 	}
 
 	return sourceDefault
+}
+
+func formatConfigSourceValue(value, source string) string {
+	return fmt.Sprintf("%s = %s", sanitizeConfigLogValue(value), sanitizeConfigLogValue(source))
+}
+
+func formatConfigBoolValue(value bool, source string) string {
+	return fmt.Sprintf("%t = %s", value, sanitizeConfigLogValue(source))
+}
+
+func formatConfigSecretValue(value, source, unit string) string {
+	return fmt.Sprintf("[%d %s] = %s", len(value), unit, sanitizeConfigLogValue(source))
+}
+
+func sanitizeConfigLogValue(value string) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r == '\n' || r == '\r' || r == '\t':
+			return ' '
+		case unicode.IsPrint(r):
+			return r
+		default:
+			return -1
+		}
+	}, value)
 }
 
 // parseCommaSeparated parses a comma-separated string into a slice of strings.

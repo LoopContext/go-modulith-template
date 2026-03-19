@@ -11,7 +11,7 @@ import (
 
 const (
 	// TracerName is the name of the tracer used by this application.
-	TracerName = "modulith"
+	TracerName = "template-server"
 )
 
 // StartSpan starts a new span with the given name and returns the new context and span.

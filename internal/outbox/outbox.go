@@ -10,10 +10,13 @@ package outbox
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Entry represents a single event stored in the outbox table.
@@ -25,11 +28,14 @@ type Entry struct {
 	PublishedAt *time.Time
 }
 
-// Repository provides methods for storing and retrieving outbox entries.
-type Repository interface {
+// StoreRepository provides methods for storing outbox entries.
+type StoreRepository interface {
 	// Store stores an event in the outbox table within the current transaction.
-	Store(ctx context.Context, tx *sql.Tx, eventName string, payload interface{}) error
+	Store(ctx context.Context, tx pgx.Tx, eventName string, payload interface{}) error
+}
 
+// PublisherRepository provides methods for retrieving and marking outbox entries.
+type PublisherRepository interface {
 	// GetUnpublished retrieves unpublished events (for publisher worker).
 	GetUnpublished(ctx context.Context, limit int) ([]Entry, error)
 
@@ -37,20 +43,26 @@ type Repository interface {
 	MarkPublished(ctx context.Context, ids []string) error
 }
 
-// SQLRepository implements the Repository interface using SQL.
+// Repository combines StoreRepository and PublisherRepository.
+type Repository interface {
+	StoreRepository
+	PublisherRepository
+}
+
+// SQLRepository implements the Repository interface using pgx.
 type SQLRepository struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 // NewRepository creates a new outbox repository.
-func NewRepository(db *sql.DB) *SQLRepository {
+func NewRepository(db *pgxpool.Pool) *SQLRepository {
 	return &SQLRepository{
 		db: db,
 	}
 }
 
 // Store stores an event in the outbox table within the provided transaction.
-func (r *SQLRepository) Store(ctx context.Context, tx *sql.Tx, eventName string, payload interface{}) error {
+func (r *SQLRepository) Store(ctx context.Context, tx pgx.Tx, eventName string, payload interface{}) error {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal payload: %w", err)
@@ -63,7 +75,7 @@ func (r *SQLRepository) Store(ctx context.Context, tx *sql.Tx, eventName string,
 		VALUES ($1, $2, $3, NOW())
 	`
 
-	_, err = tx.ExecContext(ctx, query, id, eventName, payloadBytes)
+	_, err = tx.Exec(ctx, query, id, eventName, payloadBytes)
 	if err != nil {
 		return fmt.Errorf("failed to store outbox entry: %w", err)
 	}
@@ -81,21 +93,20 @@ func (r *SQLRepository) GetUnpublished(ctx context.Context, limit int) ([]Entry,
 		LIMIT $1
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, limit)
+	rows, err := r.db.Query(ctx, query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query unpublished events: %w", err)
 	}
 
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 
 	var entries []Entry
 
 	for rows.Next() {
-		var entry Entry
-
-		var publishedAt sql.NullTime
+		var (
+			entry       Entry
+			publishedAt *time.Time
+		)
 
 		if err := rows.Scan(
 			&entry.ID,
@@ -107,10 +118,7 @@ func (r *SQLRepository) GetUnpublished(ctx context.Context, limit int) ([]Entry,
 			return nil, fmt.Errorf("failed to scan outbox entry: %w", err)
 		}
 
-		if publishedAt.Valid {
-			entry.PublishedAt = &publishedAt.Time
-		}
-
+		entry.PublishedAt = publishedAt
 		entries = append(entries, entry)
 	}
 
@@ -133,7 +141,7 @@ func (r *SQLRepository) MarkPublished(ctx context.Context, ids []string) error {
 		WHERE id = ANY($1)
 	`
 
-	_, err := r.db.ExecContext(ctx, query, ids)
+	_, err := r.db.Exec(ctx, query, ids)
 	if err != nil {
 		return fmt.Errorf("failed to mark events as published: %w", err)
 	}
@@ -143,9 +151,11 @@ func (r *SQLRepository) MarkPublished(ctx context.Context, ids []string) error {
 
 // Publisher publishes events from the outbox table to the event bus.
 type Publisher struct {
-	repo      Repository
-	publisher PublisherFunc
-	batchSize int
+	repo         PublisherRepository
+	publisher    PublisherFunc
+	batchSize    int
+	pollInterval time.Duration
+	stopChan     chan struct{}
 }
 
 // PublisherFunc is a function type for publishing events.
@@ -158,17 +168,48 @@ type PublisherFunc func(ctx context.Context, eventName string, payload interface
 //	Example: NewPublisher(repo, func(ctx context.Context, name string, payload interface{}) {
 //	    bus.Publish(ctx, events.Event{Name: name, Payload: payload})
 //	})
-func NewPublisher(repo Repository, publisher PublisherFunc) *Publisher {
+func NewPublisher(repo PublisherRepository, publisher PublisherFunc) *Publisher {
 	return &Publisher{
-		repo:      repo,
-		publisher: publisher,
-		batchSize: 100, // Default batch size
+		repo:         repo,
+		publisher:    publisher,
+		batchSize:    100,             // Default batch size
+		pollInterval: 5 * time.Second, // Default poll interval
+		stopChan:     make(chan struct{}),
 	}
+}
+
+// Start starts the outbox publisher background worker.
+func (p *Publisher) Start(ctx context.Context) {
+	ticker := time.NewTicker(p.pollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-p.stopChan:
+			return
+		case <-ticker.C:
+			if err := p.Process(ctx); err != nil {
+				slog.ErrorContext(ctx, "failed to process outbox", "error", err)
+			}
+		}
+	}
+}
+
+// Stop stops the outbox publisher.
+func (p *Publisher) Stop() {
+	close(p.stopChan)
 }
 
 // SetBatchSize sets the number of events to process per batch.
 func (p *Publisher) SetBatchSize(size int) {
 	p.batchSize = size
+}
+
+// SetPollInterval sets the interval between polls.
+func (p *Publisher) SetPollInterval(interval time.Duration) {
+	p.pollInterval = interval
 }
 
 // Process processes unpublished events from the outbox and publishes them.

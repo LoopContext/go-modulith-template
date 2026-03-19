@@ -24,7 +24,7 @@ func setupGRPCTestServer(ctx context.Context, t *testing.T) (*testutil.PostgresC
 	pgContainer, err := testutil.NewPostgresContainer(ctx, t)
 	require.NoError(t, err)
 
-	db, err := pgContainer.DB(ctx)
+	db, err := pgContainer.Pool(ctx)
 	require.NoError(t, err)
 
 	cfg := testutil.TestConfig()
@@ -74,12 +74,8 @@ func TestCrossModuleGRPC_ModuleCommunication(t *testing.T) {
 		_ = pgContainer.Close(ctx)
 	}()
 
-	db, err := pgContainer.DB(ctx)
+	db, err := pgContainer.Pool(ctx)
 	require.NoError(t, err)
-
-	defer func() {
-		_ = db.Close()
-	}()
 
 	// Setup registry with modules
 	cfg := testutil.TestConfig()
@@ -187,12 +183,8 @@ func TestCrossModuleGRPC_ContextPropagation(t *testing.T) {
 		_ = pgContainer.Close(ctx)
 	}()
 
-	db, err := pgContainer.DB(ctx)
+	db, err := pgContainer.Pool(ctx)
 	require.NoError(t, err)
-
-	defer func() {
-		_ = db.Close()
-	}()
 
 	cfg := testutil.TestConfig()
 	cfg.DBDSN = pgContainer.DSN

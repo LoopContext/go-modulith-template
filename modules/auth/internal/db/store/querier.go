@@ -6,10 +6,12 @@ package store
 
 import (
 	"context"
-	"database/sql"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
+	AssignUserRole(ctx context.Context, arg AssignUserRoleParams) error
 	// ========================
 	// Token Blacklist
 	// ========================
@@ -46,8 +48,8 @@ type Querier interface {
 	DeleteExpiredPendingContactChanges(ctx context.Context) error
 	DeleteExternalAccount(ctx context.Context, arg DeleteExternalAccountParams) error
 	DeleteExternalAccountByProvider(ctx context.Context, arg DeleteExternalAccountByProviderParams) error
-	DeleteMagicCodesByEmail(ctx context.Context, userEmail sql.NullString) error
-	DeleteMagicCodesByPhone(ctx context.Context, userPhone sql.NullString) error
+	DeleteMagicCodesByEmail(ctx context.Context, userEmail pgtype.Text) error
+	DeleteMagicCodesByPhone(ctx context.Context, userPhone pgtype.Text) error
 	DeleteOAuthState(ctx context.Context, state string) error
 	DeletePendingContactChange(ctx context.Context, id string) error
 	GetExternalAccountByProviderAndEmail(ctx context.Context, arg GetExternalAccountByProviderAndEmailParams) (AuthUserExternalAccount, error)
@@ -58,14 +60,24 @@ type Querier interface {
 	GetSessionByID(ctx context.Context, id string) (AuthSession, error)
 	GetSessionByRefreshTokenHash(ctx context.Context, refreshTokenHash string) (AuthSession, error)
 	GetSessionsByUserID(ctx context.Context, userID string) ([]AuthSession, error)
-	GetUserByEmail(ctx context.Context, email sql.NullString) (AuthUser, error)
+	GetUnpublishedOutbox(ctx context.Context, limit int32) ([]AuthOutbox, error)
+	GetUserByEmail(ctx context.Context, email pgtype.Text) (AuthUser, error)
 	GetUserByID(ctx context.Context, id string) (AuthUser, error)
-	GetUserByPhone(ctx context.Context, phone sql.NullString) (AuthUser, error)
+	GetUserByPhone(ctx context.Context, phone pgtype.Text) (AuthUser, error)
+	GetUserRole(ctx context.Context, userID string) (string, error)
 	GetValidMagicCodeByEmail(ctx context.Context, arg GetValidMagicCodeByEmailParams) (AuthMagicCode, error)
 	GetValidMagicCodeByPhone(ctx context.Context, arg GetValidMagicCodeByPhoneParams) (AuthMagicCode, error)
 	IsTokenBlacklisted(ctx context.Context, tokenHash string) (bool, error)
+	MarkEmailVerified(ctx context.Context, id string) error
+	MarkOutboxAsPublished(ctx context.Context, dollar_1 []string) error
+	MarkPhoneVerified(ctx context.Context, id string) error
+	RemoveUserRoles(ctx context.Context, userID string) error
 	RevokeAllUserSessions(ctx context.Context, arg RevokeAllUserSessionsParams) (int64, error)
 	RevokeSession(ctx context.Context, id string) error
+	// ========================
+	// Outbox
+	// ========================
+	StoreOutbox(ctx context.Context, arg StoreOutboxParams) error
 	UpdateExternalAccountProfile(ctx context.Context, arg UpdateExternalAccountProfileParams) error
 	UpdateExternalAccountTokens(ctx context.Context, arg UpdateExternalAccountTokensParams) error
 	UpdateSessionActivity(ctx context.Context, id string) error

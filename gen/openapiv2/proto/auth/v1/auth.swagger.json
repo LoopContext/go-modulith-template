@@ -16,6 +16,29 @@
     "application/json"
   ],
   "paths": {
+    "/v1/auth/config": {
+      "get": {
+        "summary": "GetSystemConfig returns public system configurations and feature flags",
+        "operationId": "AuthService_GetSystemConfig",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetSystemConfigResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
     "/v1/auth/email/change": {
       "post": {
         "summary": "ChangeEmail initiates email change by sending verification to new email",
@@ -41,6 +64,39 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/v1ChangeEmailRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/v1/auth/email/verify/request": {
+      "post": {
+        "summary": "RequestEmailVerification initiates the email verification process",
+        "operationId": "AuthService_RequestEmailVerification",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RequestEmailVerificationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RequestEmailVerificationRequest"
             }
           }
         ],
@@ -425,6 +481,39 @@
         ]
       }
     },
+    "/v1/auth/register": {
+      "post": {
+        "summary": "Register creates a new user account",
+        "operationId": "AuthService_Register",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RegisterResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RegisterRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
     "/v1/auth/sessions": {
       "get": {
         "summary": "ListSessions returns all active sessions for the current user",
@@ -533,6 +622,7 @@
         "parameters": [
           {
             "name": "body",
+            "description": "refresh_token may be empty when using HttpOnly cookie (cookie takes precedence).",
             "in": "body",
             "required": true,
             "schema": {
@@ -750,6 +840,17 @@
         }
       }
     },
+    "v1GetSystemConfigResponse": {
+      "type": "object",
+      "properties": {
+        "configs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1InitiateOAuthResponse": {
       "type": "object",
       "properties": {
@@ -840,7 +941,8 @@
         "refreshToken": {
           "type": "string"
         }
-      }
+      },
+      "description": "refresh_token may be empty when using HttpOnly cookie (cookie takes precedence)."
     },
     "v1RefreshTokenResponse": {
       "type": "object",
@@ -854,6 +956,57 @@
         "expiresIn": {
           "type": "string",
           "format": "int64"
+        }
+      }
+    },
+    "v1RegisterRequest": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "nationality": {
+          "type": "string"
+        },
+        "documentType": {
+          "type": "string"
+        },
+        "documentNumber": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RegisterResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "user": {
+          "$ref": "#/definitions/v1User"
+        }
+      }
+    },
+    "v1RequestEmailVerificationRequest": {
+      "type": "object"
+    },
+    "v1RequestEmailVerificationResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
         }
       }
     },
@@ -954,6 +1107,9 @@
         },
         "avatarUrl": {
           "type": "string"
+        },
+        "timezone": {
+          "type": "string"
         }
       }
     },
@@ -990,6 +1146,15 @@
         "updatedAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "emailVerified": {
+          "type": "boolean"
+        },
+        "phoneVerified": {
+          "type": "boolean"
+        },
+        "timezone": {
+          "type": "string"
         }
       }
     }

@@ -1,10 +1,13 @@
 package registry
 
 import (
-	"database/sql"
 	"net/http"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/cmelgarejo/go-modulith-template/internal/audit"
+	"github.com/cmelgarejo/go-modulith-template/internal/cache"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/feature"
 	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
 )
@@ -21,8 +24,8 @@ func WithConfig(cfg any) Option {
 	}
 }
 
-// WithDatabase sets the database connection.
-func WithDatabase(db *sql.DB) Option {
+// WithDatabase sets the database connection pool.
+func WithDatabase(db *pgxpool.Pool) Option {
 	return func(r *Registry) {
 		r.db = db
 	}
@@ -64,5 +67,26 @@ func WithWebSocketHub(hub *websocket.Hub) Option {
 func WithMetricsHandler(h http.Handler) Option {
 	return func(r *Registry) {
 		r.metricsHandler = h
+	}
+}
+
+// WithAuditLogger sets the audit logger.
+func WithAuditLogger(l audit.Logger) Option {
+	return func(r *Registry) {
+		r.audit = l
+	}
+}
+
+// WithFeature sets the feature flag manager.
+func WithFeature(m feature.Manager) Option {
+	return func(r *Registry) {
+		r.feature = m
+	}
+}
+
+// WithCache sets the cache service.
+func WithCache(c cache.Cache) Option {
+	return func(r *Registry) {
+		r.cache = c
 	}
 }

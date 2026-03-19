@@ -1,0 +1,44 @@
+// Package testutil provides testing utilities including JWT key pairs for RS256 tests.
+package testutil
+
+// TestJWTPrivateKeyPEM is a PEM-encoded RSA private key (2048-bit) for testing only.
+// Do not use in production.
+const TestJWTPrivateKeyPEM = `-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDN1mf+Ae+ylztg
+L4FSdE3eTQAH/NyuOszOLXrDIQAh4Zppe+2509apbMPBwrdWFSuDFMVEpGaKJcNV
+2FwOQm7Rvk4CIpJvGgrBj45A5mGM6f6MYrlO0PXm4+2PFTtYud6AjbPqb46cFvFT
+Ev/MGH3LlXV4jREEmbQRs8rLZBIpki++M+/WLvhfq+mFBZXb44AdAsR5377AVDoV
+9w2pNIoLpAQpKvH+FtLBvo4g9Xsf/fmYsK5tv+sWLDP40ZR5qGW+7SSkxFEvAkDe
+kmOv8iZrD4Jb3pakia7v0t1xhNRneT83UIKdtrwqMyy8dBXFYYeNR6CoDl2r96eD
+1I88y6N9AgMBAAECggEACCYVTtp/xUe0a43l5kBBduwAdNB/Ygxk4EKvqfrr+Oto
+BAYKdsFarbFnHIwbWvaSluljF+EUSCLPlV3v4wahQX9xsibxOiHDTD9lJ8+XDA+V
+arRb1rFyErZySKhUBaKyGs/BUCYjdK1510qYwtkzXbRohqG7Cz4UgWDnRd8L0wZq
+21at4l+bDWKxa8vCIZAzvI3XMvWCs+wfvU416XYEC8kBNjEYOqESHwZw6NFA+iOv
+haciwkpWAVG1jWMG4jPPLzXEtz/BLjXDHp62gYtZ89dxdKzl2NcD/JFVulI3idTf
+GeWbc1lj8pgPmHomt/QJTEbFItY/GWM4fS8Pj51VoQKBgQDssb3AM4OAGhQzUwbG
+iFEJRKfa41NQoNguKSfqEoHP+7W+9qK6wy1FEr9MyKr1GVaAhI+Oa9640HVJz/cN
+EjdcZ1+dwswxqACpQCoikfIKjA7TVGBAQSYgw02n+VyvpnGs32CdNkq5zPX+uaYz
+TKyT/GoX8mhhq3pOaS4u07gYMQKBgQDeoF1l2XtsunF+/YjOs+QI81V16r4xfymX
+c6WgcF8zpMUTZhs+BCuKBfgCasaShLB8QIPztjCyCPY5boHMNDZwAao/S7KEqvoo
+0t30n1JmcmCDNT3arn2SdTVnoLc6tBA2QfZfwmldfNypWFO2KIMZIN4vGz2yO4/D
+In1Bm6e5DQKBgA36GPhmkldYMuUs+/NxTUe81CSq09qpBNsE9yRtX1kGxh62tblN
+mTjA+KbyGpZKnr8MFOYWHJrRRHvNWgtdjgNY316TiDdOcmuMLHDKKX7R8nYsP1rL
+/hJlNgq7QOvmakQJFM1zzUnXfpdCIzxYRMCgYSt01xEdbSWANIfzXKWhAoGBAMQT
+Z89BegRsPXQEZw7uv4PmlTly06qSfhZHI/QnpKG+mFiakJnRYGuDEElIs7XuKeZ1
+iAIJT+AuJna0zpsEzYFe5gwzZnqUgBmehyBhhlh2mmxVYzIMhsqMcsnfciHA35p6
+BD2Y4+YUB+EayzfffH+QREAm9PLapKbP5JP5PQKtAoGBAMjaHnQYPicw0lWjO6r0
+8xwDcbyZIEKAZKGNp1kiETwSjfILJUjuzrWsIBPiKRrIuvFmjjs8R5sL2bdzTb+Q
+xz3LbR46bN3fWjDqdmhlUplbqMdw/r69Nx0PiDKblwZQFuvSE8+hb+FJGSz3WirL
+BstKaGEUzkQp5SFKsepviqfS
+-----END PRIVATE KEY-----`
+
+// TestJWTPublicKeyPEM is the corresponding public key for TestJWTPrivateKeyPEM (testing only).
+const TestJWTPublicKeyPEM = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzdZn/gHvspc7YC+BUnRN
+3k0AB/zcrjrMzi16wyEAIeGaaXvtudPWqWzDwcK3VhUrgxTFRKRmiiXDVdhcDkJu
+0b5OAiKSbxoKwY+OQOZhjOn+jGK5TtD15uPtjxU7WLnegI2z6m+OnBbxUxL/zBh9
+y5V1eI0RBJm0EbPKy2QSKZIvvjPv1i74X6vphQWV2+OAHQLEed++wFQ6FfcNqTSK
+C6QEKSrx/hbSwb6OIPV7H/35mLCubb/rFiwz+NGUeahlvu0kpMRRLwJA3pJjr/Im
+aw+CW96WpImu79LdcYTUZ3k/N1CCnba8KjMsvHQVxWGHjUegqA5dq/eng9SPPMuj
+fQIDAQAB
+-----END PUBLIC KEY-----`

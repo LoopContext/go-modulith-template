@@ -5,13 +5,17 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/cmelgarejo/go-modulith-template/internal/outbox"
+	"github.com/cmelgarejo/go-modulith-template/internal/telemetry"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/db/store"
-	"github.com/sqlc-dev/pqtype"
 )
 
 // Repository defines the data access methods for the authentication module.
@@ -24,7 +28,10 @@ type Repository interface {
 	GetUserByID(ctx context.Context, id string) (*store.AuthUser, error)
 	GetUserByEmail(ctx context.Context, email string) (*store.AuthUser, error)
 	GetUserByPhone(ctx context.Context, phone string) (*store.AuthUser, error)
-	UpdateUserProfile(ctx context.Context, id, displayName, avatarURL string) error
+	GetUserRole(ctx context.Context, id string) (string, error)
+	AssignRole(ctx context.Context, userID, roleName string) error
+	RemoveUserRoles(ctx context.Context, userID string) error
+	UpdateUserProfile(ctx context.Context, id, displayName, avatarURL, timezone string) error
 
 	// Magic code (passwordless auth)
 	CreateMagicCode(ctx context.Context, code, email, phone string, expiresAt time.Time) error
@@ -69,6 +76,13 @@ type Repository interface {
 	GetOAuthState(ctx context.Context, state string) (*OAuthState, error)
 	DeleteOAuthState(ctx context.Context, state string) error
 	CleanupExpiredOAuthStates(ctx context.Context) error
+
+	// StoreOutbox stores an event in the outbox table within the current transaction.
+	StoreOutbox(ctx context.Context, eventName string, payload any) error
+
+	// Verification
+	MarkEmailVerified(ctx context.Context, userID string) error
+	MarkPhoneVerified(ctx context.Context, userID string) error
 }
 
 // Session represents a user session in the database.
@@ -104,7 +118,9 @@ type ExternalAccount struct {
 	Email          string
 	Name           string
 	AvatarURL      string
-	AccessToken    string // Encrypted
+	//nolint:gosec
+	AccessToken string // Encrypted
+	//nolint:gosec
 	RefreshToken   string // Encrypted
 	TokenExpiresAt *time.Time
 	RawData        map[string]interface{}
@@ -123,14 +139,14 @@ type OAuthState struct {
 	ExpiresAt   time.Time
 }
 
-// SQLRepository implements the Repository interface using a SQL database.
+// SQLRepository implements the Repository interface using pgx.
 type SQLRepository struct {
 	q  *store.Queries
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 // NewSQLRepository creates a new instance of SQLRepository.
-func NewSQLRepository(db *sql.DB) *SQLRepository {
+func NewSQLRepository(db *pgxpool.Pool) *SQLRepository {
 	return &SQLRepository{
 		q:  store.New(db),
 		db: db,
@@ -139,26 +155,15 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 
 // WithTx executes the given function within a database transaction.
 func (r *SQLRepository) WithTx(ctx context.Context, fn func(Repository) error) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
+	if err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		txRepo := &SQLRepository{
+			q:  r.q.WithTx(tx),
+			db: r.db,
+		}
 
-	defer func() {
-		_ = tx.Rollback()
-	}()
-
-	txRepo := &SQLRepository{
-		q:  r.q.WithTx(tx),
-		db: r.db,
-	}
-
-	if err := fn(txRepo); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return fn(txRepo)
+	}); err != nil {
+		return fmt.Errorf("transaction failed: %w", err)
 	}
 
 	return nil
@@ -166,10 +171,13 @@ func (r *SQLRepository) WithTx(ctx context.Context, fn func(Repository) error) e
 
 // CreateUser persists a new user record in the database.
 func (r *SQLRepository) CreateUser(ctx context.Context, id, email, phone string) error {
+	ctx, span := telemetry.RepositorySpan(ctx, "auth", "CreateUser", "user")
+	defer span.End()
+
 	if err := r.q.CreateUser(ctx, store.CreateUserParams{
 		ID:    id,
-		Email: sql.NullString{String: email, Valid: email != ""},
-		Phone: sql.NullString{String: phone, Valid: phone != ""},
+		Email: pgtype.Text{String: email, Valid: email != ""},
+		Phone: pgtype.Text{String: phone, Valid: phone != ""},
 	}); err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
@@ -179,7 +187,10 @@ func (r *SQLRepository) CreateUser(ctx context.Context, id, email, phone string)
 
 // GetUserByEmail retrieves a user record by their email address.
 func (r *SQLRepository) GetUserByEmail(ctx context.Context, email string) (*store.AuthUser, error) {
-	u, err := r.q.GetUserByEmail(ctx, sql.NullString{String: email, Valid: true})
+	ctx, span := telemetry.RepositorySpan(ctx, "auth", "GetUserByEmail", "user")
+	defer span.End()
+
+	u, err := r.q.GetUserByEmail(ctx, pgtype.Text{String: email, Valid: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
@@ -189,7 +200,10 @@ func (r *SQLRepository) GetUserByEmail(ctx context.Context, email string) (*stor
 
 // GetUserByPhone retrieves a user record by their phone number.
 func (r *SQLRepository) GetUserByPhone(ctx context.Context, phone string) (*store.AuthUser, error) {
-	u, err := r.q.GetUserByPhone(ctx, sql.NullString{String: phone, Valid: true})
+	ctx, span := telemetry.RepositorySpan(ctx, "auth", "GetUserByPhone", "user")
+	defer span.End()
+
+	u, err := r.q.GetUserByPhone(ctx, pgtype.Text{String: phone, Valid: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by phone: %w", err)
 	}
@@ -199,11 +213,14 @@ func (r *SQLRepository) GetUserByPhone(ctx context.Context, phone string) (*stor
 
 // CreateMagicCode persists a new magic code for a user.
 func (r *SQLRepository) CreateMagicCode(ctx context.Context, code, email, phone string, expiresAt time.Time) error {
+	ctx, span := telemetry.RepositorySpan(ctx, "auth", "CreateMagicCode", "magic_code")
+	defer span.End()
+
 	if err := r.q.CreateMagicCode(ctx, store.CreateMagicCodeParams{
 		Code:      code,
-		UserEmail: sql.NullString{String: email, Valid: email != ""},
-		UserPhone: sql.NullString{String: phone, Valid: phone != ""},
-		ExpiresAt: expiresAt,
+		UserEmail: pgtype.Text{String: email, Valid: email != ""},
+		UserPhone: pgtype.Text{String: phone, Valid: phone != ""},
+		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
 	}); err != nil {
 		return fmt.Errorf("failed to create magic code: %w", err)
 	}
@@ -213,10 +230,13 @@ func (r *SQLRepository) CreateMagicCode(ctx context.Context, code, email, phone 
 
 // GetValidMagicCodeByEmail retrieves a valid magic code by user email and code value.
 func (r *SQLRepository) GetValidMagicCodeByEmail(ctx context.Context, email, code string) (*store.AuthMagicCode, error) {
+	ctx, span := telemetry.RepositorySpan(ctx, "auth", "GetValidMagicCodeByEmail", "magic_code")
+	defer span.End()
+
 	mc, err := r.q.GetValidMagicCodeByEmail(ctx, store.GetValidMagicCodeByEmailParams{
-		UserEmail: sql.NullString{String: email, Valid: true},
+		UserEmail: pgtype.Text{String: email, Valid: true},
 		Code:      code,
-		ExpiresAt: time.Now(),
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get valid magic code by email: %w", err)
@@ -227,10 +247,13 @@ func (r *SQLRepository) GetValidMagicCodeByEmail(ctx context.Context, email, cod
 
 // GetValidMagicCodeByPhone retrieves a valid magic code by user phone and code value.
 func (r *SQLRepository) GetValidMagicCodeByPhone(ctx context.Context, phone, code string) (*store.AuthMagicCode, error) {
+	ctx, span := telemetry.RepositorySpan(ctx, "auth", "GetValidMagicCodeByPhone", "magic_code")
+	defer span.End()
+
 	mc, err := r.q.GetValidMagicCodeByPhone(ctx, store.GetValidMagicCodeByPhoneParams{
-		UserPhone: sql.NullString{String: phone, Valid: true},
+		UserPhone: pgtype.Text{String: phone, Valid: true},
 		Code:      code,
-		ExpiresAt: time.Now(),
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get valid magic code by phone: %w", err)
@@ -242,7 +265,7 @@ func (r *SQLRepository) GetValidMagicCodeByPhone(ctx context.Context, phone, cod
 // InvalidateMagicCodes deletes all magic codes associated with a user.
 func (r *SQLRepository) InvalidateMagicCodes(ctx context.Context, email, phone string) error {
 	if email != "" {
-		if err := r.q.DeleteMagicCodesByEmail(ctx, sql.NullString{String: email, Valid: true}); err != nil {
+		if err := r.q.DeleteMagicCodesByEmail(ctx, pgtype.Text{String: email, Valid: true}); err != nil {
 			return fmt.Errorf("failed to delete magic codes by email: %w", err)
 		}
 
@@ -250,7 +273,7 @@ func (r *SQLRepository) InvalidateMagicCodes(ctx context.Context, email, phone s
 	}
 
 	if phone != "" {
-		if err := r.q.DeleteMagicCodesByPhone(ctx, sql.NullString{String: phone, Valid: true}); err != nil {
+		if err := r.q.DeleteMagicCodesByPhone(ctx, pgtype.Text{String: phone, Valid: true}); err != nil {
 			return fmt.Errorf("failed to delete magic codes by phone: %w", err)
 		}
 
@@ -270,12 +293,48 @@ func (r *SQLRepository) GetUserByID(ctx context.Context, id string) (*store.Auth
 	return &u, nil
 }
 
-// UpdateUserProfile updates a user's display name and avatar URL.
-func (r *SQLRepository) UpdateUserProfile(ctx context.Context, id, displayName, avatarURL string) error {
+// GetUserRole retrieves the role name for a user.
+func (r *SQLRepository) GetUserRole(ctx context.Context, userID string) (string, error) {
+	role, err := r.q.GetUserRole(ctx, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "user", nil
+		}
+
+		return "", fmt.Errorf("failed to get user role: %w", err)
+	}
+
+	return role, nil
+}
+
+// AssignRole assigns a role to a user.
+func (r *SQLRepository) AssignRole(ctx context.Context, userID, roleName string) error {
+	if err := r.q.AssignUserRole(ctx, store.AssignUserRoleParams{
+		UserID:   userID,
+		RoleName: roleName,
+	}); err != nil {
+		return fmt.Errorf("failed to assign role: %w", err)
+	}
+
+	return nil
+}
+
+// RemoveUserRoles removes all roles from a user.
+func (r *SQLRepository) RemoveUserRoles(ctx context.Context, userID string) error {
+	if err := r.q.RemoveUserRoles(ctx, userID); err != nil {
+		return fmt.Errorf("failed to remove user roles: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateUserProfile updates a user's display name, avatar URL, and timezone.
+func (r *SQLRepository) UpdateUserProfile(ctx context.Context, id, displayName, avatarURL, timezone string) error {
 	if err := r.q.UpdateUserProfile(ctx, store.UpdateUserProfileParams{
 		ID:          id,
-		DisplayName: sql.NullString{String: displayName, Valid: displayName != ""},
-		AvatarUrl:   sql.NullString{String: avatarURL, Valid: avatarURL != ""},
+		DisplayName: pgtype.Text{String: displayName, Valid: displayName != ""},
+		AvatarUrl:   pgtype.Text{String: avatarURL, Valid: avatarURL != ""},
+		Timezone:    pgtype.Text{String: timezone, Valid: timezone != ""},
 	}); err != nil {
 		return fmt.Errorf("failed to update user profile: %w", err)
 	}
@@ -285,13 +344,16 @@ func (r *SQLRepository) UpdateUserProfile(ctx context.Context, id, displayName, 
 
 // CreateSession creates a new user session.
 func (r *SQLRepository) CreateSession(ctx context.Context, session *Session) error {
+	ctx, span := telemetry.RepositorySpan(ctx, "auth", "CreateSession", "session")
+	defer span.End()
+
 	if err := r.q.CreateSession(ctx, store.CreateSessionParams{
 		ID:               session.ID,
 		UserID:           session.UserID,
 		RefreshTokenHash: session.RefreshTokenHash,
-		UserAgent:        sql.NullString{String: session.UserAgent, Valid: session.UserAgent != ""},
-		IpAddress:        sql.NullString{String: session.IPAddress, Valid: session.IPAddress != ""},
-		ExpiresAt:        session.ExpiresAt,
+		UserAgent:        pgtype.Text{String: session.UserAgent, Valid: session.UserAgent != ""},
+		IpAddress:        pgtype.Text{String: session.IPAddress, Valid: session.IPAddress != ""},
+		ExpiresAt:        pgtype.Timestamptz{Time: session.ExpiresAt, Valid: true},
 	}); err != nil {
 		return fmt.Errorf("failed to create session: %w", err)
 	}
@@ -370,8 +432,8 @@ func (r *SQLRepository) BlacklistToken(ctx context.Context, tokenHash, userID, r
 	if err := r.q.BlacklistToken(ctx, store.BlacklistTokenParams{
 		TokenHash: tokenHash,
 		UserID:    userID,
-		ExpiresAt: expiresAt,
-		Reason:    sql.NullString{String: reason, Valid: reason != ""},
+		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
+		Reason:    pgtype.Text{String: reason, Valid: reason != ""},
 	}); err != nil {
 		return fmt.Errorf("failed to blacklist token: %w", err)
 	}
@@ -406,7 +468,7 @@ func (r *SQLRepository) CreatePendingContactChange(ctx context.Context, id, user
 		ChangeType:       changeType,
 		NewValue:         newValue,
 		VerificationCode: code,
-		ExpiresAt:        expiresAt,
+		ExpiresAt:        pgtype.Timestamptz{Time: expiresAt, Valid: true},
 	}); err != nil {
 		return fmt.Errorf("failed to create pending contact change: %w", err)
 	}
@@ -431,8 +493,8 @@ func (r *SQLRepository) GetPendingContactChange(ctx context.Context, userID, cha
 		ChangeType:       pcc.ChangeType,
 		NewValue:         pcc.NewValue,
 		VerificationCode: pcc.VerificationCode,
-		CreatedAt:        pcc.CreatedAt,
-		ExpiresAt:        pcc.ExpiresAt,
+		CreatedAt:        pcc.CreatedAt.Time,
+		ExpiresAt:        pcc.ExpiresAt.Time,
 	}, nil
 }
 
@@ -451,9 +513,9 @@ func storeSessionToModel(s *store.AuthSession) *Session {
 		ID:               s.ID,
 		UserID:           s.UserID,
 		RefreshTokenHash: s.RefreshTokenHash,
-		CreatedAt:        s.CreatedAt,
-		LastActiveAt:     s.LastActiveAt,
-		ExpiresAt:        s.ExpiresAt,
+		CreatedAt:        s.CreatedAt.Time,
+		LastActiveAt:     s.LastActiveAt.Time,
+		ExpiresAt:        s.ExpiresAt.Time,
 	}
 
 	if s.UserAgent.Valid {
@@ -477,7 +539,7 @@ func storeSessionToModel(s *store.AuthSession) *Session {
 
 // CreateExternalAccount creates a new external OAuth account link.
 func (r *SQLRepository) CreateExternalAccount(ctx context.Context, account *ExternalAccount) error {
-	var rawData pqtype.NullRawMessage
+	var rawData []byte
 
 	if account.RawData != nil {
 		data, err := json.Marshal(account.RawData)
@@ -485,12 +547,12 @@ func (r *SQLRepository) CreateExternalAccount(ctx context.Context, account *Exte
 			return fmt.Errorf("failed to marshal raw data: %w", err)
 		}
 
-		rawData = pqtype.NullRawMessage{RawMessage: data, Valid: true}
+		rawData = data
 	}
 
-	var tokenExpiresAt sql.NullTime
+	var tokenExpiresAt pgtype.Timestamptz
 	if account.TokenExpiresAt != nil {
-		tokenExpiresAt = sql.NullTime{Time: *account.TokenExpiresAt, Valid: true}
+		tokenExpiresAt = pgtype.Timestamptz{Time: *account.TokenExpiresAt, Valid: true}
 	}
 
 	if err := r.q.CreateExternalAccount(ctx, store.CreateExternalAccountParams{
@@ -498,11 +560,11 @@ func (r *SQLRepository) CreateExternalAccount(ctx context.Context, account *Exte
 		UserID:         account.UserID,
 		Provider:       account.Provider,
 		ProviderUserID: account.ProviderUserID,
-		Email:          sql.NullString{String: account.Email, Valid: account.Email != ""},
-		Name:           sql.NullString{String: account.Name, Valid: account.Name != ""},
-		AvatarUrl:      sql.NullString{String: account.AvatarURL, Valid: account.AvatarURL != ""},
-		AccessToken:    sql.NullString{String: account.AccessToken, Valid: account.AccessToken != ""},
-		RefreshToken:   sql.NullString{String: account.RefreshToken, Valid: account.RefreshToken != ""},
+		Email:          pgtype.Text{String: account.Email, Valid: account.Email != ""},
+		Name:           pgtype.Text{String: account.Name, Valid: account.Name != ""},
+		AvatarUrl:      pgtype.Text{String: account.AvatarURL, Valid: account.AvatarURL != ""},
+		AccessToken:    pgtype.Text{String: account.AccessToken, Valid: account.AccessToken != ""},
+		RefreshToken:   pgtype.Text{String: account.RefreshToken, Valid: account.RefreshToken != ""},
 		TokenExpiresAt: tokenExpiresAt,
 		RawData:        rawData,
 	}); err != nil {
@@ -550,7 +612,7 @@ func (r *SQLRepository) GetExternalAccountsByUserID(ctx context.Context, userID 
 func (r *SQLRepository) GetExternalAccountByProviderAndEmail(ctx context.Context, provider, email string) (*ExternalAccount, error) {
 	ea, err := r.q.GetExternalAccountByProviderAndEmail(ctx, store.GetExternalAccountByProviderAndEmailParams{
 		Provider: provider,
-		Email:    sql.NullString{String: email, Valid: true},
+		Email:    pgtype.Text{String: email, Valid: true},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get external account by email: %w", err)
@@ -561,16 +623,16 @@ func (r *SQLRepository) GetExternalAccountByProviderAndEmail(ctx context.Context
 
 // UpdateExternalAccountTokens updates the OAuth tokens for an external account.
 func (r *SQLRepository) UpdateExternalAccountTokens(ctx context.Context, provider, providerUserID, accessToken, refreshToken string, expiresAt *time.Time) error {
-	var tokenExpiresAt sql.NullTime
+	var tokenExpiresAt pgtype.Timestamptz
 	if expiresAt != nil {
-		tokenExpiresAt = sql.NullTime{Time: *expiresAt, Valid: true}
+		tokenExpiresAt = pgtype.Timestamptz{Time: *expiresAt, Valid: true}
 	}
 
 	if err := r.q.UpdateExternalAccountTokens(ctx, store.UpdateExternalAccountTokensParams{
 		Provider:       provider,
 		ProviderUserID: providerUserID,
-		AccessToken:    sql.NullString{String: accessToken, Valid: accessToken != ""},
-		RefreshToken:   sql.NullString{String: refreshToken, Valid: refreshToken != ""},
+		AccessToken:    pgtype.Text{String: accessToken, Valid: accessToken != ""},
+		RefreshToken:   pgtype.Text{String: refreshToken, Valid: refreshToken != ""},
 		TokenExpiresAt: tokenExpiresAt,
 	}); err != nil {
 		return fmt.Errorf("failed to update external account tokens: %w", err)
@@ -581,7 +643,7 @@ func (r *SQLRepository) UpdateExternalAccountTokens(ctx context.Context, provide
 
 // UpdateExternalAccountProfile updates the profile info for an external account.
 func (r *SQLRepository) UpdateExternalAccountProfile(ctx context.Context, provider, providerUserID, name, avatarURL, email string, rawData map[string]interface{}) error {
-	var rawDataNullable pqtype.NullRawMessage
+	var rawDataNullable []byte
 
 	if rawData != nil {
 		data, err := json.Marshal(rawData)
@@ -589,15 +651,15 @@ func (r *SQLRepository) UpdateExternalAccountProfile(ctx context.Context, provid
 			return fmt.Errorf("failed to marshal raw data: %w", err)
 		}
 
-		rawDataNullable = pqtype.NullRawMessage{RawMessage: data, Valid: true}
+		rawDataNullable = data
 	}
 
 	if err := r.q.UpdateExternalAccountProfile(ctx, store.UpdateExternalAccountProfileParams{
 		Provider:       provider,
 		ProviderUserID: providerUserID,
-		Name:           sql.NullString{String: name, Valid: name != ""},
-		AvatarUrl:      sql.NullString{String: avatarURL, Valid: avatarURL != ""},
-		Email:          sql.NullString{String: email, Valid: email != ""},
+		Name:           pgtype.Text{String: name, Valid: name != ""},
+		AvatarUrl:      pgtype.Text{String: avatarURL, Valid: avatarURL != ""},
+		Email:          pgtype.Text{String: email, Valid: email != ""},
 		RawData:        rawDataNullable,
 	}); err != nil {
 		return fmt.Errorf("failed to update external account profile: %w", err)
@@ -647,8 +709,8 @@ func storeExternalAccountToModel(ea *store.AuthUserExternalAccount) (*ExternalAc
 		UserID:         ea.UserID,
 		Provider:       ea.Provider,
 		ProviderUserID: ea.ProviderUserID,
-		CreatedAt:      ea.CreatedAt,
-		UpdatedAt:      ea.UpdatedAt,
+		CreatedAt:      ea.CreatedAt.Time,
+		UpdatedAt:      ea.UpdatedAt.Time,
 	}
 
 	if ea.Email.Valid {
@@ -675,8 +737,8 @@ func storeExternalAccountToModel(ea *store.AuthUserExternalAccount) (*ExternalAc
 		account.TokenExpiresAt = &ea.TokenExpiresAt.Time
 	}
 
-	if ea.RawData.Valid && len(ea.RawData.RawMessage) > 0 {
-		if err := json.Unmarshal(ea.RawData.RawMessage, &account.RawData); err != nil {
+	if len(ea.RawData) > 0 {
+		if err := json.Unmarshal(ea.RawData, &account.RawData); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal raw data: %w", err)
 		}
 	}
@@ -688,15 +750,15 @@ func storeExternalAccountToModel(ea *store.AuthUserExternalAccount) (*ExternalAc
 // OAuth State Tokens
 // =====================
 
-// CreateOAuthState creates a new OAuth state token.
+// CreateOAuthState creates a new OAuth state authtoken.
 func (r *SQLRepository) CreateOAuthState(ctx context.Context, state *OAuthState) error {
 	if err := r.q.CreateOAuthState(ctx, store.CreateOAuthStateParams{
 		State:       state.State,
 		Provider:    state.Provider,
-		RedirectUrl: sql.NullString{String: state.RedirectURL, Valid: state.RedirectURL != ""},
-		UserID:      sql.NullString{String: state.UserID, Valid: state.UserID != ""},
+		RedirectUrl: pgtype.Text{String: state.RedirectURL, Valid: state.RedirectURL != ""},
+		UserID:      pgtype.Text{String: state.UserID, Valid: state.UserID != ""},
 		Action:      state.Action,
-		ExpiresAt:   state.ExpiresAt,
+		ExpiresAt:   pgtype.Timestamptz{Time: state.ExpiresAt, Valid: true},
 	}); err != nil {
 		return fmt.Errorf("failed to create oauth state: %w", err)
 	}
@@ -704,7 +766,7 @@ func (r *SQLRepository) CreateOAuthState(ctx context.Context, state *OAuthState)
 	return nil
 }
 
-// GetOAuthState retrieves an OAuth state token.
+// GetOAuthState retrieves an OAuth state authtoken.
 func (r *SQLRepository) GetOAuthState(ctx context.Context, state string) (*OAuthState, error) {
 	s, err := r.q.GetOAuthState(ctx, state)
 	if err != nil {
@@ -715,8 +777,8 @@ func (r *SQLRepository) GetOAuthState(ctx context.Context, state string) (*OAuth
 		State:     s.State,
 		Provider:  s.Provider,
 		Action:    s.Action,
-		CreatedAt: s.CreatedAt,
-		ExpiresAt: s.ExpiresAt,
+		CreatedAt: s.CreatedAt.Time,
+		ExpiresAt: s.ExpiresAt.Time,
 	}
 
 	if s.RedirectUrl.Valid {
@@ -730,7 +792,7 @@ func (r *SQLRepository) GetOAuthState(ctx context.Context, state string) (*OAuth
 	return result, nil
 }
 
-// DeleteOAuthState deletes an OAuth state token.
+// DeleteOAuthState deletes an OAuth state authtoken.
 func (r *SQLRepository) DeleteOAuthState(ctx context.Context, state string) error {
 	if err := r.q.DeleteOAuthState(ctx, state); err != nil {
 		return fmt.Errorf("failed to delete oauth state: %w", err)
@@ -748,34 +810,98 @@ func (r *SQLRepository) CleanupExpiredOAuthStates(ctx context.Context) error {
 	return nil
 }
 
+// MarkEmailVerified marks a user's email as verified.
+func (r *SQLRepository) MarkEmailVerified(ctx context.Context, userID string) error {
+	if err := r.q.MarkEmailVerified(ctx, userID); err != nil {
+		return fmt.Errorf("failed to mark email verified: %w", err)
+	}
+
+	return nil
+}
+
+// MarkPhoneVerified marks a user's phone as verified.
+func (r *SQLRepository) MarkPhoneVerified(ctx context.Context, userID string) error {
+	if err := r.q.MarkPhoneVerified(ctx, userID); err != nil {
+		return fmt.Errorf("failed to mark phone verified: %w", err)
+	}
+
+	return nil
+}
+
 // CleanupExpiredSessions removes expired sessions (older than 7 days past expiration).
 // Returns the number of sessions deleted.
 func (r *SQLRepository) CleanupExpiredSessions(ctx context.Context) (int, error) {
-	result, err := r.db.ExecContext(ctx, "DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '7 days'")
+	tag, err := r.db.Exec(ctx, "DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '7 days'")
 	if err != nil {
 		return 0, fmt.Errorf("failed to cleanup expired sessions: %w", err)
 	}
 
-	count, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	return int(count), nil
+	return int(tag.RowsAffected()), nil
 }
 
 // CleanupExpiredMagicCodes removes expired magic codes.
 // Returns the number of magic codes deleted.
 func (r *SQLRepository) CleanupExpiredMagicCodes(ctx context.Context) (int, error) {
-	result, err := r.db.ExecContext(ctx, "DELETE FROM magic_codes WHERE expires_at < CURRENT_TIMESTAMP")
+	tag, err := r.db.Exec(ctx, "DELETE FROM magic_codes WHERE expires_at < CURRENT_TIMESTAMP")
 	if err != nil {
 		return 0, fmt.Errorf("failed to cleanup expired magic codes: %w", err)
 	}
 
-	count, err := result.RowsAffected()
+	return int(tag.RowsAffected()), nil
+}
+
+// StoreOutbox stores an event in the outbox table.
+func (r *SQLRepository) StoreOutbox(ctx context.Context, eventName string, payload any) error {
+	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	return int(count), nil
+	id := fmt.Sprintf("outbox_%d", time.Now().UnixNano())
+
+	if err := r.q.StoreOutbox(ctx, store.StoreOutboxParams{
+		ID:        id,
+		EventName: eventName,
+		Payload:   payloadBytes,
+	}); err != nil {
+		return fmt.Errorf("failed to store outbox entry: %w", err)
+	}
+
+	return nil
 }
+
+// GetUnpublished retrieves unpublished events from the outbox.
+func (r *SQLRepository) GetUnpublished(ctx context.Context, limit int) ([]outbox.Entry, error) {
+	//nolint:gosec // limit is controlled by the publisher and won't exceed int32
+	rows, err := r.q.GetUnpublishedOutbox(ctx, int32(limit))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get unpublished outbox entries: %w", err)
+	}
+
+	entries := make([]outbox.Entry, len(rows))
+	for i, row := range rows {
+		entries[i] = outbox.Entry{
+			ID:        row.ID,
+			EventName: row.EventName,
+			Payload:   row.Payload,
+			CreatedAt: row.CreatedAt.Time,
+		}
+		if row.PublishedAt.Valid {
+			entries[i].PublishedAt = &row.PublishedAt.Time
+		}
+	}
+
+	return entries, nil
+}
+
+// MarkPublished marks events as published in the outbox.
+func (r *SQLRepository) MarkPublished(ctx context.Context, ids []string) error {
+	if err := r.q.MarkOutboxAsPublished(ctx, ids); err != nil {
+		return fmt.Errorf("failed to mark outbox entries as published: %w", err)
+	}
+
+	return nil
+}
+
+// Ensure SQLRepository implements outbox.PublisherRepository
+var _ outbox.PublisherRepository = (*SQLRepository)(nil)

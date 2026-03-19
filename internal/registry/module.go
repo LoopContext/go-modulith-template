@@ -54,3 +54,17 @@ type ModuleAuth interface {
 	// Format: "/package.service/Method"
 	PublicEndpoints() []string
 }
+
+// ModuleSeeder defines the interface for modules that provide seed data via SQL files.
+type ModuleSeeder interface {
+	// SeedPath returns the path to the module's seed directory.
+	// Return empty string if the module has no seed data.
+	SeedPath() string
+}
+
+// ModuleProgrammaticSeeder defines the interface for modules that provide seed data programmatically via Go.
+type ModuleProgrammaticSeeder interface {
+	// Seed runs programmatic seed data using the application's registry/dependencies.
+	Seed(ctx context.Context, r interface{}) error
+}
+

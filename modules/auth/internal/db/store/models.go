@@ -5,104 +5,134 @@
 package store
 
 import (
-	"database/sql"
-	"time"
-
-	"github.com/sqlc-dev/pqtype"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AuthAuthConfig struct {
+	Key       string             `json:"key"`
+	Value     string             `json:"value"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type AuthMagicCode struct {
-	Code      string         `json:"code"`
-	UserEmail sql.NullString `json:"user_email"`
-	UserPhone sql.NullString `json:"user_phone"`
-	ExpiresAt time.Time      `json:"expires_at"`
-	CreatedAt time.Time      `json:"created_at"`
+	Code      string             `json:"code"`
+	UserEmail pgtype.Text        `json:"user_email"`
+	UserPhone pgtype.Text        `json:"user_phone"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 type AuthOauthState struct {
-	State       string         `json:"state"`
-	Provider    string         `json:"provider"`
-	RedirectUrl sql.NullString `json:"redirect_url"`
-	UserID      sql.NullString `json:"user_id"`
-	Action      string         `json:"action"`
-	CreatedAt   time.Time      `json:"created_at"`
-	ExpiresAt   time.Time      `json:"expires_at"`
+	State       string             `json:"state"`
+	Provider    string             `json:"provider"`
+	RedirectUrl pgtype.Text        `json:"redirect_url"`
+	UserID      pgtype.Text        `json:"user_id"`
+	Action      string             `json:"action"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+}
+
+type AuthOutbox struct {
+	ID          string             `json:"id"`
+	EventName   string             `json:"event_name"`
+	Payload     []byte             `json:"payload"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	PublishedAt pgtype.Timestamptz `json:"published_at"`
 }
 
 type AuthPendingContactChange struct {
-	ID               string    `json:"id"`
-	UserID           string    `json:"user_id"`
-	ChangeType       string    `json:"change_type"`
-	NewValue         string    `json:"new_value"`
-	VerificationCode string    `json:"verification_code"`
-	CreatedAt        time.Time `json:"created_at"`
-	ExpiresAt        time.Time `json:"expires_at"`
+	ID               string             `json:"id"`
+	UserID           string             `json:"user_id"`
+	ChangeType       string             `json:"change_type"`
+	NewValue         string             `json:"new_value"`
+	VerificationCode string             `json:"verification_code"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
 }
 
 type AuthPermission struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Resource string `json:"resource"`
-	Action   string `json:"action"`
+	ID        string             `json:"id"`
+	Name      string             `json:"name"`
+	Resource  string             `json:"resource"`
+	Action    string             `json:"action"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 type AuthRole struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID        string             `json:"id"`
+	Name      string             `json:"name"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 type AuthRolePermission struct {
-	RoleID       string `json:"role_id"`
-	PermissionID string `json:"permission_id"`
+	RoleID       string             `json:"role_id"`
+	PermissionID string             `json:"permission_id"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 type AuthSession struct {
-	ID               string         `json:"id"`
-	UserID           string         `json:"user_id"`
-	RefreshTokenHash string         `json:"refresh_token_hash"`
-	UserAgent        sql.NullString `json:"user_agent"`
-	IpAddress        sql.NullString `json:"ip_address"`
-	CreatedAt        time.Time      `json:"created_at"`
-	LastActiveAt     time.Time      `json:"last_active_at"`
-	ExpiresAt        time.Time      `json:"expires_at"`
-	RevokedAt        sql.NullTime   `json:"revoked_at"`
+	ID               string             `json:"id"`
+	UserID           string             `json:"user_id"`
+	RefreshTokenHash string             `json:"refresh_token_hash"`
+	UserAgent        pgtype.Text        `json:"user_agent"`
+	IpAddress        pgtype.Text        `json:"ip_address"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	LastActiveAt     pgtype.Timestamptz `json:"last_active_at"`
+	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
+	RevokedAt        pgtype.Timestamptz `json:"revoked_at"`
 }
 
 type AuthTokenBlacklist struct {
-	TokenHash string         `json:"token_hash"`
-	UserID    string         `json:"user_id"`
-	ExpiresAt time.Time      `json:"expires_at"`
-	RevokedAt time.Time      `json:"revoked_at"`
-	Reason    sql.NullString `json:"reason"`
+	TokenHash string             `json:"token_hash"`
+	UserID    string             `json:"user_id"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	Reason    pgtype.Text        `json:"reason"`
 }
 
 type AuthUser struct {
-	ID          string         `json:"id"`
-	Email       sql.NullString `json:"email"`
-	Phone       sql.NullString `json:"phone"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DisplayName sql.NullString `json:"display_name"`
-	AvatarUrl   sql.NullString `json:"avatar_url"`
+	ID            string             `json:"id"`
+	Email         pgtype.Text        `json:"email"`
+	Phone         pgtype.Text        `json:"phone"`
+	DisplayName   pgtype.Text        `json:"display_name"`
+	AvatarUrl     pgtype.Text        `json:"avatar_url"`
+	Status        string             `json:"status"`
+	EmailVerified bool               `json:"email_verified"`
+	PhoneVerified bool               `json:"phone_verified"`
+	Timezone      pgtype.Text        `json:"timezone"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
 type AuthUserExternalAccount struct {
-	ID             string                `json:"id"`
-	UserID         string                `json:"user_id"`
-	Provider       string                `json:"provider"`
-	ProviderUserID string                `json:"provider_user_id"`
-	Email          sql.NullString        `json:"email"`
-	Name           sql.NullString        `json:"name"`
-	AvatarUrl      sql.NullString        `json:"avatar_url"`
-	AccessToken    sql.NullString        `json:"access_token"`
-	RefreshToken   sql.NullString        `json:"refresh_token"`
-	TokenExpiresAt sql.NullTime          `json:"token_expires_at"`
-	RawData        pqtype.NullRawMessage `json:"raw_data"`
-	CreatedAt      time.Time             `json:"created_at"`
-	UpdatedAt      time.Time             `json:"updated_at"`
+	ID             string             `json:"id"`
+	UserID         string             `json:"user_id"`
+	Provider       string             `json:"provider"`
+	ProviderUserID string             `json:"provider_user_id"`
+	Email          pgtype.Text        `json:"email"`
+	Name           pgtype.Text        `json:"name"`
+	AvatarUrl      pgtype.Text        `json:"avatar_url"`
+	AccessToken    pgtype.Text        `json:"access_token"`
+	RefreshToken   pgtype.Text        `json:"refresh_token"`
+	TokenExpiresAt pgtype.Timestamptz `json:"token_expires_at"`
+	RawData        []byte             `json:"raw_data"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
 type AuthUserRole struct {
-	UserID string `json:"user_id"`
-	RoleID string `json:"role_id"`
+	UserID    string             `json:"user_id"`
+	RoleID    string             `json:"role_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
