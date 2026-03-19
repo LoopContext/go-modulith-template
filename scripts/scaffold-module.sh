@@ -7,7 +7,7 @@ if [ -z "$1" ]; then
 fi
 
 MODULE_NAME=$1
-PROJECT_NAME="github.com/cmelgarejo/go-modulith-template"
+PROJECT_NAME="github.com/LoopContext/go-modulith-template"
 
 # Capitalize first letter
 MODULE_NAME_CAPITALIZED="$(tr '[:lower:]' '[:upper:]' <<< ${MODULE_NAME:0:1})${MODULE_NAME:1}"
@@ -112,8 +112,8 @@ if [ -d "${GRAPHQL_SCHEMA_DIR}" ]; then
         process_template "templates/module/graphql/schema.graphql.tmpl" "${GRAPHQL_SCHEMA_FILE}"
         echo "  ✅ Created ${GRAPHQL_SCHEMA_FILE}"
         echo ""
-        echo "  💡 Tip: After defining your proto file and running 'make proto',"
-        echo "     run 'make graphql-generate-module MODULE_NAME=${MODULE_NAME}'"
+        echo "  💡 Tip: After defining your proto file and running 'just proto',"
+        echo "     run 'just graphql-generate-module MODULE_NAME=${MODULE_NAME}'"
         echo "     which will auto-generate the schema from proto if missing"
     else
         echo "  ℹ️  ${GRAPHQL_SCHEMA_FILE} already exists, skipping..."
@@ -128,7 +128,7 @@ if [ -d "${GRAPHQL_SCHEMA_DIR}" ]; then
     fi
 else
     echo "  ℹ️  GraphQL not initialized - skipping GraphQL files"
-    echo "     Run 'make graphql-init' to enable GraphQL support"
+    echo "     Run 'just graphql-init' to enable GraphQL support"
 fi
 
 # Update sqlc.yaml
@@ -142,7 +142,7 @@ if ! grep -q "modules/${MODULE_NAME}/internal/db/store" sqlc.yaml; then
       go:
         package: "store"
         out: "modules/${MODULE_NAME}/internal/db/store"
-        sql_package: "database/sql"
+        sql_package: "pgx/v5"
         emit_interface: true
         emit_json_tags: true
 EOF
@@ -151,7 +151,7 @@ fi
 # Register module in registry.go
 register_module_in_registry() {
     local registry_file="cmd/server/setup/registry.go"
-    local import_path="github.com/cmelgarejo/go-modulith-template/modules/${MODULE_NAME}"
+    local import_path="github.com/LoopContext/go-modulith-template/modules/${MODULE_NAME}"
 
     if [ ! -f "$registry_file" ]; then
         echo "⚠️  Warning: ${registry_file} not found, skipping auto-registration"
@@ -260,14 +260,14 @@ echo "🔧 Registering module in registry..."
 register_module_in_registry
 
 echo ""
-echo "⚙️  Running code generation (make generate-all)..."
-if make generate-all; then
+echo "⚙️  Running code generation (just generate-all)..."
+if just generate-all; then
     echo ""
     echo "  ✅ Code generation completed successfully"
 else
     echo ""
     echo "  ❌ Error: Code generation failed!"
-    echo "     Please run 'make generate-all' manually to see the errors"
+    echo "     Please run 'just generate-all' manually to see the errors"
     exit 1
 fi
 
@@ -292,15 +292,15 @@ echo "✅ Module setup complete! Next steps:"
 if [ -d "${GRAPHQL_SCHEMA_DIR}" ]; then
     echo ""
     echo "1. Edit ${GRAPHQL_SCHEMA_FILE} to define your GraphQL schema."
-    echo "2. Run 'make graphql-generate-module MODULE_NAME=${MODULE_NAME}' to generate GraphQL code for this module."
-    echo "   Or run 'make graphql-generate-all' to generate for all modules."
+    echo "2. Run 'just graphql-generate-module MODULE_NAME=${MODULE_NAME}' to generate GraphQL code for this module."
+    echo "   Or run 'just graphql-generate-all' to generate for all modules."
     echo "3. Implement resolvers in ${GRAPHQL_RESOLVER_FILE}."
-    echo "4. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
-    echo "   Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
+    echo "4. Run 'just dev-module ${MODULE_NAME}' for hot-reload development."
+    echo "   Or run 'just build-module ${MODULE_NAME}' to build standalone binary."
 else
     echo ""
-    echo "1. Run 'make dev-module ${MODULE_NAME}' for hot-reload development."
-    echo "   Or run 'make build-module ${MODULE_NAME}' to build standalone binary."
+    echo "1. Run 'just dev-module ${MODULE_NAME}' for hot-reload development."
+    echo "   Or run 'just build-module ${MODULE_NAME}' to build standalone binary."
     echo ""
-    echo "💡 Tip: Run 'make graphql-init' to enable GraphQL support for future modules."
+    echo "💡 Tip: Run 'just graphql-init' to enable GraphQL support for future modules."
 fi

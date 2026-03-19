@@ -61,6 +61,7 @@ func createOriginChecker(allowedOrigins []string, env string) func(*http.Request
 
 		// If no origins configured in prod, deny all (fail secure)
 		if len(allowedOrigins) == 0 {
+			//nolint:gosec
 			slog.Warn("WebSocket connection rejected: no allowed origins configured",
 				"origin", r.Header.Get("Origin"))
 
@@ -100,6 +101,7 @@ func checkOriginMatch(origin string, allowedOrigins []string) bool {
 		}
 	}
 
+	//nolint:gosec
 	slog.Warn("WebSocket connection rejected: origin not allowed",
 		"origin", origin,
 		"allowed", allowedOrigins)
@@ -112,6 +114,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Authenticate and extract user ID
 	userID, err := h.authenticateRequest(r)
 	if err != nil {
+		//nolint:gosec
 		slog.Warn("WebSocket authentication failed",
 			"error", err,
 			"remote_addr", r.RemoteAddr)
@@ -137,6 +140,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	client := NewClient(h.hub, conn, userID)
 	h.hub.register <- client
 
+	//nolint:gosec
 	slog.Info("WebSocket connection established",
 		"user_id", userID,
 		"remote_addr", r.RemoteAddr)

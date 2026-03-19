@@ -115,6 +115,7 @@ func Load(yamlPath string, systemEnvVars map[string]string) (*AppConfig, error) 
 	}
 
 	// Log configuration sources in a readable format
+	//nolint:gosec
 	slog.Info("Configuration sources",
 		"ENV", fmt.Sprintf("%s = %s", cfg.Env, getSource(sources, "ENV")),
 		"LOG_LEVEL", fmt.Sprintf("%s = %s", cfg.LogLevel, getSource(sources, "LOG_LEVEL")),

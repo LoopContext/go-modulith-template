@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Quickstart script for Go Modulith Template
+# Quickstart script for OPOS
 # Automates the complete setup process
 
 set -e
@@ -15,8 +15,8 @@ NC='\033[0m' # No Color
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-echo -e "${BLUE}╔══════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║  Go Modulith Template - Quickstart Setup            ║${NC}"
+echo -e "${BLUE}╔═════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║  Opos - Quickstart Setup                            ║${NC}"
 echo -e "${BLUE}╚══════════════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -46,11 +46,11 @@ if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
     read -r response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         echo "Installing development tools..."
-        make install-deps
+        just install-deps
         echo -e "${GREEN}✓ Tools installed${NC}"
     else
         echo -e "${YELLOW}⚠ Skipping tool installation${NC}"
-        echo "You can install them later with: make install-deps"
+        echo "You can install them later with: just install-deps"
     fi
 else
     echo -e "${GREEN}✓ All development tools are installed${NC}"
@@ -61,7 +61,7 @@ echo ""
 echo -e "${BLUE}Step 3/5:${NC} Starting Docker infrastructure..."
 
 # Check if containers are already running
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_db"; then
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "template_db"; then
     echo -e "${YELLOW}⚠ Docker containers are already running${NC}"
     echo -n "Restart containers? [y/N] "
     read -r response
@@ -85,15 +85,15 @@ MAX_WAIT=60
 WAIT_COUNT=0
 
 while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_db"; then
-        if docker exec modulith_db pg_isready -U postgres > /dev/null 2>&1; then
+    echo -n "Waiting for database to be ready... "
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "template_db"; then
+        if docker exec template_db pg_isready -U postgres > /dev/null 2>&1; then
             echo -e "${GREEN}✓ Database is ready${NC}"
             break
         fi
     fi
     sleep 1
     WAIT_COUNT=$((WAIT_COUNT + 1))
-    echo -n "."
 done
 echo ""
 
@@ -103,18 +103,18 @@ if [ $WAIT_COUNT -eq $MAX_WAIT ]; then
     exit 1
 fi
 
-# Wait a bit more for Redis
-sleep 2
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_redis"; then
-    if docker exec modulith_redis redis-cli ping > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ Redis is ready${NC}"
+# Check Valkey
+echo -n "Checking Valkey connection... "
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "template_valkey"; then
+    if docker exec template_valkey valkey-cli ping > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ Valkey is ready${NC}"
     fi
 fi
 echo ""
 
 # Step 4: Run migrations
 echo -e "${BLUE}Step 4/5:${NC} Running database migrations..."
-if make migrate 2>&1 | grep -q "no change"; then
+if just migrate 2>&1 | grep -q "no change"; then
     echo -e "${GREEN}✓ Database is up to date${NC}"
 else
     echo -e "${GREEN}✓ Migrations completed${NC}"
@@ -127,11 +127,11 @@ echo -n "Run seed data? [y/N] "
 read -r response
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     echo "Running seed data..."
-    make seed
+    just seed
     echo -e "${GREEN}✓ Seed data completed${NC}"
 else
     echo -e "${YELLOW}⚠ Skipping seed data${NC}"
-    echo "You can run it later with: make seed"
+    echo "You can run it later with: just seed"
 fi
 echo ""
 
@@ -143,10 +143,10 @@ echo ""
 echo "Next steps:"
 echo ""
 echo "  1. Start the development server:"
-echo -e "     ${GREEN}make dev${NC}"
+echo -e "     ${GREEN}just dev${NC}"
 echo ""
 echo "  2. Or run a specific module:"
-echo -e "     ${GREEN}make dev-module auth${NC}"
+echo -e "     ${GREEN}just dev-module auth${NC}"
 echo ""
 echo "  3. Check health endpoints:"
 echo "     curl http://localhost:8000/readyz"
@@ -157,6 +157,6 @@ echo "     - Prometheus: http://localhost:9090"
 echo "     - Grafana: http://localhost:3000 (admin/admin)"
 echo ""
 echo "  5. Run diagnostics:"
-echo -e "     ${GREEN}make doctor${NC}"
+echo -e "     ${GREEN}just doctor${NC}"
 echo ""
 

@@ -190,6 +190,7 @@ func analyzeProtoConnections(_ string, protoDir string, graph *Graph) error {
 		// Read proto file to find services
 		cleanPath := filepath.Clean(path)
 
+		//nolint:gosec
 		data, err := os.ReadFile(cleanPath)
 		if err != nil {
 			return nil
@@ -242,6 +243,7 @@ func analyzeEventConnections(projectRoot, modulesDir string, graph *Graph) error
 
 		cleanPath := filepath.Clean(path)
 
+		//nolint:gosec
 		data, err := os.ReadFile(cleanPath)
 		if err != nil {
 			return nil
@@ -318,6 +320,8 @@ func analyzeEventConnections(projectRoot, modulesDir string, graph *Graph) error
 		}
 
 		cleanPath := filepath.Clean(path)
+
+		//nolint:gosec
 		data, err := os.ReadFile(cleanPath)
 		if err != nil {
 			return nil

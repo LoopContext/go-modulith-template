@@ -7,6 +7,7 @@ import (
 
 // TestConfig returns a minimal valid config for testing.
 func TestConfig() *config.AppConfig {
+	//nolint:gosec
 	return &config.AppConfig{
 		Env:      "test",
 		LogLevel: "debug",

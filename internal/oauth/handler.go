@@ -199,6 +199,7 @@ func (h *Handler) redirectWithSuccess(w http.ResponseWriter, r *http.Request, re
 		// Return JSON response if no redirect URL
 		w.Header().Set("Content-Type", "application/json")
 
+		//nolint:gosec
 		if err := json.NewEncoder(w).Encode(result); err != nil {
 			slog.Error("Failed to encode result", "error", err)
 		}

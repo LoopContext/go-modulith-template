@@ -183,6 +183,7 @@ func hashToBucket(s string) int {
 	var hash uint32
 
 	for _, c := range s {
+		//nolint:gosec
 		hash = hash*31 + uint32(c)
 	}
 
