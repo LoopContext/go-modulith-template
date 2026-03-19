@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -15,50 +14,86 @@ import (
 	"math/big"
 	"time"
 
+	"net/http"
+	"strings"
+
 	authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
+	"github.com/cmelgarejo/go-modulith-template/internal/audit"
 	"github.com/cmelgarejo/go-modulith-template/internal/authn"
+	"github.com/cmelgarejo/go-modulith-template/internal/authtoken"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/feature"
 	"github.com/cmelgarejo/go-modulith-template/internal/i18n"
 	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
+	"github.com/cmelgarejo/go-modulith-template/internal/telemetry"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/db/store"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository"
-	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/token"
+	"github.com/jackc/pgx/v5"
 	"go.jetify.com/typeid"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// ModuleName is the name of the module.
+const ModuleName = "auth"
+
+// RoleAdmin is the admin role.
+const RoleAdmin = "admin"
+
+// RoleUser is the user role.
+const RoleUser = "user"
 
 // AuthService implements the authv1.AuthServiceServer interface
 type AuthService struct {
 	authv1.UnimplementedAuthServiceServer
 	repo         repository.Repository
-	tokenService *token.Service
+	tokenService *authtoken.Service
 	bus          *events.Bus
+	audit        audit.Logger
+	feature      feature.Manager
+	env          string // "dev", "staging", "prod", etc.
 }
 
 // NewAuthService creates a new instance of the AuthService
-func NewAuthService(repo repository.Repository, svc *token.Service, bus *events.Bus) *AuthService {
+func NewAuthService(repo repository.Repository, svc *authtoken.Service, bus *events.Bus, audit audit.Logger, feature feature.Manager, env string) *AuthService {
 	return &AuthService{
 		repo:         repo,
 		tokenService: svc,
 		bus:          bus,
+		audit:        audit,
+		feature:      feature,
+		env:          env,
 	}
 }
 
 // RequestLogin generates a magic code and emits an event to send it to the user.
-// Note: Field format validation (email format, phone pattern) and oneof requirement
-// are handled by the validation interceptor. This method handles business logic only.
-// Only sends codes to existing users (returns NotFound if user doesn't exist).
+// Note: This endpoint always returns success to prevent email enumeration attacks.
+// If the user doesn't exist, no code is sent but the response looks identical.
 func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLoginRequest) (*authv1.RequestLoginResponse, error) {
+	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "RequestLogin")
+	defer span.End()
+
 	// With oneof, exactly one field will be set (validated by protovalidate)
 	email := req.GetEmail()
 	phone := req.GetPhone()
 
-	// Check if user exists before sending code
-	if err := s.verifyUserExists(ctx, email, phone); err != nil {
-		return nil, err
+	// Security: Always return success to prevent email enumeration.
+	// If user doesn't exist, we simply don't send a code but return the same response.
+	userExists := s.checkUserExists(ctx, email, phone)
+	if !userExists {
+		slog.InfoContext(ctx, "login request for non-existent user (silent fail)",
+			"email_hash", hashContactInfo(email),
+			"phone_hash", hashContactInfo(phone),
+		)
+		// Return success without sending a code
+		return &authv1.RequestLoginResponse{
+			Success: true,
+			Message: "If an account exists with this email, you will receive a verification code",
+		}, nil
 	}
 
 	// Generate 6 digit code
@@ -71,24 +106,42 @@ func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLogin
 
 	expiresAt := time.Now().Add(15 * time.Minute)
 
-	err = s.repo.CreateMagicCode(ctx, code, email, phone, expiresAt)
+	err = s.repo.WithTx(ctx, func(txRepo repository.Repository) error {
+		if txErr := txRepo.CreateMagicCode(ctx, code, email, phone, expiresAt); txErr != nil {
+			return txErr
+		}
+
+		locale := i18n.LocaleFromContext(ctx)
+		if locale == "" {
+			locale = i18n.DetectLocale(ctx, "en")
+		}
+
+		if txErr := txRepo.StoreOutbox(ctx, notifier.EventMagicCodeRequested, map[string]interface{}{
+			"email":  email,
+			"phone":  phone,
+			"code":   code,
+			"locale": locale,
+		}); txErr != nil {
+			return txErr
+		}
+
+		return nil
+	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create magic code", "error", err)
+		slog.ErrorContext(ctx, "failed to create magic code or outbox event", "error", err)
 
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
-	// Emit event for notification (decoupled/async)
-	s.publishMagicCodeEvent(ctx, email, phone, code)
-
 	return &authv1.RequestLoginResponse{
 		Success: true,
-		Message: "Magic code sent",
+		Message: "If an account exists with this email, you will receive a verification code",
 	}, nil
 }
 
-// verifyUserExists checks if a user exists by email or phone, returning NotFound if not found.
-func (s *AuthService) verifyUserExists(ctx context.Context, email, phone string) error {
+// checkUserExists checks if a user exists without returning an error.
+// This is used to silently check for user existence without revealing it to clients.
+func (s *AuthService) checkUserExists(ctx context.Context, email, phone string) bool {
 	var err error
 
 	if email != "" {
@@ -97,48 +150,26 @@ func (s *AuthService) verifyUserExists(ctx context.Context, email, phone string)
 		_, err = s.repo.GetUserByPhone(ctx, phone)
 	}
 
-	if err != nil {
-		// Check for sql.ErrNoRows (works with wrapped errors via %w)
-		if errors.Is(err, sql.ErrNoRows) {
-			slog.InfoContext(ctx, "user not found for login request",
-				"email", email,
-				"phone", phone,
-			)
-
-			return status.Error(codes.NotFound, "user not found")
-		}
-
-		slog.ErrorContext(ctx, "failed to lookup user", "error", err)
-
-		return status.Error(codes.Internal, "internal server error")
-	}
-
-	return nil
+	return err == nil
 }
 
-// publishMagicCodeEvent publishes an event for magic code notification.
-func (s *AuthService) publishMagicCodeEvent(ctx context.Context, email, phone, code string) {
-	locale := i18n.LocaleFromContext(ctx)
-	if locale == "" {
-		// Detect locale if not already in context
-		locale = i18n.DetectLocale(ctx, "en")
+// hashContactInfo creates a simple hash of contact info for secure logging.
+// This prevents PII from being logged while still allowing log correlation.
+func hashContactInfo(info string) string {
+	if info == "" {
+		return ""
 	}
 
-	s.bus.Publish(ctx, events.Event{
-		Name: notifier.EventMagicCodeRequested,
-		Payload: map[string]interface{}{
-			"email":  email,
-			"phone":  phone,
-			"code":   code,
-			"locale": locale,
-		},
-	})
+	hash := sha256.Sum256([]byte(info))
 
-	slog.InfoContext(ctx, "magic code event published")
+	return hex.EncodeToString(hash[:8]) // Only first 8 bytes for brevity
 }
 
 // CompleteLogin verifies the magic code and generates tokens for the user
 func (s *AuthService) CompleteLogin(ctx context.Context, req *authv1.CompleteLoginRequest) (*authv1.CompleteLoginResponse, error) {
+	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "CompleteLogin")
+	defer span.End()
+
 	if err := s.verifyLoginRequest(ctx, req); err != nil {
 		return nil, err
 	}
@@ -152,12 +183,130 @@ func (s *AuthService) CompleteLogin(ctx context.Context, req *authv1.CompleteLog
 		return nil, err
 	}
 
-	// Clean up codes
-	if err := s.repo.InvalidateMagicCodes(ctx, email, phone); err != nil {
-		slog.ErrorContext(ctx, "failed to invalidate magic codes", "error", err)
+	// Clean up codes and publish login event within transaction
+	err = s.repo.WithTx(ctx, func(txRepo repository.Repository) error {
+		if txErr := txRepo.InvalidateMagicCodes(ctx, email, phone); txErr != nil {
+			slog.ErrorContext(ctx, "failed to invalidate magic codes", "error", txErr)
+		}
+
+		return txRepo.StoreOutbox(ctx, events.EventAuthUserLoggedIn, map[string]interface{}{
+			"user_id":      user.ID,
+			"email":        email,
+			"phone":        phone,
+			"login_method": "magic_code",
+			"timestamp":    time.Now().UTC(),
+		})
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to create outbox event for login", "error", err)
 	}
 
-	return s.generateLoginResponse(user)
+	// Audit Log
+	s.audit.Log(ctx, audit.LogParams{
+		UserID:   user.ID,
+		Action:   "LOGIN",
+		Resource: ModuleName,
+		Metadata: map[string]any{
+			"method": "magic_code",
+			"email":  email,
+			"phone":  phone,
+		},
+		Success: true,
+	})
+
+	// Record business metrics
+	if telemetry.AuthLoginTotal != nil {
+		telemetry.AuthLoginTotal.Inc(ctx)
+	}
+
+	resp, err := s.generateLoginResponse(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	// Set HttpOnly cookies for access and refresh tokens (web clients)
+	s.setAuthCookies(ctx, resp.AccessToken, resp.RefreshToken)
+
+	return resp, nil
+}
+
+// Register creates a new user account.
+//
+//nolint:funlen // Register logic is naturally sequential: check exists, create user/profile/role/event in tx, fetch, audit, return
+func (s *AuthService) Register(ctx context.Context, req *authv1.RegisterRequest) (*authv1.RegisterResponse, error) {
+	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "Register")
+	defer span.End()
+
+	email := req.GetEmail()
+	phone := req.GetPhone()
+	displayName := req.GetDisplayName()
+	nationality := req.GetNationality()
+	docType := req.GetDocumentType()
+	docNumber := req.GetDocumentNumber()
+
+	// Check if user already exists
+	if s.checkUserExists(ctx, email, phone) {
+		return nil, status.Error(codes.AlreadyExists, "user already exists")
+	}
+
+	// Generate new user ID
+	uid, err := typeid.WithPrefix("user")
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to generate user id", "error", err)
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+
+	userID := uid.String()
+
+	// Use transaction to ensure user and role are created together
+	if err := s.repo.WithTx(ctx, func(tx repository.Repository) error {
+		if err := tx.CreateUser(ctx, userID, email, phone); err != nil {
+			return err
+		}
+
+		if err := tx.UpdateUserProfile(ctx, userID, displayName, "", ""); err != nil {
+			return err
+		}
+
+		if err := tx.AssignRole(ctx, userID, RoleUser); err != nil {
+			return err
+		}
+
+		// Publish registration event via outbox
+		return tx.StoreOutbox(ctx, events.EventAuthUserRegistered, events.NewUserRegisteredPayload(
+			userID, email, phone, displayName, nationality, docType, docNumber,
+		))
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to register user", "error", err)
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+
+	// Fetch created user
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to fetch created user", "error", err)
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+
+	// Audit Log
+	s.audit.Log(ctx, audit.LogParams{
+		UserID:   userID,
+		Action:   "REGISTER",
+		Resource: ModuleName,
+		Metadata: map[string]any{
+			"email":        email,
+			"phone":        phone,
+			"display_name": displayName,
+		},
+		Success: true,
+	})
+
+	slog.InfoContext(ctx, "Dummy verification email sent", "email", email)
+
+	return &authv1.RegisterResponse{
+		Success: true,
+		Message: "Account created successfully. Please log in to continue.",
+		User:    userToProto(user),
+	}, nil
 }
 
 // verifyLoginRequest validates the login request.
@@ -173,6 +322,13 @@ func (s *AuthService) verifyLoginRequest(ctx context.Context, req *authv1.Comple
 		return status.Error(codes.InvalidArgument, "either email or phone must be provided")
 	}
 
+	// Bypass magic code in development for automated testing with AI
+	// SECURITY: Only allowed in dev environment
+	if req.Code == "000000" && s.env == "dev" {
+		slog.WarnContext(ctx, "DEV ONLY: bypassing magic code check", "email", email, "phone", phone)
+		return nil
+	}
+
 	// With oneof, exactly one field will be set (validated by protovalidate)
 	if email != "" {
 		return s.verifyMagicCodeByEmail(ctx, email, req.Code)
@@ -184,7 +340,7 @@ func (s *AuthService) verifyLoginRequest(ctx context.Context, req *authv1.Comple
 func (s *AuthService) verifyMagicCodeByEmail(ctx context.Context, email, code string) error {
 	_, err := s.repo.GetValidMagicCodeByEmail(ctx, email, code)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			slog.DebugContext(ctx, "magic code not found or expired",
 				"email", email,
 				"code", code,
@@ -204,7 +360,7 @@ func (s *AuthService) verifyMagicCodeByEmail(ctx context.Context, email, code st
 func (s *AuthService) verifyMagicCodeByPhone(ctx context.Context, phone, code string) error {
 	_, err := s.repo.GetValidMagicCodeByPhone(ctx, phone, code)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			slog.DebugContext(ctx, "magic code not found or expired",
 				"phone", phone,
 				"code", code,
@@ -222,9 +378,10 @@ func (s *AuthService) verifyMagicCodeByPhone(ctx context.Context, phone, code st
 }
 
 func (s *AuthService) getOrCreateUser(ctx context.Context, email, phone string) (*store.AuthUser, error) {
-	var user *store.AuthUser
-
-	var err error
+	var (
+		user *store.AuthUser
+		err  error
+	)
 
 	if email != "" {
 		user, err = s.repo.GetUserByEmail(ctx, email)
@@ -236,56 +393,59 @@ func (s *AuthService) getOrCreateUser(ctx context.Context, email, phone string) 
 		return user, nil
 	}
 
-	if !errors.Is(err, sql.ErrNoRows) {
-		slog.ErrorContext(ctx, "failed to lookup user", "error", err)
-		return nil, status.Error(codes.Internal, "internal server error")
+	if errors.Is(err, pgx.ErrNoRows) {
+		slog.WarnContext(ctx, "login attempt for non-existent user blocked",
+			"email_hash", hashContactInfo(email),
+			"phone_hash", hashContactInfo(phone),
+		)
+
+		return nil, status.Error(codes.NotFound, "user not found")
 	}
 
-	return s.handleSignup(ctx, email, phone)
+	slog.ErrorContext(ctx, "failed to lookup user", "error", err)
+
+	return nil, status.Error(codes.Internal, "internal server error")
 }
 
-func (s *AuthService) handleSignup(ctx context.Context, email, phone string) (*store.AuthUser, error) {
-	tid, err := typeid.WithPrefix("user")
+func (s *AuthService) generateLoginResponse(ctx context.Context, user *store.AuthUser) (*authv1.CompleteLoginResponse, error) {
+	role, err := s.repo.GetUserRole(ctx, user.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to generate user typeid", "error", err)
-		return nil, status.Error(codes.Internal, "internal server error")
+		slog.WarnContext(ctx, "failed to get user role, defaulting to user", "user_id", user.ID, "error", err)
+
+		role = RoleUser
 	}
 
-	userID := tid.String()
-	if err := s.repo.CreateUser(ctx, userID, email, phone); err != nil {
-		slog.ErrorContext(ctx, "failed to create user", "error", err)
-		return nil, status.Error(codes.Internal, "internal server error")
-	}
-
-	if email != "" {
-		user, err := s.repo.GetUserByEmail(ctx, email)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch user by email: %w", err)
-		}
-
-		return user, nil
-	}
-
-	user, err := s.repo.GetUserByPhone(ctx, phone)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch user by phone: %w", err)
-	}
-
-	return user, nil
-}
-
-func (s *AuthService) generateLoginResponse(user *store.AuthUser) (*authv1.CompleteLoginResponse, error) {
-	accessToken, err := s.tokenService.CreateToken(user.ID, "user", 1*time.Hour)
+	accessToken, _, err := s.tokenService.CreateToken(user.ID, role, 1*time.Hour)
 	if err != nil {
 		slog.Error("failed to create access token", "error", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
-	refreshToken, err := s.tokenService.CreateToken(user.ID, "user", 24*time.Hour)
+	refreshToken, jti, err := s.tokenService.CreateToken(user.ID, role, 24*time.Hour)
 	if err != nil {
 		slog.Error("failed to create refresh token", "error", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
+
+	// Create session in DB
+	err = s.repo.CreateSession(ctx, &repository.Session{
+		ID:               jti,
+		UserID:           user.ID,
+		RefreshTokenHash: hashToken(refreshToken),
+		UserAgent:        "", // Optional: Could extract from context if available
+		IPAddress:        "", // Optional: Could extract from context if available
+		CreatedAt:        time.Now(),
+		LastActiveAt:     time.Now(),
+		ExpiresAt:        time.Now().Add(24 * time.Hour),
+	})
+	if err != nil {
+		slog.Error("failed to create session", "error", err)
+		// Non-blocking for now? Or return error?
+		// Usually we want session creation to be mandatory for tracking.
+	}
+
+	// Set HttpOnly cookies in gRPC metadata (will be forwarded by gateway)
+	s.setAuthCookies(ctx, accessToken, refreshToken)
 
 	return &authv1.CompleteLoginResponse{
 		AccessToken:  accessToken,
@@ -326,6 +486,21 @@ func getUserIDFromContext(ctx context.Context) (string, error) {
 	return userID, nil
 }
 
+// getJTIFromContext extracts the JTI from the token in the context.
+func (s *AuthService) getJTIFromContext(ctx context.Context) string {
+	rawToken := getTokenFromContext(ctx)
+	if rawToken == "" {
+		return ""
+	}
+
+	claims, err := s.tokenService.VerifyToken(rawToken)
+	if err != nil {
+		return ""
+	}
+
+	return claims.ID
+}
+
 // getTokenFromContext extracts the raw token from the gRPC metadata.
 func getTokenFromContext(ctx context.Context) string {
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -346,21 +521,124 @@ func getTokenFromContext(ctx context.Context) string {
 	return ""
 }
 
-// RefreshToken exchanges a refresh token for a new access token.
-func (s *AuthService) RefreshToken(ctx context.Context, req *authv1.RefreshTokenRequest) (*authv1.RefreshTokenResponse, error) {
-	if req.RefreshToken == "" {
-		return nil, status.Error(codes.InvalidArgument, "refresh_token is required")
+// setAuthCookies sends Set-Cookie via gRPC response metadata (HttpOnly, Secure, SameSite=Lax).
+func (s *AuthService) setAuthCookies(ctx context.Context, accessToken, refreshToken string) {
+	isSecure := s.env == "prod"
+
+	accessCookie := &http.Cookie{
+		Name:     authn.AccessTokenCookieName,
+		Value:    accessToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   3600, // 1 hour
+	}
+	accessCookie.Secure = isSecure
+
+	refreshCookie := &http.Cookie{
+		Name:     authn.RefreshTokenCookieName,
+		Value:    refreshToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   24 * 3600, // 24 hours
+	}
+	refreshCookie.Secure = isSecure
+
+	// Add both cookies to metadata
+	_ = grpc.SetHeader(ctx, metadata.Pairs(
+		"set-cookie", accessCookie.String(),
+		"set-cookie", refreshCookie.String(),
+	))
+}
+
+// clearAuthCookies sends Set-Cookie to clear auth cookies.
+func (s *AuthService) clearAuthCookies(ctx context.Context) {
+	isSecure := s.env == "prod"
+
+	accessCookie := &http.Cookie{
+		Name:     authn.AccessTokenCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	}
+	accessCookie.Secure = isSecure
+
+	refreshCookie := &http.Cookie{
+		Name:     authn.RefreshTokenCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	}
+	refreshCookie.Secure = isSecure
+
+	_ = grpc.SetHeader(ctx, metadata.Pairs(
+		"set-cookie", accessCookie.String(),
+		"set-cookie", refreshCookie.String(),
+	))
+}
+
+// getRefreshTokenFromCookie extracts refresh_token from the Cookie header in gRPC metadata.
+func getRefreshTokenFromCookie(ctx context.Context) string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ""
+	}
+	// Gateway passes Cookie header; gRPC normalizes keys to lowercase
+	cookieHeaders := md.Get("cookie")
+	if len(cookieHeaders) == 0 {
+		return ""
+	}
+
+	prefix := authn.RefreshTokenCookieName + "="
+
+	for _, line := range cookieHeaders {
+		for _, part := range strings.Split(line, ";") {
+			part = strings.TrimSpace(part)
+			if strings.HasPrefix(part, prefix) {
+				val := strings.TrimPrefix(part, prefix)
+
+				return strings.TrimSpace(val)
+			}
+		}
+	}
+
+	return ""
+}
+
+// RefreshSession refreshes an expired session if the refresh token is valid.
+//
+//nolint:funlen // Security verifications inherently run long
+func (s *AuthService) RefreshSession(ctx context.Context, req *authv1.RefreshSessionRequest) (*authv1.RefreshSessionResponse, error) {
+	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "RefreshSession")
+	defer span.End()
+
+	refreshToken := getRefreshTokenFromCookie(ctx)
+	if refreshToken == "" {
+		refreshToken = req.RefreshToken
+	}
+
+	if refreshToken == "" {
+		return nil, status.Error(codes.InvalidArgument, "refresh_token is required (body or cookie)")
 	}
 
 	// Verify the refresh token
-	claims, err := s.tokenService.VerifyToken(req.RefreshToken)
+	claims, err := s.tokenService.VerifyToken(refreshToken)
 	if err != nil {
 		slog.DebugContext(ctx, "invalid refresh token", "error", err)
 		return nil, status.Error(codes.Unauthenticated, "invalid refresh token")
 	}
 
 	// Check if token is blacklisted
-	tokenHash := hashToken(req.RefreshToken)
+	tokenHash := hashToken(refreshToken)
 
 	blacklisted, err := s.repo.IsTokenBlacklisted(ctx, tokenHash)
 	if err != nil {
@@ -373,16 +651,27 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *authv1.RefreshToken
 	}
 
 	// Generate new tokens
-	accessToken, err := s.tokenService.CreateToken(claims.Subject, claims.Role, 1*time.Hour) //nolint:mnd
+	accessToken, _, err := s.tokenService.CreateToken(claims.Subject, claims.Role, 1*time.Hour) //nolint:mnd
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create access token", "error", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
-	refreshToken, err := s.tokenService.CreateToken(claims.Subject, claims.Role, 24*time.Hour) //nolint:mnd
+	refreshToken, jti, err := s.tokenService.CreateToken(claims.Subject, claims.Role, 24*time.Hour) //nolint:mnd
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create refresh token", "error", err)
 		return nil, status.Error(codes.Internal, "internal server error")
+	}
+
+	// Create new session in DB
+	err = s.repo.CreateSession(ctx, &repository.Session{
+		ID:               jti,
+		UserID:           claims.Subject,
+		RefreshTokenHash: hashToken(refreshToken),
+		ExpiresAt:        time.Now().Add(24 * time.Hour),
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to create session on refresh", "error", err)
 	}
 
 	// Blacklist the old refresh token
@@ -391,15 +680,21 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *authv1.RefreshToken
 		slog.WarnContext(ctx, "failed to blacklist old refresh token", "error", err)
 	}
 
-	return &authv1.RefreshTokenResponse{
+	// Set new auth cookies for web clients
+	s.setAuthCookies(ctx, accessToken, refreshToken)
+
+	return &authv1.RefreshSessionResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    3600,
 	}, nil
 }
 
-// Logout invalidates the current session and blacklists the token.
+// Logout invalidates the current session and blacklists the authtoken.
 func (s *AuthService) Logout(ctx context.Context, req *authv1.LogoutRequest) (*authv1.LogoutResponse, error) {
+	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "Logout")
+	defer span.End()
+
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -428,6 +723,20 @@ func (s *AuthService) Logout(ctx context.Context, req *authv1.LogoutRequest) (*a
 		}
 	}
 
+	// Audit Log
+	s.audit.Log(ctx, audit.LogParams{
+		UserID:   userID,
+		Action:   "LOGOUT",
+		Resource: ModuleName,
+		Metadata: map[string]any{
+			"revoke_all": req.RevokeAll,
+		},
+		Success: true,
+	})
+
+	// Clear auth cookies
+	s.clearAuthCookies(ctx)
+
 	return &authv1.LogoutResponse{
 		Success: true,
 		Message: "Successfully logged out",
@@ -436,6 +745,9 @@ func (s *AuthService) Logout(ctx context.Context, req *authv1.LogoutRequest) (*a
 
 // GetProfile returns the current user's profile.
 func (s *AuthService) GetProfile(ctx context.Context, _ *authv1.GetProfileRequest) (*authv1.GetProfileResponse, error) {
+	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "GetProfile")
+	defer span.End()
+
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -443,7 +755,7 @@ func (s *AuthService) GetProfile(ctx context.Context, _ *authv1.GetProfileReques
 
 	user, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, status.Error(codes.NotFound, "user not found")
 		}
 
@@ -457,14 +769,79 @@ func (s *AuthService) GetProfile(ctx context.Context, _ *authv1.GetProfileReques
 	}, nil
 }
 
-// UpdateProfile updates the current user's profile.
-func (s *AuthService) UpdateProfile(ctx context.Context, req *authv1.UpdateProfileRequest) (*authv1.UpdateProfileResponse, error) {
+// RequestEmailVerification initiates the email verification process.
+func (s *AuthService) RequestEmailVerification(ctx context.Context, _ *authv1.RequestEmailVerificationRequest) (*authv1.RequestEmailVerificationResponse, error) {
+	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "RequestEmailVerification")
+	defer span.End()
+
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.repo.UpdateUserProfile(ctx, userID, req.DisplayName, req.AvatarUrl); err != nil {
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+
+	if user.EmailVerified {
+		return &authv1.RequestEmailVerificationResponse{
+			Success: true,
+			Message: "Email already verified",
+		}, nil
+	}
+
+	// Publish event via outbox
+	if err := s.repo.StoreOutbox(ctx, events.EventAuthEmailVerificationRequested, map[string]any{
+		"user_id": userID,
+		"email":   user.Email.String,
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to store outbox event", "error", err)
+	}
+
+	return &authv1.RequestEmailVerificationResponse{
+		Success: true,
+		Message: "Verification email sent",
+	}, nil
+}
+
+// HandleEmailVerificationRequested handles the dummy verification process.
+func (s *AuthService) HandleEmailVerificationRequested(ctx context.Context, userID string) error {
+	slog.InfoContext(ctx, "Dummy verification: marking email as verified", "user_id", userID)
+
+	// Simulating async verification
+	time.Sleep(1 * time.Second)
+
+	if err := s.repo.MarkEmailVerified(ctx, userID); err != nil {
+		slog.ErrorContext(ctx, "failed to mark email as verified", "error", err, "user_id", userID)
+		return err
+	}
+
+	// Audit Log
+	s.audit.Log(ctx, audit.LogParams{
+		UserID:   userID,
+		Action:   "EMAIL_VERIFIED",
+		Resource: ModuleName,
+		Metadata: map[string]any{
+			"method": "dummy",
+		},
+		Success: true,
+	})
+
+	return nil
+}
+
+// UpdateProfile updates the current user's profile.
+func (s *AuthService) UpdateProfile(ctx context.Context, req *authv1.UpdateProfileRequest) (*authv1.UpdateProfileResponse, error) {
+	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "UpdateProfile")
+	defer span.End()
+
+	userID, err := getUserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.repo.UpdateUserProfile(ctx, userID, req.DisplayName, req.AvatarUrl, req.Timezone); err != nil {
 		slog.ErrorContext(ctx, "failed to update profile", "error", err, "userID", userID)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
@@ -475,6 +852,19 @@ func (s *AuthService) UpdateProfile(ctx context.Context, req *authv1.UpdateProfi
 		slog.ErrorContext(ctx, "failed to get updated user", "error", err, "userID", userID)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
+
+	// Audit Log
+	s.audit.Log(ctx, audit.LogParams{
+		UserID:     userID,
+		Action:     events.EventAuthProfileUpdated,
+		Resource:   ModuleName,
+		ResourceID: userID,
+		Metadata: map[string]any{
+			"display_name": req.DisplayName,
+			"avatar_url":   req.AvatarUrl,
+		},
+		Success: true,
+	})
 
 	return &authv1.UpdateProfileResponse{
 		User: userToProto(user),
@@ -507,18 +897,31 @@ func (s *AuthService) ChangeEmail(ctx context.Context, req *authv1.ChangeEmailRe
 
 	expiresAt := time.Now().Add(15 * time.Minute)
 
-	if err := s.repo.CreatePendingContactChange(ctx, changeID.String(), userID, "email", req.NewEmail, code, expiresAt); err != nil {
-		slog.ErrorContext(ctx, "failed to create pending email change", "error", err)
+	err = s.repo.WithTx(ctx, func(txRepo repository.Repository) error {
+		if txErr := txRepo.CreatePendingContactChange(ctx, changeID.String(), userID, "email", req.NewEmail, code, expiresAt); txErr != nil {
+			return txErr
+		}
+
+		return txRepo.StoreOutbox(ctx, notifier.EventMagicCodeRequested, map[string]string{
+			"email": req.NewEmail,
+			"code":  code,
+		})
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to create pending email change or outbox event", "error", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
-	// Emit event for notification
-	s.bus.Publish(ctx, events.Event{
-		Name: notifier.EventMagicCodeRequested,
-		Payload: map[string]string{
-			"email": req.NewEmail,
-			"code":  code,
+	// Audit Log
+	s.audit.Log(ctx, audit.LogParams{
+		UserID:   userID,
+		Action:   "auth.contact_change_requested",
+		Resource: ModuleName,
+		Metadata: map[string]any{
+			"type":      "email",
+			"new_email": req.NewEmail,
 		},
+		Success: true,
 	})
 
 	return &authv1.ChangeEmailResponse{
@@ -553,18 +956,31 @@ func (s *AuthService) ChangePhone(ctx context.Context, req *authv1.ChangePhoneRe
 
 	expiresAt := time.Now().Add(15 * time.Minute)
 
-	if err := s.repo.CreatePendingContactChange(ctx, changeID.String(), userID, "phone", req.NewPhone, code, expiresAt); err != nil {
-		slog.ErrorContext(ctx, "failed to create pending phone change", "error", err)
+	err = s.repo.WithTx(ctx, func(txRepo repository.Repository) error {
+		if txErr := txRepo.CreatePendingContactChange(ctx, changeID.String(), userID, "phone", req.NewPhone, code, expiresAt); txErr != nil {
+			return txErr
+		}
+
+		return txRepo.StoreOutbox(ctx, notifier.EventMagicCodeRequested, map[string]string{
+			"phone": req.NewPhone,
+			"code":  code,
+		})
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to create pending phone change or outbox event", "error", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
-	// Emit event for notification
-	s.bus.Publish(ctx, events.Event{
-		Name: notifier.EventMagicCodeRequested,
-		Payload: map[string]string{
-			"phone": req.NewPhone,
-			"code":  code,
+	// Audit Log
+	s.audit.Log(ctx, audit.LogParams{
+		UserID:   userID,
+		Action:   "auth.contact_change_requested",
+		Resource: ModuleName,
+		Metadata: map[string]any{
+			"type":      "phone",
+			"new_phone": req.NewPhone,
 		},
+		Success: true,
 	})
 
 	return &authv1.ChangePhoneResponse{
@@ -580,6 +996,8 @@ func (s *AuthService) ListSessions(ctx context.Context, _ *authv1.ListSessionsRe
 		return nil, err
 	}
 
+	currentJTI := s.getJTIFromContext(ctx)
+
 	sessions, err := s.repo.GetSessionsByUserID(ctx, userID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get sessions", "error", err, "userID", userID)
@@ -594,7 +1012,7 @@ func (s *AuthService) ListSessions(ctx context.Context, _ *authv1.ListSessionsRe
 			IpAddress:    sess.IPAddress,
 			CreatedAt:    timestamppb.New(sess.CreatedAt),
 			LastActiveAt: timestamppb.New(sess.LastActiveAt),
-			IsCurrent:    false, // TODO: compare with current session
+			IsCurrent:    sess.ID == currentJTI,
 		}
 	}
 
@@ -617,7 +1035,7 @@ func (s *AuthService) RevokeSession(ctx context.Context, req *authv1.RevokeSessi
 	// Verify the session belongs to the user
 	session, err := s.repo.GetSessionByID(ctx, req.SessionId)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, status.Error(codes.NotFound, "session not found")
 		}
 
@@ -635,6 +1053,15 @@ func (s *AuthService) RevokeSession(ctx context.Context, req *authv1.RevokeSessi
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
+	// Audit Log
+	s.audit.Log(ctx, audit.LogParams{
+		UserID:     userID,
+		Action:     "REVOKE_SESSION",
+		Resource:   ModuleName,
+		ResourceID: req.SessionId,
+		Success:    true,
+	})
+
 	return &authv1.RevokeSessionResponse{
 		Success: true,
 	}, nil
@@ -649,8 +1076,7 @@ func (s *AuthService) RevokeAllSessions(ctx context.Context, req *authv1.RevokeA
 
 	exceptSessionID := ""
 	if !req.IncludeCurrent {
-		// TODO: get current session ID from context
-		exceptSessionID = ""
+		exceptSessionID = s.getJTIFromContext(ctx)
 	}
 
 	count, err := s.repo.RevokeAllUserSessions(ctx, userID, exceptSessionID)
@@ -668,8 +1094,8 @@ func (s *AuthService) RevokeAllSessions(ctx context.Context, req *authv1.RevokeA
 func userToProto(user *store.AuthUser) *authv1.User {
 	u := &authv1.User{
 		Id:        user.ID,
-		CreatedAt: timestamppb.New(user.CreatedAt),
-		UpdatedAt: timestamppb.New(user.UpdatedAt),
+		CreatedAt: timestamppb.New(user.CreatedAt.Time),
+		UpdatedAt: timestamppb.New(user.UpdatedAt.Time),
 	}
 
 	if user.Email.Valid {
@@ -687,6 +1113,13 @@ func userToProto(user *store.AuthUser) *authv1.User {
 	if user.AvatarUrl.Valid {
 		u.AvatarUrl = user.AvatarUrl.String
 	}
+
+	if user.Timezone.Valid {
+		u.Timezone = user.Timezone.String
+	}
+
+	u.EmailVerified = user.EmailVerified
+	u.PhoneVerified = user.PhoneVerified
 
 	return u
 }
@@ -759,7 +1192,7 @@ func (s *AuthService) UnlinkExternalAccount(ctx context.Context, req *authv1.Unl
 	}
 
 	if err := s.repo.DeleteExternalAccountByProvider(ctx, userID, req.Provider); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, status.Error(codes.NotFound, "external account not found")
 		}
 
@@ -802,5 +1235,22 @@ func (s *AuthService) ListLinkedAccounts(ctx context.Context, _ *authv1.ListLink
 
 	return &authv1.ListLinkedAccountsResponse{
 		Accounts: protoAccounts,
+	}, nil
+}
+
+// GetSystemConfig returns public system configurations and feature flags.
+func (s *AuthService) GetSystemConfig(ctx context.Context, _ *authv1.GetSystemConfigRequest) (*authv1.GetSystemConfigResponse, error) {
+	config := make(map[string]string)
+
+	// kyc_enabled is a public feature flag
+	kycEnabled := s.feature.IsEnabled(ctx, "kyc_enabled")
+	if kycEnabled {
+		config["kyc_enabled"] = "true"
+	} else {
+		config["kyc_enabled"] = "false"
+	}
+
+	return &authv1.GetSystemConfigResponse{
+		Configs: config,
 	}, nil
 }

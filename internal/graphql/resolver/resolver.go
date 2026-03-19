@@ -1,6 +1,6 @@
 // Package resolver implements GraphQL resolvers.
 // This package provides the root resolver structure that will be used by gqlgen
-// when GraphQL is initialized via `make add-graphql`.
+// when GraphQL is initialized via `just add-graphql`.
 //
 // The resolver structure is ready to use and provides:
 // - Query resolver for read operations
@@ -30,19 +30,19 @@ func NewRootResolver(eventBus *events.Bus, wsHub *websocket.Hub) *RootResolver {
 }
 
 // Query returns the query resolver.
-// This will implement generated.QueryResolver after running: make add-graphql
+// This will implement generated.QueryResolver after running: just add-graphql
 func (r *RootResolver) Query() interface{} {
 	return r.queryResolver
 }
 
 // Mutation returns the mutation resolver.
-// This will implement generated.MutationResolver after running: make add-graphql
+// This will implement generated.MutationResolver after running: just add-graphql
 func (r *RootResolver) Mutation() interface{} {
 	return r.mutationResolver
 }
 
 // Subscription returns the subscription resolver.
-// This will implement generated.SubscriptionResolver after running: make add-graphql
+// This will implement generated.SubscriptionResolver after running: just add-graphql
 func (r *RootResolver) Subscription() interface{} {
 	return r.subscriptionResolver
 }

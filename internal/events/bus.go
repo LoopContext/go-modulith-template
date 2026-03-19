@@ -5,6 +5,7 @@ package events
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 )
@@ -25,7 +26,8 @@ type ErrorHandler func(ctx context.Context, event Event, err error)
 // This interface allows for different implementations (in-memory, Kafka, RabbitMQ, etc.)
 type EventBus interface {
 	// Subscribe registers a handler for a specific event name.
-	Subscribe(eventName string, handler Handler)
+	// It returns a function that can be called to unsubscribe.
+	Subscribe(eventName string, handler Handler) func()
 
 	// Publish broadcasts an event to all registered handlers.
 	Publish(ctx context.Context, event Event)
@@ -65,12 +67,27 @@ func (b *Bus) SetErrorHandler(handler ErrorHandler) {
 	b.errorHandler = handler
 }
 
-// Subscribe registers a handler for a specific event name
-func (b *Bus) Subscribe(eventName string, handler Handler) {
+// Subscribe registers a handler for a specific event name and returns an unsubscribe function.
+func (b *Bus) Subscribe(eventName string, handler Handler) func() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	b.handlers[eventName] = append(b.handlers[eventName], handler)
+
+	// Return unsubscribe function
+	return func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+
+		handlers := b.handlers[eventName]
+		for i, h := range handlers {
+			// Compare function pointers
+			if fmt.Sprintf("%p", h) == fmt.Sprintf("%p", handler) {
+				b.handlers[eventName] = append(handlers[:i], handlers[i+1:]...)
+				break
+			}
+		}
+	}
 }
 
 // Publish broadcasts an event to all registered handlers
@@ -79,6 +96,8 @@ func (b *Bus) Publish(ctx context.Context, event Event) {
 	handlers, ok := b.handlers[event.Name]
 	errorHandler := b.errorHandler
 	b.mu.RUnlock()
+
+	slog.Info("Event bus publishing", "event", event.Name, "handlers_count", len(handlers))
 
 	if !ok {
 		return

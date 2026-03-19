@@ -13,17 +13,17 @@ import (
 
 // Setup initializes and returns a GraphQL handler.
 // Returns nil if GraphQL is not properly configured.
-// This is a stub - the actual implementation requires running: make add-graphql
+// This is a stub - the actual implementation requires running: just add-graphql
 func Setup(_ context.Context, _ *events.Bus, _ *websocket.Hub) http.Handler {
 	// Stub implementation - returns nil until GraphQL is initialized
-	// After running: make add-graphql, this will return a proper handler
+	// After running: just add-graphql, this will return a proper handler
 	return nil
 }
 
 // PlaygroundHandler returns the GraphQL playground handler.
-// This is a stub - the actual implementation requires running: make add-graphql
+// This is a stub - the actual implementation requires running: just add-graphql
 func PlaygroundHandler() http.Handler {
 	// Stub implementation - returns nil until GraphQL is initialized
-	// After running: make add-graphql, this will return a proper handler
+	// After running: just add-graphql, this will return a proper handler
 	return http.NotFoundHandler()
 }

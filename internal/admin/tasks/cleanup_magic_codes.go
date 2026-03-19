@@ -3,20 +3,20 @@ package tasks
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 
 	"github.com/cmelgarejo/go-modulith-template/internal/admin"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // CleanupExpiredMagicCodesTask removes expired magic codes from the database.
 type CleanupExpiredMagicCodesTask struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 // NewCleanupExpiredMagicCodesTask creates a new cleanup expired magic codes task.
-func NewCleanupExpiredMagicCodesTask(db *sql.DB) admin.Task {
+func NewCleanupExpiredMagicCodesTask(db *pgxpool.Pool) admin.Task {
 	return &CleanupExpiredMagicCodesTask{db: db}
 }
 
@@ -32,15 +32,12 @@ func (t *CleanupExpiredMagicCodesTask) Description() string {
 
 // Execute runs the cleanup task.
 func (t *CleanupExpiredMagicCodesTask) Execute(ctx context.Context) error {
-	result, err := t.db.ExecContext(ctx, "DELETE FROM magic_codes WHERE expires_at < CURRENT_TIMESTAMP")
+	result, err := t.db.Exec(ctx, "DELETE FROM auth.magic_codes WHERE expires_at < CURRENT_TIMESTAMP")
 	if err != nil {
 		return fmt.Errorf("failed to cleanup expired magic codes: %w", err)
 	}
 
-	count, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
+	count := result.RowsAffected()
 
 	slog.Info("Cleaned up expired magic codes", "count", count)
 

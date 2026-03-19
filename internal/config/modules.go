@@ -3,8 +3,9 @@ package config
 // AuthConfig holds the Auth module settings.
 // This is defined here to avoid import cycles between config and modules.
 type AuthConfig struct {
-	JWTSecret string      `yaml:"jwt_secret"`
-	OAuth     OAuthConfig `yaml:"oauth"`
+	JWTPrivateKeyPEM string      `yaml:"jwt_private_key"` // PEM-encoded RSA private key for signing (auth service only)
+	JWTPublicKeyPEM  string      `yaml:"jwt_public_key"`  // PEM-encoded RSA public key for verification (all services)
+	OAuth            OAuthConfig `yaml:"oauth"`
 }
 
 // OAuthConfig holds OAuth provider settings.
@@ -32,7 +33,7 @@ type OAuthProviders struct {
 type OAuthProviderConfig struct {
 	Enabled      bool     `yaml:"enabled"`
 	ClientID     string   `yaml:"client_id"`
-	ClientSecret string   `yaml:"client_secret"`
+	ClientSecret string   `yaml:"client_secret"` //nolint:gosec
 	Scopes       []string `yaml:"scopes"`
 }
 
@@ -44,4 +45,9 @@ type AppleOAuthConfig struct {
 	KeyID          string   `yaml:"key_id"`
 	PrivateKeyPath string   `yaml:"private_key_path"` // Path to .p8 file
 	Scopes         []string `yaml:"scopes"`
+}
+
+// KycConfig holds the KYC module settings.
+type KycConfig struct {
+	EnforcementEnabled bool `yaml:"enforcement_enabled"`
 }

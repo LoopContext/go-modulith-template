@@ -15,7 +15,30 @@ SELECT * FROM auth.users WHERE email = $1 LIMIT 1;
 SELECT * FROM auth.users WHERE phone = $1 LIMIT 1;
 
 -- name: UpdateUserProfile :exec
-UPDATE auth.users SET display_name = $2, avatar_url = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1;
+UPDATE auth.users SET display_name = $2, avatar_url = $3, timezone = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $1;
+
+
+-- name: GetUserRole :one
+SELECT r.name
+FROM auth.roles r
+JOIN auth.user_roles ur ON r.id = ur.role_id
+WHERE ur.user_id = $1
+  AND r.deleted_at IS NULL
+LIMIT 1;
+
+-- name: AssignUserRole :exec
+INSERT INTO auth.user_roles (user_id, role_id, created_at, updated_at)
+VALUES ($1, (SELECT id FROM auth.roles WHERE LOWER(name) = LOWER(sqlc.arg(role_name)) AND deleted_at IS NULL), NOW(), NOW())
+ON CONFLICT (user_id, role_id) DO UPDATE SET updated_at = NOW();
+
+-- name: RemoveUserRoles :exec
+DELETE FROM auth.user_roles WHERE user_id = $1;
+
+-- name: MarkEmailVerified :exec
+UPDATE auth.users SET email_verified = TRUE, updated_at = NOW() WHERE id = $1;
+
+-- name: MarkPhoneVerified :exec
+UPDATE auth.users SET phone_verified = TRUE, updated_at = NOW() WHERE id = $1;
 
 -- ========================
 -- Magic Codes (Passwordless)
@@ -158,3 +181,22 @@ DELETE FROM auth.oauth_states WHERE state = $1;
 
 -- name: CleanupExpiredOAuthStates :exec
 DELETE FROM auth.oauth_states WHERE expires_at < CURRENT_TIMESTAMP;
+
+-- ========================
+-- Outbox
+-- ========================
+
+-- name: StoreOutbox :exec
+INSERT INTO auth.outbox (id, event_name, payload, created_at)
+VALUES ($1, $2, $3, NOW());
+
+-- name: GetUnpublishedOutbox :many
+SELECT * FROM auth.outbox
+WHERE published_at IS NULL
+ORDER BY created_at ASC
+LIMIT $1;
+
+-- name: MarkOutboxAsPublished :exec
+UPDATE auth.outbox
+SET published_at = NOW()
+WHERE id = ANY($1::varchar[]);

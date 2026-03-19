@@ -11,12 +11,12 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
 )
 
-// Note: These tests require GraphQL to be initialized (run: make add-graphql)
+// Note: These tests require GraphQL to be initialized (run: just add-graphql)
 // They will be skipped if the Setup function doesn't exist yet.
 // Once GraphQL is set up, these tests will run and verify the server functionality.
 
 func TestSetup_WhenGraphQLInitialized(t *testing.T) {
-	// This test will only work after running: make add-graphql
+	// This test will only work after running: just add-graphql
 	// We check if Setup function exists by trying to call it
 	// If it fails to compile, the test is skipped
 	ctx := context.Background()
@@ -32,7 +32,7 @@ func TestSetup_WhenGraphQLInitialized(t *testing.T) {
 	handler := Setup(ctx, eventBus, wsHub)
 
 	if handler == nil {
-		t.Skip("GraphQL not initialized. Run: make add-graphql to enable these tests")
+		t.Skip("GraphQL not initialized. Run: just add-graphql to enable these tests")
 	}
 
 	// Verify it's an http.Handler
@@ -49,7 +49,7 @@ func TestSetup_WithNilEventBus_WhenGraphQLInitialized(t *testing.T) {
 	handler := Setup(ctx, nil, wsHub)
 
 	if handler == nil {
-		t.Skip("GraphQL not initialized. Run: make add-graphql")
+		t.Skip("GraphQL not initialized. Run: just add-graphql")
 	}
 
 	// Should still create handler (resolvers handle nil gracefully)
@@ -69,7 +69,7 @@ func TestSetup_HandlerServesHTTP_WhenGraphQLInitialized(t *testing.T) {
 	handler := Setup(ctx, eventBus, wsHub)
 
 	if handler == nil {
-		t.Skip("GraphQL not initialized. Run: make add-graphql")
+		t.Skip("GraphQL not initialized. Run: just add-graphql")
 	}
 
 	// Create a test request
@@ -89,7 +89,7 @@ func TestPlaygroundHandler_WhenGraphQLInitialized(t *testing.T) {
 	handler := PlaygroundHandler()
 
 	if handler == nil {
-		t.Skip("GraphQL not initialized. Run: make add-graphql")
+		t.Skip("GraphQL not initialized. Run: just add-graphql")
 	}
 
 	// Verify it's an http.Handler
@@ -100,7 +100,7 @@ func TestPlaygroundHandler_ServesHTTP_WhenGraphQLInitialized(t *testing.T) {
 	handler := PlaygroundHandler()
 
 	if handler == nil {
-		t.Skip("GraphQL not initialized. Run: make add-graphql")
+		t.Skip("GraphQL not initialized. Run: just add-graphql")
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/graphql/playground", nil)
@@ -109,9 +109,9 @@ func TestPlaygroundHandler_ServesHTTP_WhenGraphQLInitialized(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	// Stub returns NotFoundHandler, so we expect 404 until GraphQL is initialized
-	// After running: make add-graphql, this should return 200
+	// After running: just add-graphql, this should return 200
 	if w.Code == http.StatusNotFound {
-		t.Skip("GraphQL not fully initialized. Playground returns 404 until setup is complete. Run: make add-graphql")
+		t.Skip("GraphQL not fully initialized. Playground returns 404 until setup is complete. Run: just add-graphql")
 	}
 
 	// When GraphQL is initialized, should return HTML content
@@ -136,7 +136,7 @@ func TestSetup_ConcurrentRequests_WhenGraphQLInitialized(t *testing.T) {
 	handler := Setup(ctx, eventBus, wsHub)
 
 	if handler == nil {
-		t.Skip("GraphQL not initialized. Run: make add-graphql")
+		t.Skip("GraphQL not initialized. Run: just add-graphql")
 	}
 
 	// Test concurrent requests
@@ -177,7 +177,7 @@ func TestSetup_HandlerIsReusable_WhenGraphQLInitialized(t *testing.T) {
 	handler := Setup(ctx, eventBus, wsHub)
 
 	if handler == nil {
-		t.Skip("GraphQL not initialized. Run: make add-graphql")
+		t.Skip("GraphQL not initialized. Run: just add-graphql")
 	}
 
 	// Use the same handler multiple times

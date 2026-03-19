@@ -172,7 +172,7 @@ Teams won't know how to properly test cross-module interactions.
 
 ### What's Missing
 
--   `make deps-graph` - Visualize module dependencies
+-   `just deps-graph` - Visualize module dependencies
 -   Proto compatibility checking tools
 -   Selective module reloading (only reload changed module)
 -   Better test data management tools

@@ -30,7 +30,7 @@ alwaysApply: false
   func GetMagicCode(ctx context.Context, code string) (*store.MagicCode, error)
   ```
 
-- After running `make sqlc`, check `modules/<mod>/internal/db/store/models.go` to see the exact generated type names.
+- After running `just sqlc`, check `modules/<mod>/internal/db/store/models.go` to see the exact generated type names.
 
 ## Repository pattern
 

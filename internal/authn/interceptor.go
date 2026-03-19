@@ -11,6 +11,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Cookie names used for auth tokens (HttpOnly cookies).
+const (
+	AccessTokenCookieName  = "access_token"
+	RefreshTokenCookieName = "refresh_token"
+)
+
 // InterceptorConfig configures the gRPC auth interceptor.
 type InterceptorConfig struct {
 	Verifier      Verifier
@@ -52,26 +58,37 @@ func bearerTokenFromMetadata(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("missing metadata")
 	}
 
+	// 1. Try Authorization header (standard Bearer token)
 	vals := md.Get("authorization")
-	if len(vals) == 0 {
-		return "", fmt.Errorf("authorization header not found")
+	if len(vals) > 0 {
+		v := strings.TrimSpace(vals[0])
+
+		const prefix = "bearer "
+		if len(v) >= len(prefix) && strings.ToLower(v[:len(prefix)]) == prefix {
+			token := strings.TrimSpace(v[len(prefix):])
+			if token != "" {
+				return token, nil
+			}
+		}
 	}
 
-	// Take the first value.
-	v := strings.TrimSpace(vals[0])
-	if v == "" {
-		return "", fmt.Errorf("authorization header empty")
+	// 2. Try Cookie header (HttpOnly cookies)
+	cookies := md.Get("cookie")
+	if len(cookies) > 0 {
+		// Cookie header can contain multiple cookies: "name1=val1; name2=val2"
+		for _, cookieStr := range cookies {
+			parts := strings.Split(cookieStr, ";")
+
+			for _, part := range parts {
+				part = strings.TrimSpace(part)
+
+				prefix := AccessTokenCookieName + "="
+				if strings.HasPrefix(part, prefix) {
+					return strings.TrimPrefix(part, prefix), nil
+				}
+			}
+		}
 	}
 
-	const prefix = "bearer "
-	if len(v) < len(prefix) || strings.ToLower(v[:len(prefix)]) != prefix {
-		return "", fmt.Errorf("authorization header is not bearer token")
-	}
-
-	token := strings.TrimSpace(v[len(prefix):])
-	if token == "" {
-		return "", fmt.Errorf("bearer token empty")
-	}
-
-	return token, nil
+	return "", fmt.Errorf("authorization token not found in header or cookie")
 }

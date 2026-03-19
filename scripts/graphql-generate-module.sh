@@ -17,7 +17,7 @@ MODULE_SCHEMA="${SCHEMA_DIR}/${MODULE_NAME}.graphql"
 
 # Check if GraphQL is initialized
 if [ ! -f "${PROJECT_ROOT}/gqlgen.yml" ]; then
-    echo "❌ GraphQL not initialized. Run: make graphql-init"
+    echo "❌ GraphQL not initialized. Run: just graphql-init"
     exit 1
 fi
 
@@ -50,8 +50,8 @@ if [ ! -f "${MODULE_SCHEMA}" ]; then
     # Check if OpenAPI file exists
     if [ ! -f "${OPENAPI_FILE}" ]; then
         echo "❌ OpenAPI file not found: ${OPENAPI_FILE}"
-        echo "   Run 'make proto' first to generate OpenAPI definitions,"
-        echo "   or run 'make new-module ${MODULE_NAME}' to create the schema manually."
+        echo "   Run 'just proto' first to generate OpenAPI definitions,"
+        echo "   or run 'just new-module ${MODULE_NAME}' to create the schema manually."
         exit 1
     fi
 

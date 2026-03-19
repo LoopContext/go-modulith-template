@@ -139,9 +139,9 @@ echo "╔═══════════════════════�
 echo "║  💡 Comandos Útiles                                            ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
-echo "  📊 Ver reporte HTML:     make test-coverage"
-echo "  🧪 Ejecutar tests:       make test"
-echo "  📈 Este reporte:         make coverage-report"
-echo "  🌐 Abrir en navegador:   make coverage-html"
+echo "  📊 Ver reporte HTML:     just test-coverage"
+echo "  🧪 Ejecutar tests:       just test"
+echo "  📈 Este reporte:         just coverage-report"
+echo "  🌐 Abrir en navegador:   just coverage-html"
 echo ""
 

@@ -39,7 +39,7 @@ We'll build:
 ### Step 1: Scaffold the Stock Module
 
 ```bash
-make new-module stock
+just new-module stock
 ```
 
 This creates:
@@ -270,10 +270,10 @@ SELECT COUNT(*) FROM products;
 
 ```bash
 # Generate gRPC code from proto
-make proto
+just proto
 
 # Generate SQL code from queries
-make sqlc
+just sqlc
 ```
 
 ### Step 6: Implement Stock Repository
@@ -699,7 +699,7 @@ func (s *StockService) ListProducts(ctx context.Context, req *stockv1.ListProduc
 ### Step 8: Scaffold the Order Module
 
 ```bash
-make new-module order
+just new-module order
 ```
 
 ### Step 9: Define Order Module Proto Contract
@@ -899,7 +899,7 @@ SELECT COUNT(*) FROM orders WHERE user_id = $1;
 ### Step 12: Generate Code Again
 
 ```bash
-make generate-all
+just generate-all
 ```
 
 ### Step 13: Implement Order Repository
@@ -1190,13 +1190,13 @@ func RegisterModules(reg *registry.Registry) {
 
 ```bash
 # Start database
-make docker-up-minimal
+just docker-up-minimal
 
 # Run migrations
-make migrate-up
+just migrate-up
 
 # Start server
-make dev
+just dev
 ```
 
 ### Step 18: Test the System
@@ -1315,7 +1315,7 @@ curl -X POST http://localhost:8080/v1/orders \
 ### Module not found
 
 -   Ensure modules are registered in `cmd/server/setup/registry.go`
--   Run `make generate-all` after proto changes
+-   Run `just generate-all` after proto changes
 
 ### gRPC connection errors
 

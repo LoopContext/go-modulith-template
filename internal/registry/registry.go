@@ -2,15 +2,18 @@ package registry
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 	"net/http"
 
+	"github.com/cmelgarejo/go-modulith-template/internal/audit"
+	"github.com/cmelgarejo/go-modulith-template/internal/cache"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/feature"
 	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 )
 
@@ -19,10 +22,13 @@ import (
 type Registry struct {
 	// Core dependencies - config is any to avoid import cycles
 	config   any
-	db       *sql.DB
+	db       *pgxpool.Pool
 	bus      *events.Bus
 	notifier notifier.Notifier
 	wsHub    *websocket.Hub
+	audit    audit.Logger
+	feature  feature.Manager
+	cache    cache.Cache
 
 	// Infrastructure
 	metricsHandler http.Handler
@@ -144,8 +150,8 @@ func (r *Registry) Config() any {
 	return r.config
 }
 
-// DB returns the database connection.
-func (r *Registry) DB() *sql.DB {
+// DB returns the database connection pool.
+func (r *Registry) DB() *pgxpool.Pool {
 	return r.db
 }
 
@@ -162,6 +168,21 @@ func (r *Registry) Notifier() notifier.Notifier {
 // WebSocketHub returns the WebSocket hub.
 func (r *Registry) WebSocketHub() *websocket.Hub {
 	return r.wsHub
+}
+
+// AuditLogger returns the audit logger.
+func (r *Registry) AuditLogger() audit.Logger {
+	return r.audit
+}
+
+// FlagManager returns the feature flag manager.
+func (r *Registry) FlagManager() feature.Manager {
+	return r.feature
+}
+
+// Cache returns the cache service.
+func (r *Registry) Cache() cache.Cache {
+	return r.cache
 }
 
 // MetricsHandler returns the metrics HTTP handler.

@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"log/slog"
 	"os"
@@ -17,6 +16,8 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/migration"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
 )
 
@@ -82,12 +83,10 @@ func handleSubcommand(args []string) {
 	command := args[0]
 
 	switch command {
-	case "migrate":
-		commands.RunMigrateCommand()
-	case "migrate-down":
-		commands.RunMigrateDownCommand()
+	case "migrate", "migrate-down":
+		handleMigrateSubcommand(command, args)
 	case "seed":
-		commands.RunSeedCommand()
+		handleSeedSubcommand(command, args)
 	case "admin":
 		if len(args) < 2 {
 			slog.Error("Usage: admin <task_name>")
@@ -102,7 +101,30 @@ func handleSubcommand(args []string) {
 	}
 }
 
-func initializeServices(ctx context.Context, cfg *config.AppConfig) (func(), *sql.DB) {
+func handleMigrateSubcommand(command string, _ []string) {
+	switch command {
+	case "migrate":
+		commands.RunMigrateCommand()
+	case "migrate-down":
+		commands.RunMigrateDownCommand()
+	}
+}
+
+func handleSeedSubcommand(command string, args []string) {
+	switch command {
+	case "seed":
+		commands.RunSeedCommand()
+	case "seed-module":
+		if len(args) < 2 {
+			slog.Error("Usage: seed-module <module_name>")
+			os.Exit(1)
+		}
+
+		commands.RunSeedModuleCommand(args[1])
+	}
+}
+
+func initializeServices(ctx context.Context, cfg *config.AppConfig) (func(), *pgxpool.Pool) {
 	shutdownObs, err := observability.InitObservability(ctx, cfg)
 	if err != nil {
 		slog.Error("Failed to initialize observability", "error", err)

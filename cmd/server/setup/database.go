@@ -3,27 +3,24 @@ package setup
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
-	_ "github.com/jackc/pgx/v5/stdlib" // Register pgx driver for database/sql
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// InitDB initializes and connects to the database.
-func InitDB(cfg *config.AppConfig) (*sql.DB, error) {
-	db, err := sql.Open("pgx", cfg.DBDSN)
+// InitDB initializes and connects to the database pool.
+func InitDB(cfg *config.AppConfig) (*pgxpool.Pool, error) {
+	poolConfig, err := pgxpool.ParseConfig(cfg.DBDSN)
 	if err != nil {
-		slog.Error("Failed to open DB", "error", err)
-
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, fmt.Errorf("failed to parse database DSN: %w", err)
 	}
 
 	// Configure connection pool
-	db.SetMaxOpenConns(cfg.DBMaxOpenConns)
-	db.SetMaxIdleConns(cfg.DBMaxIdleConns)
+	poolConfig.MaxConns = int32(cfg.DBMaxOpenConns) // #nosec G115
+	poolConfig.MinConns = int32(cfg.DBMaxIdleConns) // #nosec G115
 
 	// Parse lifetime duration
 	if cfg.DBConnMaxLifetime != "" {
@@ -31,7 +28,7 @@ func InitDB(cfg *config.AppConfig) (*sql.DB, error) {
 		if err != nil {
 			slog.Warn("Invalid DB_CONN_MAX_LIFETIME, using default", "value", cfg.DBConnMaxLifetime, "error", err)
 		} else {
-			db.SetConnMaxLifetime(lifetime)
+			poolConfig.MaxConnLifetime = lifetime
 		}
 	}
 
@@ -49,25 +46,29 @@ func InitDB(cfg *config.AppConfig) (*sql.DB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
 	defer cancel()
 
-	if err := db.PingContext(ctx); err != nil {
-		slog.Error("Failed to ping DB", "error", err, "timeout", connectTimeout)
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create database pool: %w", err)
+	}
 
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	slog.Info("Connected to Database",
-		"max_open_conns", cfg.DBMaxOpenConns,
-		"max_idle_conns", cfg.DBMaxIdleConns,
-		"conn_max_lifetime", cfg.DBConnMaxLifetime,
+	slog.Info("Connected to Database (pgxpool)",
+		"max_conns", poolConfig.MaxConns,
+		"min_conns", poolConfig.MinConns,
+		"conn_max_lifetime", poolConfig.MaxConnLifetime,
 		"connect_timeout", connectTimeout,
 	)
 
-	return db, nil
+	return pool, nil
 }
 
-// CloseDB closes the database connection.
-func CloseDB(db *sql.DB) {
-	if err := db.Close(); err != nil {
-		slog.Error("Failed to close DB", "error", err)
+// CloseDB closes the database connection pool.
+func CloseDB(pool *pgxpool.Pool) {
+	if pool != nil {
+		pool.Close()
 	}
 }

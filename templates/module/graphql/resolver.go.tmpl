@@ -11,7 +11,7 @@ import (
 
 // {{.MODULE_NAME_CAPITALIZED}} module resolvers
 // These methods are added to queryResolver, mutationResolver, and subscriptionResolver
-// in schema.resolvers.go after running 'make graphql-generate'
+// in schema.resolvers.go after running 'just graphql-generate'
 //
 // Note: gqlgen generates resolver structs that embed *Resolver:
 //   type queryResolver struct{ *Resolver }
@@ -28,7 +28,7 @@ import (
 // Then access it in resolvers via: r.{{.MODULE_NAME}}Client
 
 // Query resolvers for {{.MODULE_NAME}} module
-// TODO: Implement after running 'make graphql-generate'
+// TODO: Implement after running 'just graphql-generate'
 // Example:
 // func (r *queryResolver) Get{{.MODULE_STRUCT_NAME}}(ctx context.Context, id string) (*generated.{{.MODULE_STRUCT_NAME}}, error) {
 //     // Access service client via embedded Resolver
@@ -49,7 +49,7 @@ import (
 // }
 
 // Mutation resolvers for {{.MODULE_NAME}} module
-// TODO: Implement after running 'make graphql-generate'
+// TODO: Implement after running 'just graphql-generate'
 // Example:
 // func (r *mutationResolver) Create{{.MODULE_STRUCT_NAME}}(ctx context.Context, input generated.Create{{.MODULE_STRUCT_NAME}}Input) (*generated.{{.MODULE_STRUCT_NAME}}, error) {
 //     req := &{{.MODULE_NAME}}v1.Create{{.MODULE_STRUCT_NAME}}Request{
@@ -68,7 +68,7 @@ import (
 // }
 
 // Subscription resolvers for {{.MODULE_NAME}} module
-// TODO: Implement after running 'make graphql-generate'
+// TODO: Implement after running 'just graphql-generate'
 // Example:
 // func (r *subscriptionResolver) {{.MODULE_NAME_CAPITALIZED}}Events(ctx context.Context) (<-chan *generated.{{.MODULE_STRUCT_NAME}}Event, error) {
 //     ch := make(chan *generated.{{.MODULE_STRUCT_NAME}}Event)

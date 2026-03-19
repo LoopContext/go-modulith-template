@@ -61,7 +61,7 @@ func Gateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry,
 
 // setupWebSocket configures the WebSocket endpoint with authentication.
 func setupWebSocket(mux *http.ServeMux, cfg *config.AppConfig, wsHub *websocket.Hub) {
-	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTSecret)
+	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTPublicKeyPEM)
 	if err != nil {
 		slog.Warn("Failed to create JWT verifier for WebSocket, connections will be unauthenticated",
 			"error", err)

@@ -17,13 +17,13 @@ The project uses **gomock** for automatic mock generation:
 
 ```bash
 # Generate mocks for all interfaces
-make generate-mocks
+just generate-mocks
 
 # Run unit tests (with mocks, no DB)
-make test-unit
+just test-unit
 
 # Complete tests (including integration)
-make test
+just test
 ```
 
 **Features:**
@@ -38,10 +38,10 @@ make test
 
 ```bash
 # Visual report in terminal with statistics
-make coverage-report
+just coverage-report
 
 # Interactive HTML report
-make coverage-html
+just coverage-html
 ```
 
 **The report shows:**
@@ -61,18 +61,18 @@ All binaries are compiled in `/bin/`:
 
 | Command                      | Output         | Docker Image               |
 | ---------------------------- | -------------- | -------------------------- |
-| `make build`                 | `bin/server`   | `modulith-server:latest`   |
-| `make build-module auth`     | `bin/auth`     | `modulith-auth:latest`     |
-| `make build-module payments` | `bin/payments` | `modulith-payments:latest` |
-| `make build-all`             | `bin/*`        | -                          |
+| `just build`                 | `bin/server`   | `modulith-server:latest`   |
+| `just build-module auth`     | `bin/auth`     | `modulith-auth:latest`     |
+| `just build-module payments` | `bin/payments` | `modulith-payments:latest` |
+| `just build-all`             | `bin/*`        | -                          |
 
 ### Docker Build
 
 | Command                             | Dockerfile ARG    | Resulting Image            |
 | ----------------------------------- | ----------------- | -------------------------- |
-| `make docker-build`                 | `TARGET=server`   | `modulith-server:latest`   |
-| `make docker-build-module auth`     | `TARGET=auth`     | `modulith-auth:latest`     |
-| `make docker-build-module {module}` | `TARGET={module}` | `modulith-{module}:latest` |
+| `just docker-build`                 | `TARGET=server`   | `modulith-server:latest`   |
+| `just docker-build-module auth`     | `TARGET=auth`     | `modulith-auth:latest`     |
+| `just docker-build-module {module}` | `TARGET={module}` | `modulith-{module}:latest` |
 
 **Dockerfile Path:** `/app/bin/service` (internal)
 
@@ -191,12 +191,12 @@ The template follows the **separation of build, release and run** principle from
 
 ```bash
 # Local binary build
-make build                    # → bin/server
-make build-module auth        # → bin/auth
+just build                    # → bin/server
+just build-module auth        # → bin/auth
 
 # Docker image build
-make docker-build             # → modulith-server:latest
-make docker-build-module auth # → modulith-auth:latest
+just docker-build             # → modulith-server:latest
+just docker-build-module auth # → modulith-auth:latest
 ```
 
 **During build:**
@@ -411,11 +411,11 @@ helm install modulith-server ./deployment/helm/modulith
 
 ```bash
 # Option A: Local binary
-make build-module auth
+just build-module auth
 ./bin/auth
 
 # Option B: Local Docker
-make docker-build-module auth
+just docker-build-module auth
 docker run modulith-auth:latest
 ```
 
@@ -460,7 +460,7 @@ helm install modulith-auth ./deployment/helm/modulith \
 
 ```
 ┌─────────────────────┐
-│  make docker-build  │
+│  just docker-build  │
 └──────────┬──────────┘
            ↓
 ┌─────────────────────┐
@@ -481,7 +481,7 @@ helm install modulith-auth ./deployment/helm/modulith \
 
 ```
 ┌──────────────────┐  ┌──────────────────────────┐
-│ make docker-build│  │make docker-build-module  │
+│ just docker-build│  │just docker-build-module  │
 │                  │  │         auth             │
 └────────┬─────────┘  └────────┬─────────────────┘
          ↓                     ↓
@@ -506,7 +506,7 @@ helm install modulith-auth ./deployment/helm/modulith \
 
 ```
 ┌─────────────────────────────────────┐
-│  make docker-build-module {module}  │
+│  just docker-build-module {module}  │
 └──────────────┬──────────────────────┘
                ↓
 ┌──────────────────────────────────────┐
@@ -560,9 +560,9 @@ helm install modulith-server ./deployment/helm/modulith \
 ```
 go-modulith-template/
 ├── bin/                          # Build outputs (gitignored)
-│   ├── server                    # make build
-│   ├── auth                      # make build-module auth
-│   └── {module}                  # make build-module {module}
+│   ├── server                    # just build
+│   ├── auth                      # just build-module auth
+│   └── {module}                  # just build-module {module}
 │
 ├── cmd/                          # Entry points
 │   ├── server/main.go            # Monolith
@@ -647,7 +647,7 @@ go-modulith-template/
 
 ### For Development
 
-1. ✅ Everything ready - use `make dev-module {module}`
+1. ✅ Everything ready - use `just dev-module {module}`
 
 ### For Staging/Production
 

@@ -32,6 +32,7 @@ func TestTokenEncryptor_EncryptDecrypt(t *testing.T) {
 			name:      "unicode",
 			plaintext: "こんにちは世界 🌍🔐",
 		},
+		//nolint:gosec
 		{
 			name:      "oauth token format",
 			plaintext: "ya29.a0AfH6SMB2xS5lZC0M7qR_Xy_example_access_token_1234567890",

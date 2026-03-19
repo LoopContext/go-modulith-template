@@ -38,7 +38,7 @@ func NewGRPCTestServer(cfg *config.AppConfig, reg *registry.Registry) (*GRPCTest
 		return nil, fmt.Errorf("failed to listen: %w", err)
 	}
 
-	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTSecret)
+	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTPublicKeyPEM)
 	if err != nil {
 		_ = lis.Close()
 		return nil, fmt.Errorf("failed to init jwt verifier: %w", err)

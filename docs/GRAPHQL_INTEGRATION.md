@@ -14,7 +14,7 @@ This guide explains how to optionally add GraphQL to your project using [gqlgen]
 ### Automatic Installation (Recommended)
 
 ```bash
-make graphql-init
+just graphql-init
 ```
 
 This command automatically:
@@ -26,9 +26,9 @@ This command automatically:
 -   ✅ Configures subscriptions with WebSocket
 -   ✅ Everything compiles and is ready to use
 
-After running `make graphql-init`, you can immediately:
+After running `just graphql-init`, you can immediately:
 
--   Start the server with `make run`
+-   Start the server with `just run`
 -   Access GraphQL playground at `http://localhost:8000/graphql/playground` (dev mode)
 -   Access GraphQL endpoint at `http://localhost:8000/graphql`
 
@@ -346,13 +346,13 @@ func NewGraphQLServer(schema generated.ExecutableSchema, wsHub *websocket.Hub) h
 
 ## 🚀 Integration in cmd/server/setup/gateway.go
 
-GraphQL integration is **automatically handled** when you run `make graphql-init`. The script automatically:
+GraphQL integration is **automatically handled** when you run `just graphql-init`. The script automatically:
 
 1. Adds the GraphQL import to `cmd/server/setup/gateway.go`
 2. Integrates GraphQL endpoint setup in the `Gateway()` function
 3. Generates all GraphQL code automatically
 
-### Automatic Integration (via make graphql-init)
+### Automatic Integration (via just graphql-init)
 
 The integration happens in `cmd/server/setup/gateway.go`:
 
@@ -366,7 +366,7 @@ import (
 func Gateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry, wsHub *websocket.Hub) (*http.ServeMux, *grpc.ClientConn, error) {
     // ... existing gateway setup code ...
 
-    // Setup GraphQL endpoint (automatically added by make graphql-init)
+    // Setup GraphQL endpoint (automatically added by just graphql-init)
     if graphqlHandler := graphqlServer.Setup(ctx, reg.EventBus(), wsHub); graphqlHandler != nil {
         mux.Handle("/graphql", graphqlHandler)
 
@@ -383,7 +383,7 @@ func Gateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry,
 }
 ```
 
-**Note:** You don't need to manually edit this file - `make graphql-init` handles everything automatically!
+**Note:** You don't need to manually edit this file - `just graphql-init` handles everything automatically!
 
 ## 📊 Ejemplo Completo: Query + Mutation + Subscription
 
@@ -525,17 +525,17 @@ func TestRequestLogin(t *testing.T) {
 
 ```bash
 # Inicializar GraphQL en el proyecto
-make graphql-init
+just graphql-init
 
 # Generar código desde schema
 # Generate code for all modules
-make graphql-generate-all
+just graphql-generate-all
 
 # Or generate for a specific module (auto-generates schema from proto if missing)
-make graphql-generate-module MODULE_NAME=auth
+just graphql-generate-module MODULE_NAME=auth
 
 # Validate schema
-make graphql-validate
+just graphql-validate
 
 # Ver playground (requiere servidor corriendo)
 # http://localhost:8080/graphql/playground
@@ -544,7 +544,7 @@ make graphql-validate
 ## 🔄 Flujo de Desarrollo
 
 1. **Definir Schema** (`internal/graphql/schema/*.graphql`)
-2. **Generar Código** (`make graphql-generate-all` or `make graphql-generate-module MODULE_NAME=<module>`)
+2. **Generar Código** (`just graphql-generate-all` or `just graphql-generate-module MODULE_NAME=<module>`)
     - Note: `graphql-generate-module` automatically generates schemas from proto if they're missing
 3. **Implementar Resolvers** (`internal/graphql/resolver/*.go`)
 4. **Conectar con Módulos** (vía gRPC clients)
@@ -582,7 +582,7 @@ make graphql-validate
 
 ### Error: "schema not found"
 
-**Solución:** Ejecuta `make graphql-generate-all` después de crear/modificar schemas. O usa `make graphql-generate-module MODULE_NAME=<module>` para un módulo específico.
+**Solución:** Ejecuta `just graphql-generate-all` después de crear/modificar schemas. O usa `just graphql-generate-module MODULE_NAME=<module>` para un módulo específico.
 
 ### Subscriptions no funcionan
 
@@ -594,8 +594,8 @@ make graphql-validate
 
 ### Tipos no coinciden
 
-**Solución:** Regenera código con `make graphql-generate-all` después de cambios en schema.
+**Solución:** Regenera código con `just graphql-generate-all` después de cambios en schema.
 
 ---
 
-**¿Listo para agregar GraphQL?** Ejecuta `make graphql-init` y sigue las instrucciones! 🚀
+**¿Listo para agregar GraphQL?** Ejecuta `just graphql-init` y sigue las instrucciones! 🚀

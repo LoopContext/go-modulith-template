@@ -386,7 +386,7 @@ Air is already configured to monitor `.html` files. Template changes will automa
 
 1. Create folder structure (`internal/templates/`, `static/`)
 2. Implement base handler with template parsing
-3. Integrate in `cmd/server/setup/gateway.go` (GraphQL integration is automatic via `make graphql-init`)
+3. Integrate in `cmd/server/setup/gateway.go` (GraphQL integration is automatic via `just graphql-init`)
 4. Create base template and first example page
 5. Configure authentication middleware for web
 6. Document HTMX patterns in the project

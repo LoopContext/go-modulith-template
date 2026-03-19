@@ -656,7 +656,7 @@ db_dsn: postgres://user:pass@db:5432/modulith
 
 ```bash
 # Single process
-make build
+just build
 ./bin/server
 ```
 
@@ -683,8 +683,8 @@ auth_service_addr: auth-service:9050
 
 ```bash
 # Multiple processes
-make build-module auth
-make build-module order
+just build-module auth
+just build-module order
 ./bin/auth &
 ./bin/order &
 ```
@@ -706,7 +706,7 @@ Decide which modules to extract based on:
 
 ```bash
 # Already exists for auth
-make new-module order  # Creates cmd/order/main.go
+just new-module order  # Creates cmd/order/main.go
 ```
 
 ### Step 3: Update Configuration

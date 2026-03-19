@@ -2,18 +2,19 @@
 package testutil
 
 import (
-	"database/sql"
-
+	"github.com/cmelgarejo/go-modulith-template/internal/audit"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // TestRegistryBuilder helps build test registries with common configurations.
 type TestRegistryBuilder struct {
-	db      *sql.DB
+	db      *pgxpool.Pool
 	bus     *events.Bus
 	cfg     *config.AppConfig
+	audit   audit.Logger
 	modules []registry.Module
 }
 
@@ -25,7 +26,7 @@ func NewTestRegistryBuilder() *TestRegistryBuilder {
 }
 
 // WithDatabase sets the database for the registry.
-func (b *TestRegistryBuilder) WithDatabase(db *sql.DB) *TestRegistryBuilder {
+func (b *TestRegistryBuilder) WithDatabase(db *pgxpool.Pool) *TestRegistryBuilder {
 	b.db = db
 	return b
 }
@@ -59,9 +60,14 @@ func (b *TestRegistryBuilder) Build() *registry.Registry {
 		b.bus = events.NewBus()
 	}
 
+	if b.audit == nil {
+		b.audit = &audit.NoopLogger{}
+	}
+
 	opts := []registry.Option{
 		registry.WithConfig(b.cfg),
 		registry.WithEventBus(b.bus),
+		registry.WithAuditLogger(b.audit),
 	}
 
 	if b.db != nil {

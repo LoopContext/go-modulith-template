@@ -11,15 +11,15 @@ import (
 
 	"go.jetify.com/typeid"
 
+	"github.com/cmelgarejo/go-modulith-template/internal/authtoken"
 	"github.com/cmelgarejo/go-modulith-template/internal/oauth"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository"
-	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/token"
 )
 
 // OAuthService handles OAuth-related business logic.
 type OAuthService struct {
 	repo           repository.Repository
-	tokenService   *token.Service
+	tokenService   *authtoken.Service
 	oauthRegistry  *oauth.Registry
 	tokenEncryptor TokenEncryptor
 	autoLinkEmail  bool
@@ -34,7 +34,7 @@ type TokenEncryptor interface {
 // NewOAuthService creates a new OAuthService.
 func NewOAuthService(
 	repo repository.Repository,
-	tokenService *token.Service,
+	tokenService *authtoken.Service,
 	oauthRegistry *oauth.Registry,
 	tokenEncryptor TokenEncryptor,
 	autoLinkEmail bool,
@@ -93,13 +93,13 @@ func (s *OAuthService) handleLogin(ctx context.Context, userInfo oauth.UserInfo)
 		}
 	}
 
-	// No existing account or user, create new user
-	userID, err := s.createNewUserFromOAuth(ctx, userInfo)
-	if err != nil {
-		return nil, err
-	}
+	// No existing account or user, blocked (security requirement)
+	slog.WarnContext(ctx, "OAuth login attempt for non-existent user blocked",
+		"provider", userInfo.Provider,
+		"email", userInfo.Email,
+	)
 
-	return s.generateTokensForUser(userID, true)
+	return nil, fmt.Errorf("account not found: %s", userInfo.Email)
 }
 
 // handleAccountLinking links an external account to an existing user.
@@ -126,35 +126,6 @@ func (s *OAuthService) handleAccountLinking(ctx context.Context, userInfo oauth.
 	}
 
 	return s.generateTokensForUser(userID, false)
-}
-
-// createNewUserFromOAuth creates a new user from OAuth info.
-func (s *OAuthService) createNewUserFromOAuth(ctx context.Context, userInfo oauth.UserInfo) (string, error) {
-	tid, err := typeid.WithPrefix("user")
-	if err != nil {
-		return "", fmt.Errorf("failed to generate user typeid: %w", err)
-	}
-
-	userID := tid.String()
-
-	// Create user with email from OAuth
-	if err := s.repo.CreateUser(ctx, userID, userInfo.Email, ""); err != nil {
-		return "", fmt.Errorf("failed to create user: %w", err)
-	}
-
-	// Update profile with OAuth info
-	if userInfo.Name != "" || userInfo.AvatarURL != "" {
-		if err := s.repo.UpdateUserProfile(ctx, userID, userInfo.Name, userInfo.AvatarURL); err != nil {
-			slog.WarnContext(ctx, "Failed to update user profile from OAuth", "error", err)
-		}
-	}
-
-	// Create external account
-	if err := s.createExternalAccount(ctx, userID, userInfo); err != nil {
-		return "", fmt.Errorf("failed to create external account: %w", err)
-	}
-
-	return userID, nil
 }
 
 // createExternalAccount creates a new external account link.
@@ -236,12 +207,12 @@ func (s *OAuthService) updateExternalAccount(ctx context.Context, userInfo oauth
 
 // generateTokensForUser generates JWT tokens for a user.
 func (s *OAuthService) generateTokensForUser(userID string, isNewUser bool) (*oauth.Result, error) {
-	accessToken, err := s.tokenService.CreateToken(userID, "user", 1*time.Hour)
+	accessToken, _, err := s.tokenService.CreateToken(userID, "user", 1*time.Hour)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create access token: %w", err)
 	}
 
-	refreshToken, err := s.tokenService.CreateToken(userID, "user", 24*time.Hour) //nolint:mnd
+	refreshToken, _, err := s.tokenService.CreateToken(userID, "user", 24*time.Hour) //nolint:mnd
 	if err != nil {
 		return nil, fmt.Errorf("failed to create refresh token: %w", err)
 	}
@@ -265,7 +236,7 @@ func NewRepositoryStateStore(repo repository.Repository) *RepositoryStateStore {
 	return &RepositoryStateStore{repo: repo}
 }
 
-// SaveState saves an OAuth state token.
+// SaveState saves an OAuth state authtoken.
 func (s *RepositoryStateStore) SaveState(ctx context.Context, data *oauth.StateData) error {
 	state := &repository.OAuthState{
 		State:       data.State,
@@ -283,7 +254,7 @@ func (s *RepositoryStateStore) SaveState(ctx context.Context, data *oauth.StateD
 	return nil
 }
 
-// GetState retrieves an OAuth state token.
+// GetState retrieves an OAuth state authtoken.
 func (s *RepositoryStateStore) GetState(ctx context.Context, state string) (*oauth.StateData, error) {
 	repoState, err := s.repo.GetOAuthState(ctx, state)
 	if err != nil {
@@ -300,7 +271,7 @@ func (s *RepositoryStateStore) GetState(ctx context.Context, state string) (*oau
 	}, nil
 }
 
-// DeleteState deletes an OAuth state token.
+// DeleteState deletes an OAuth state authtoken.
 func (s *RepositoryStateStore) DeleteState(ctx context.Context, state string) error {
 	if err := s.repo.DeleteOAuthState(ctx, state); err != nil {
 		return fmt.Errorf("failed to delete oauth state: %w", err)

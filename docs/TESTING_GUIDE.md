@@ -128,7 +128,7 @@ SQLC generates types using the pattern `{Schema}{TableName}`:
 - `auth.magic_codes` → `store.AuthMagicCode`
 - `auth.sessions` → `store.AuthSession`
 
-Always check `modules/<mod>/internal/db/store/models.go` after running `make sqlc` to see the exact generated type names.
+Always check `modules/<mod>/internal/db/store/models.go` after running `just sqlc` to see the exact generated type names.
 
 ## Integration Testing
 
@@ -632,8 +632,8 @@ func TestCrossModuleGRPC(t *testing.T) {
 ### Run All Tests
 
 ```bash
-make test-unit    # Unit tests only
-make test         # All tests
+just test-unit    # Unit tests only
+just test         # All tests
 go test ./...     # All tests (alternative)
 ```
 

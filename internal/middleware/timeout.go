@@ -2,9 +2,12 @@
 package middleware
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -16,6 +19,12 @@ import (
 func Timeout(timeout time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip timeout for WebSocket connections
+			if strings.HasPrefix(r.URL.Path, "/ws") {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			ctx, cancel := context.WithTimeout(r.Context(), timeout)
 			defer cancel()
 
@@ -73,4 +82,17 @@ func (rw *timeoutResponseWriter) Write(b []byte) (int, error) {
 	}
 
 	return n, nil
+}
+
+func (rw *timeoutResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := rw.ResponseWriter.(http.Hijacker); ok {
+		conn, rw, err := hj.Hijack()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to hijack connection: %w", err)
+		}
+
+		return conn, rw, nil
+	}
+
+	return nil, nil, fmt.Errorf("http.ResponseWriter does not implement http.Hijacker")
 }

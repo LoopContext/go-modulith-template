@@ -20,9 +20,9 @@ alwaysApply: false
 
 ## Code Quality Workflow
 
--   **Before committing**: Run `make pre-commit` (format + lint + test-unit)
--   **Format code**: Use `make format` to format code with gofmt/goimports
--   **Lint code**: Use `make lint` after any modification that includes `.go` files
+-   **Before committing**: Run `just pre-commit` (format + lint + test-unit)
+-   **Format code**: Use `just format` to format code with gofmt/goimports
+-   **Lint code**: Use `just lint` after any modification that includes `.go` files
 -   **Iterate on fixes** until **all linting issues are resolved** (0 issues).
 -   **NEVER modify `.golangci.yaml`** to ignore or suppress lint errors.
 -   Always implement **proper fixes** for lint issues:
@@ -35,12 +35,12 @@ alwaysApply: false
 
 ## Testing Workflow
 
--   **ALWAYS run `make test-unit`** after adding or modifying tests (faster, generates mocks).
--   Use `make test-all` for complete testing (unit + integration).
+-   **ALWAYS run `just test-unit`** after adding or modifying tests (faster, generates mocks).
+-   Use `just test-all` for complete testing (unit + integration).
 -   Ensure all tests pass before considering the work complete.
 -   Write clear, focused test cases with descriptive names.
 
 ## Code Generation Workflow
 
--   **After modifying SQL/proto/interfaces**: Run `make generate-all` (runs sqlc + proto + mocks)
--   Individual commands available: `make sqlc`, `make proto`, `make generate-mocks`
+-   **After modifying SQL/proto/interfaces**: Run `just generate-all` (runs sqlc + proto + mocks)
+-   Individual commands available: `just sqlc`, `just proto`, `just generate-mocks`

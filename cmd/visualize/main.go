@@ -168,7 +168,7 @@ func outputDOT(graph *analyzer.Graph, filename string) error {
 
 	// Add nodes
 	for _, module := range graph.Modules {
-		sb.WriteString(fmt.Sprintf("  \"%s\" [label=\"%s\"];\n", module.Name, module.Name))
+		fmt.Fprintf(&sb, "  \"%s\" [label=\"%s\"];\n", module.Name, module.Name)
 	}
 
 	sb.WriteString("\n")
@@ -181,16 +181,16 @@ func outputDOT(graph *analyzer.Graph, filename string) error {
 				style = "dashed"
 			}
 
-			sb.WriteString(fmt.Sprintf("  \"%s\" -> \"%s\" [label=\"%s\", style=%s];\n",
-				conn.From, conn.To, conn.Service, style))
+			fmt.Fprintf(&sb, "  \"%s\" -> \"%s\" [label=\"%s\", style=%s];\n",
+				conn.From, conn.To, conn.Service, style)
 		}
 	}
 
 	// Add event connections
 	for _, conn := range graph.Connections {
 		if conn.Type == "event" {
-			sb.WriteString(fmt.Sprintf("  \"%s\" -> \"%s\" [label=\"%s\", style=dotted, color=blue];\n",
-				conn.From, conn.To, conn.Event))
+			fmt.Fprintf(&sb, "  \"%s\" -> \"%s\" [label=\"%s\", style=dotted, color=blue];\n",
+				conn.From, conn.To, conn.Event)
 		}
 	}
 

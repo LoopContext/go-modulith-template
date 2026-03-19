@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
+	"github.com/cmelgarejo/go-modulith-template/internal/appversion"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/i18n"
-	"github.com/cmelgarejo/go-modulith-template/internal/version"
 	"github.com/joho/godotenv"
 )
 
@@ -43,7 +43,7 @@ func LoadConfig() *config.AppConfig {
 		return nil
 	}
 
-	slog.Info("Starting application", "version", version.Info())
+	slog.Info("Starting application", "version", appversion.Info())
 
 	return cfg
 }
@@ -77,6 +77,14 @@ func CaptureSystemEnvVars() map[string]string {
 
 	if secret := os.Getenv("JWT_SECRET"); secret != "" {
 		systemEnvVars["JWT_SECRET"] = secret
+	}
+
+	if key := os.Getenv("JWT_PRIVATE_KEY"); key != "" {
+		systemEnvVars["JWT_PRIVATE_KEY"] = key
+	}
+
+	if key := os.Getenv("JWT_PUBLIC_KEY"); key != "" {
+		systemEnvVars["JWT_PUBLIC_KEY"] = key
 	}
 
 	return systemEnvVars

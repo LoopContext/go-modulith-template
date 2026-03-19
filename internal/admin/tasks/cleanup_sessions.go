@@ -3,21 +3,21 @@ package tasks
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 
 	"github.com/cmelgarejo/go-modulith-template/internal/admin"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // CleanupExpiredSessionsTask removes expired sessions from the database.
 // Sessions are deleted if they expired more than 7 days ago.
 type CleanupExpiredSessionsTask struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 // NewCleanupExpiredSessionsTask creates a new cleanup expired sessions task.
-func NewCleanupExpiredSessionsTask(db *sql.DB) admin.Task {
+func NewCleanupExpiredSessionsTask(db *pgxpool.Pool) admin.Task {
 	return &CleanupExpiredSessionsTask{db: db}
 }
 
@@ -33,15 +33,12 @@ func (t *CleanupExpiredSessionsTask) Description() string {
 
 // Execute runs the cleanup task.
 func (t *CleanupExpiredSessionsTask) Execute(ctx context.Context) error {
-	result, err := t.db.ExecContext(ctx, "DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '7 days'")
+	result, err := t.db.Exec(ctx, "DELETE FROM auth.sessions WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '7 days'")
 	if err != nil {
 		return fmt.Errorf("failed to cleanup expired sessions: %w", err)
 	}
 
-	count, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
+	count := result.RowsAffected()
 
 	slog.Info("Cleaned up expired sessions", "count", count)
 

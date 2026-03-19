@@ -84,7 +84,7 @@ type Subscription {
 EOF
     echo "✅ Created root schema at ${SCHEMA_DIR}/schema.graphql"
     echo "   💡 Tip: Create schemas per module (e.g., auth.graphql, order.graphql, payment.graphql)"
-    echo "   💡 Tip: Use 'make new-module <name>' to scaffold a module with GraphQL schema"
+    echo "   💡 Tip: Use 'just new-module <name>' to scaffold a module with GraphQL schema"
 else
     echo "ℹ️  Schema already exists, skipping..."
 fi
@@ -95,7 +95,7 @@ echo "📝 Creating generated package stub..."
 mkdir -p "${GENERATED_DIR}"
 cat > "${GENERATED_DIR}/generated.go" <<'EOF'
 // Package generated contains generated GraphQL code.
-// This file is a stub - run 'make graphql-generate' to generate the actual code.
+// This file is a stub - run 'just graphql-generate' to generate the actual code.
 package generated
 
 // Config is the configuration for the GraphQL executable schema.
@@ -197,7 +197,7 @@ if [ ! -f "${RESOLVER_DIR}/resolver.go" ] || grep -q "This is a stub file" "${RE
     cat > "${RESOLVER_DIR}/resolver.go" <<'EOF'
 // Package resolver implements GraphQL resolvers.
 // This package provides the root resolver structure that will be used by gqlgen
-// when GraphQL is initialized via `make graphql-init`.
+// when GraphQL is initialized via `just graphql-init`.
 //
 // The resolver structure is ready to use and provides:
 // - Query resolver for read operations
@@ -337,10 +337,10 @@ echo ""
 
 echo "📚 Next steps:"
 echo "   1. Edit ${SCHEMA_DIR}/schema.graphql to add your queries/mutations"
-echo "   2. Run 'make graphql-generate-all' to regenerate code after schema changes"
-echo "   Or run 'make graphql-generate-module <module>' for a specific module"
+echo "   2. Run 'just graphql-generate-all' to regenerate code after schema changes"
+echo "   Or run 'just graphql-generate-module <module>' for a specific module"
 echo "   3. Implement resolvers in ${RESOLVER_DIR}/"
-echo "   4. Run 'make run' to start the server"
+echo "   4. Run 'just run' to start the server"
 echo "   5. Access playground at http://localhost:8080/graphql/playground (dev mode)"
 echo ""
 echo "   ✅ GraphQL is integrated and code has been generated"

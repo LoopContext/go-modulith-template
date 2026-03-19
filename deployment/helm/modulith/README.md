@@ -66,8 +66,8 @@ El chart construye el nombre completo de la imagen automáticamente:
 
 Esto se alinea con los comandos del Makefile:
 ```bash
-make docker-build          # Crea modulith-server:latest
-make docker-build-module auth  # Crea modulith-auth:latest
+just docker-build          # Crea modulith-server:latest
+just docker-build-module auth  # Crea modulith-auth:latest
 ```
 
 ### Secretos

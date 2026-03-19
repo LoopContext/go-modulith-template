@@ -19,23 +19,26 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AuthService_RequestLogin_FullMethodName          = "/auth.v1.AuthService/RequestLogin"
-	AuthService_CompleteLogin_FullMethodName         = "/auth.v1.AuthService/CompleteLogin"
-	AuthService_RefreshToken_FullMethodName          = "/auth.v1.AuthService/RefreshToken"
-	AuthService_Logout_FullMethodName                = "/auth.v1.AuthService/Logout"
-	AuthService_GetProfile_FullMethodName            = "/auth.v1.AuthService/GetProfile"
-	AuthService_UpdateProfile_FullMethodName         = "/auth.v1.AuthService/UpdateProfile"
-	AuthService_ChangeEmail_FullMethodName           = "/auth.v1.AuthService/ChangeEmail"
-	AuthService_ChangePhone_FullMethodName           = "/auth.v1.AuthService/ChangePhone"
-	AuthService_ListSessions_FullMethodName          = "/auth.v1.AuthService/ListSessions"
-	AuthService_RevokeSession_FullMethodName         = "/auth.v1.AuthService/RevokeSession"
-	AuthService_RevokeAllSessions_FullMethodName     = "/auth.v1.AuthService/RevokeAllSessions"
-	AuthService_GetOAuthProviders_FullMethodName     = "/auth.v1.AuthService/GetOAuthProviders"
-	AuthService_InitiateOAuth_FullMethodName         = "/auth.v1.AuthService/InitiateOAuth"
-	AuthService_CompleteOAuth_FullMethodName         = "/auth.v1.AuthService/CompleteOAuth"
-	AuthService_LinkExternalAccount_FullMethodName   = "/auth.v1.AuthService/LinkExternalAccount"
-	AuthService_UnlinkExternalAccount_FullMethodName = "/auth.v1.AuthService/UnlinkExternalAccount"
-	AuthService_ListLinkedAccounts_FullMethodName    = "/auth.v1.AuthService/ListLinkedAccounts"
+	AuthService_RequestLogin_FullMethodName             = "/auth.v1.AuthService/RequestLogin"
+	AuthService_CompleteLogin_FullMethodName            = "/auth.v1.AuthService/CompleteLogin"
+	AuthService_RefreshSession_FullMethodName           = "/auth.v1.AuthService/RefreshSession"
+	AuthService_Logout_FullMethodName                   = "/auth.v1.AuthService/Logout"
+	AuthService_GetProfile_FullMethodName               = "/auth.v1.AuthService/GetProfile"
+	AuthService_UpdateProfile_FullMethodName            = "/auth.v1.AuthService/UpdateProfile"
+	AuthService_ChangeEmail_FullMethodName              = "/auth.v1.AuthService/ChangeEmail"
+	AuthService_ChangePhone_FullMethodName              = "/auth.v1.AuthService/ChangePhone"
+	AuthService_ListSessions_FullMethodName             = "/auth.v1.AuthService/ListSessions"
+	AuthService_RevokeSession_FullMethodName            = "/auth.v1.AuthService/RevokeSession"
+	AuthService_RevokeAllSessions_FullMethodName        = "/auth.v1.AuthService/RevokeAllSessions"
+	AuthService_GetOAuthProviders_FullMethodName        = "/auth.v1.AuthService/GetOAuthProviders"
+	AuthService_InitiateOAuth_FullMethodName            = "/auth.v1.AuthService/InitiateOAuth"
+	AuthService_CompleteOAuth_FullMethodName            = "/auth.v1.AuthService/CompleteOAuth"
+	AuthService_LinkExternalAccount_FullMethodName      = "/auth.v1.AuthService/LinkExternalAccount"
+	AuthService_UnlinkExternalAccount_FullMethodName    = "/auth.v1.AuthService/UnlinkExternalAccount"
+	AuthService_ListLinkedAccounts_FullMethodName       = "/auth.v1.AuthService/ListLinkedAccounts"
+	AuthService_Register_FullMethodName                 = "/auth.v1.AuthService/Register"
+	AuthService_GetSystemConfig_FullMethodName          = "/auth.v1.AuthService/GetSystemConfig"
+	AuthService_RequestEmailVerification_FullMethodName = "/auth.v1.AuthService/RequestEmailVerification"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -46,8 +49,8 @@ type AuthServiceClient interface {
 	RequestLogin(ctx context.Context, in *RequestLoginRequest, opts ...grpc.CallOption) (*RequestLoginResponse, error)
 	// CompleteLogin keeps the code and verifies it to return a token
 	CompleteLogin(ctx context.Context, in *CompleteLoginRequest, opts ...grpc.CallOption) (*CompleteLoginResponse, error)
-	// RefreshToken exchanges a refresh token for a new access token
-	RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error)
+	// RefreshSession exchanges a refresh token for a new access token
+	RefreshSession(ctx context.Context, in *RefreshSessionRequest, opts ...grpc.CallOption) (*RefreshSessionResponse, error)
 	// Logout invalidates the current session and blacklists the token
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
 	// GetProfile returns the current user's profile (requires authentication)
@@ -76,6 +79,12 @@ type AuthServiceClient interface {
 	UnlinkExternalAccount(ctx context.Context, in *UnlinkExternalAccountRequest, opts ...grpc.CallOption) (*UnlinkExternalAccountResponse, error)
 	// ListLinkedAccounts returns the external accounts linked to the current user (requires auth)
 	ListLinkedAccounts(ctx context.Context, in *ListLinkedAccountsRequest, opts ...grpc.CallOption) (*ListLinkedAccountsResponse, error)
+	// Register creates a new user account
+	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error)
+	// GetSystemConfig returns public system configurations and feature flags
+	GetSystemConfig(ctx context.Context, in *GetSystemConfigRequest, opts ...grpc.CallOption) (*GetSystemConfigResponse, error)
+	// RequestEmailVerification initiates the email verification process
+	RequestEmailVerification(ctx context.Context, in *RequestEmailVerificationRequest, opts ...grpc.CallOption) (*RequestEmailVerificationResponse, error)
 }
 
 type authServiceClient struct {
@@ -106,10 +115,10 @@ func (c *authServiceClient) CompleteLogin(ctx context.Context, in *CompleteLogin
 	return out, nil
 }
 
-func (c *authServiceClient) RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error) {
+func (c *authServiceClient) RefreshSession(ctx context.Context, in *RefreshSessionRequest, opts ...grpc.CallOption) (*RefreshSessionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RefreshTokenResponse)
-	err := c.cc.Invoke(ctx, AuthService_RefreshToken_FullMethodName, in, out, cOpts...)
+	out := new(RefreshSessionResponse)
+	err := c.cc.Invoke(ctx, AuthService_RefreshSession_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -256,6 +265,36 @@ func (c *authServiceClient) ListLinkedAccounts(ctx context.Context, in *ListLink
 	return out, nil
 }
 
+func (c *authServiceClient) Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RegisterResponse)
+	err := c.cc.Invoke(ctx, AuthService_Register_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) GetSystemConfig(ctx context.Context, in *GetSystemConfigRequest, opts ...grpc.CallOption) (*GetSystemConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSystemConfigResponse)
+	err := c.cc.Invoke(ctx, AuthService_GetSystemConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) RequestEmailVerification(ctx context.Context, in *RequestEmailVerificationRequest, opts ...grpc.CallOption) (*RequestEmailVerificationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RequestEmailVerificationResponse)
+	err := c.cc.Invoke(ctx, AuthService_RequestEmailVerification_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -264,8 +303,8 @@ type AuthServiceServer interface {
 	RequestLogin(context.Context, *RequestLoginRequest) (*RequestLoginResponse, error)
 	// CompleteLogin keeps the code and verifies it to return a token
 	CompleteLogin(context.Context, *CompleteLoginRequest) (*CompleteLoginResponse, error)
-	// RefreshToken exchanges a refresh token for a new access token
-	RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error)
+	// RefreshSession exchanges a refresh token for a new access token
+	RefreshSession(context.Context, *RefreshSessionRequest) (*RefreshSessionResponse, error)
 	// Logout invalidates the current session and blacklists the token
 	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
 	// GetProfile returns the current user's profile (requires authentication)
@@ -294,6 +333,12 @@ type AuthServiceServer interface {
 	UnlinkExternalAccount(context.Context, *UnlinkExternalAccountRequest) (*UnlinkExternalAccountResponse, error)
 	// ListLinkedAccounts returns the external accounts linked to the current user (requires auth)
 	ListLinkedAccounts(context.Context, *ListLinkedAccountsRequest) (*ListLinkedAccountsResponse, error)
+	// Register creates a new user account
+	Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
+	// GetSystemConfig returns public system configurations and feature flags
+	GetSystemConfig(context.Context, *GetSystemConfigRequest) (*GetSystemConfigResponse, error)
+	// RequestEmailVerification initiates the email verification process
+	RequestEmailVerification(context.Context, *RequestEmailVerificationRequest) (*RequestEmailVerificationResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -310,8 +355,8 @@ func (UnimplementedAuthServiceServer) RequestLogin(context.Context, *RequestLogi
 func (UnimplementedAuthServiceServer) CompleteLogin(context.Context, *CompleteLoginRequest) (*CompleteLoginResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CompleteLogin not implemented")
 }
-func (UnimplementedAuthServiceServer) RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RefreshToken not implemented")
+func (UnimplementedAuthServiceServer) RefreshSession(context.Context, *RefreshSessionRequest) (*RefreshSessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RefreshSession not implemented")
 }
 func (UnimplementedAuthServiceServer) Logout(context.Context, *LogoutRequest) (*LogoutResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Logout not implemented")
@@ -354,6 +399,15 @@ func (UnimplementedAuthServiceServer) UnlinkExternalAccount(context.Context, *Un
 }
 func (UnimplementedAuthServiceServer) ListLinkedAccounts(context.Context, *ListLinkedAccountsRequest) (*ListLinkedAccountsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListLinkedAccounts not implemented")
+}
+func (UnimplementedAuthServiceServer) Register(context.Context, *RegisterRequest) (*RegisterResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Register not implemented")
+}
+func (UnimplementedAuthServiceServer) GetSystemConfig(context.Context, *GetSystemConfigRequest) (*GetSystemConfigResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSystemConfig not implemented")
+}
+func (UnimplementedAuthServiceServer) RequestEmailVerification(context.Context, *RequestEmailVerificationRequest) (*RequestEmailVerificationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestEmailVerification not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -412,20 +466,20 @@ func _AuthService_CompleteLogin_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_RefreshToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RefreshTokenRequest)
+func _AuthService_RefreshSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefreshSessionRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).RefreshToken(ctx, in)
+		return srv.(AuthServiceServer).RefreshSession(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_RefreshToken_FullMethodName,
+		FullMethod: AuthService_RefreshSession_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).RefreshToken(ctx, req.(*RefreshTokenRequest))
+		return srv.(AuthServiceServer).RefreshSession(ctx, req.(*RefreshSessionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -682,6 +736,60 @@ func _AuthService_ListLinkedAccounts_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_Register_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegisterRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).Register(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_Register_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).Register(ctx, req.(*RegisterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_GetSystemConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSystemConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).GetSystemConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_GetSystemConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).GetSystemConfig(ctx, req.(*GetSystemConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_RequestEmailVerification_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestEmailVerificationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).RequestEmailVerification(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_RequestEmailVerification_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).RequestEmailVerification(ctx, req.(*RequestEmailVerificationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -698,8 +806,8 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AuthService_CompleteLogin_Handler,
 		},
 		{
-			MethodName: "RefreshToken",
-			Handler:    _AuthService_RefreshToken_Handler,
+			MethodName: "RefreshSession",
+			Handler:    _AuthService_RefreshSession_Handler,
 		},
 		{
 			MethodName: "Logout",
@@ -756,6 +864,18 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListLinkedAccounts",
 			Handler:    _AuthService_ListLinkedAccounts_Handler,
+		},
+		{
+			MethodName: "Register",
+			Handler:    _AuthService_Register_Handler,
+		},
+		{
+			MethodName: "GetSystemConfig",
+			Handler:    _AuthService_GetSystemConfig_Handler,
+		},
+		{
+			MethodName: "RequestEmailVerification",
+			Handler:    _AuthService_RequestEmailVerification_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

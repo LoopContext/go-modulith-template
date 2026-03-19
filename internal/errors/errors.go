@@ -388,6 +388,8 @@ func ToGRPCWithContext(ctx context.Context, defaultLocale string, err error) err
 }
 
 // mapErrorCodeToTranslationKey maps error codes to translation keys.
+//
+//nolint:gosec
 var errorCodeToTranslationKey = map[ErrorCode]string{
 	CodeUserNotFound:           "errors.user_not_found",
 	CodeAuthInvalidCreds:       "errors.invalid_credentials",

@@ -3,23 +3,25 @@ package migration
 import (
 	"context"
 	"testing"
+
+	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 )
 
 type mockSeederRegistry struct {
-	modules []interface{}
+	modules []registry.Module
 }
 
-func (m *mockSeederRegistry) Modules() []interface{} {
+func (m *mockSeederRegistry) Modules() []registry.Module {
 	return m.modules
 }
 
 func TestSeeder_SeedAll_NoModules(t *testing.T) {
-	registry := &mockSeederRegistry{modules: []interface{}{}}
-	adapter := &registryAdapter{registry: registry}
+	reg := &mockSeederRegistry{modules: []registry.Module{}}
 
 	// Create seeder (skip DB connection for this test)
 	seeder := &Seeder{
-		provider: adapter,
+		registry: reg,
+		provider: &registryAdapter{registry: reg},
 	}
 
 	// Should not error with no modules
@@ -29,16 +31,18 @@ func TestSeeder_SeedAll_NoModules(t *testing.T) {
 }
 
 func TestSeeder_SeedAll_ModuleWithoutSeeder(t *testing.T) {
-	type moduleWithoutSeeder struct {
+	// mockModule implements registry.Module
+	type mockModule struct {
+		registry.Module
 		name string
 	}
 
-	mod := &moduleWithoutSeeder{name: "test"}
-	registry := &mockSeederRegistry{modules: []interface{}{mod}}
-	adapter := &registryAdapter{registry: registry}
+	mod := &mockModule{name: "test"}
+	reg := &mockSeederRegistry{modules: []registry.Module{mod}}
 
 	seeder := &Seeder{
-		provider: adapter,
+		registry: reg,
+		provider: &registryAdapter{registry: reg},
 	}
 
 	// Should not error when module doesn't implement ModuleSeeder

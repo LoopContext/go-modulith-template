@@ -25,8 +25,8 @@ service AuthService {
     };
   }
 
-  // RefreshToken exchanges a refresh token for a new access token
-  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse) {
+  // RefreshSession exchanges a refresh token for a new access token
+  rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse) {
     option (google.api.http) = {
       post: "/v1/auth/token/refresh"
       body: "*"
@@ -140,6 +140,37 @@ service AuthService {
       get: "/v1/auth/oauth/accounts"
     };
   }
+
+  // Register creates a new user account
+  rpc Register(RegisterRequest) returns (RegisterResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/register"
+      body: "*"
+    };
+  }
+
+  // GetSystemConfig returns public system configurations and feature flags
+  rpc GetSystemConfig(GetSystemConfigRequest) returns (GetSystemConfigResponse) {
+    option (google.api.http) = {
+      get: "/v1/auth/config"
+    };
+  }
+
+  // RequestEmailVerification initiates the email verification process
+  rpc RequestEmailVerification(RequestEmailVerificationRequest) returns (RequestEmailVerificationResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/email/verify/request"
+      body: "*"
+    };
+  }
+}
+
+// --- System Configuration Messages ---
+
+message GetSystemConfigRequest {}
+
+message GetSystemConfigResponse {
+  map<string, string> configs = 1;
 }
 
 // --- Login Messages ---
@@ -184,15 +215,39 @@ message CompleteLoginResponse {
   int64 expires_in = 3; // Seconds
 }
 
-// --- Token Messages ---
+// --- Registration Messages ---
 
-message RefreshTokenRequest {
-  string refresh_token = 1 [(buf.validate.field).string = {
-    min_len: 1
+message RegisterRequest {
+  oneof contact_info {
+    option (buf.validate.oneof).required = true;
+    string email = 1 [(buf.validate.field).string.email = true];
+    string phone = 2 [(buf.validate.field).string.pattern = "^\\+?[1-9]\\d{1,14}$"];
+  }
+  string display_name = 3 [(buf.validate.field).string = {
+    min_len: 2,
+    max_len: 100
   }];
+  string nationality = 4 [(buf.validate.field).string = {
+    pattern: "^[A-Z]{2}$"
+  }];
+  string document_type = 5 [(buf.validate.field).string.min_len = 1];
+  string document_number = 6 [(buf.validate.field).string.min_len = 1];
 }
 
-message RefreshTokenResponse {
+message RegisterResponse {
+  bool success = 1;
+  string message = 2;
+  User user = 3;
+}
+
+// --- Token Messages ---
+
+// refresh_token may be empty when using HttpOnly cookie (cookie takes precedence).
+message RefreshSessionRequest {
+  string refresh_token = 1;
+}
+
+message RefreshSessionResponse {
   string access_token = 1;
   string refresh_token = 2;
   int64 expires_in = 3;
@@ -218,6 +273,9 @@ message User {
   string avatar_url = 5;
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp updated_at = 7;
+  bool email_verified = 8;
+  bool phone_verified = 9;
+  string timezone = 10;
 }
 
 message GetProfileRequest {}
@@ -230,6 +288,7 @@ message UpdateProfileRequest {
   // Optional fields - validation only applies when field is set
   string display_name = 1 [(buf.validate.field).string.max_len = 100];
   string avatar_url = 2 [(buf.validate.field).string.uri = true];
+  string timezone = 3 [(buf.validate.field).string.max_len = 64];
 }
 
 message UpdateProfileResponse {
@@ -382,4 +441,13 @@ message ListLinkedAccountsRequest {}
 
 message ListLinkedAccountsResponse {
   repeated ExternalAccount accounts = 1;
+}
+
+// --- Verification Messages ---
+
+message RequestEmailVerificationRequest {}
+
+message RequestEmailVerificationResponse {
+  bool success = 1;
+  string message = 2;
 }

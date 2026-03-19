@@ -129,7 +129,7 @@ echo "📝 Next steps:"
 echo "   1. Review and modify $NEW_VERSION_DIR/$PROTO_FILENAME"
 echo "   2. Update REST paths from /${LATEST_VERSION#v}/ to /${VERSION#v}/ if needed"
 echo "   3. Make your breaking changes"
-echo "   4. Run 'make proto' to generate code"
+echo "   4. Run 'just proto' to generate code"
 echo "   5. Implement service handlers for the new version"
 echo ""
 

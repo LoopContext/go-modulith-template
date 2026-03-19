@@ -9,81 +9,81 @@ This project uses `make` commands for all development tasks. Always prefer `make
 
 ## Quick Reference
 
--   **Setup**: `make quickstart` (first time) or `make validate-setup`
--   **Code Generation**: `make generate-all` (runs sqlc + proto + mocks)
--   **Development**: `make dev` (server) or `make dev-worker` (background tasks)
--   **Testing**: `make test-unit` (fast) or `make test-all` (complete)
--   **Quality**: `make format`, `make lint`, `make pre-commit`
+-   **Setup**: `just quickstart` (first time) or `just validate-setup`
+-   **Code Generation**: `just generate-all` (runs sqlc + proto + mocks)
+-   **Development**: `just dev` (server) or `just dev-worker` (background tasks)
+-   **Testing**: `just test-unit` (fast) or `just test-all` (complete)
+-   **Quality**: `just format`, `just lint`, `just pre-commit`
 
 ### Code Generation
 
--   **ALWAYS run `make generate-all`** after modifying:
+-   **ALWAYS run `just generate-all`** after modifying:
     -   SQL queries (`.sql` files) → runs `sqlc`
     -   Protobuf definitions (`.proto` files) → runs `proto`
     -   Interface changes (for mocks) → runs `generate-mocks`
--   Individual commands also available: `make sqlc`, `make proto`, `make generate-mocks`
+-   Individual commands also available: `just sqlc`, `just proto`, `just generate-mocks`
 
 ### Code Quality
 
--   **Before committing**: Run `make pre-commit` (format + lint + test-unit)
--   **Format code**: Use `make format` (uses gofmt + goimports if available)
--   **Lint code**: Use `make lint` (strict linter, 0 issues required)
--   **Tidy dependencies**: Use `make tidy` (runs `go mod tidy`)
+-   **Before committing**: Run `just pre-commit` (format + lint + test-unit)
+-   **Format code**: Use `just format` (uses gofmt + goimports if available)
+-   **Lint code**: Use `just lint` (strict linter, 0 issues required)
+-   **Tidy dependencies**: Use `just tidy` (runs `go mod tidy`)
 
 ### Testing
 
--   **Unit tests**: `make test-unit` (fast, generates mocks automatically)
--   **Integration tests**: `make test-integration` (requires Docker)
--   **All tests**: `make test-all` (unit + integration)
--   **Coverage**: `make coverage-report` or `make coverage-html`
+-   **Unit tests**: `just test-unit` (fast, generates mocks automatically)
+-   **Integration tests**: `just test-integration` (requires Docker)
+-   **All tests**: `just test-all` (unit + integration)
+-   **Coverage**: `just coverage-report` or `just coverage-html`
 
 ### Development Server
 
--   **Main server**: `make dev` (hot reload with Air)
--   **Worker**: `make dev-worker` (background tasks)
--   **Module**: `make dev-module MODULE_NAME=<name>` (single module)
--   **No reload**: `make run` (uses `go run` directly)
+-   **Main server**: `just dev` (hot reload with Air)
+-   **Worker**: `just dev-worker` (background tasks)
+-   **Module**: `just dev-module MODULE_NAME=<name>` (single module)
+-   **No reload**: `just run` (uses `go run` directly)
 
 ### Database & Migrations
 
--   **Run migrations**: `make migrate-up` or `make migrate`
--   **Create migration**: `make migrate-create MODULE=<name> NAME=<migration_name>`
--   **Rollback**: `make migrate-down MODULE=<name>`
--   **Reset database**: `make db-reset` (destructive, drops all tables)
--   **Seed data**: `make seed`
+-   **Run migrations**: `just migrate-up` or `just migrate`
+-   **Create migration**: `just migrate-create MODULE=<name> NAME=<migration_name>`
+-   **Rollback**: `just migrate-down MODULE=<name>`
+-   **Reset database**: `just db-reset` (destructive, drops all tables)
+-   **Seed data**: `just seed`
 
 ### Common Workflows
 
 **First-time setup:**
 
 ```bash
-make quickstart
+just quickstart
 ```
 
 **Daily development:**
 
 ```bash
-make docker-up-minimal  # Start DB + Redis
-make migrate-up         # Run migrations if needed
-make dev                # Start dev server
+just docker-up-minimal  # Start DB + Redis
+just migrate-up         # Run migrations if needed
+just dev                # Start dev server
 ```
 
 **Before committing:**
 
 ```bash
-make generate-all       # Generate code if needed
-make pre-commit         # Format + lint + test
+just generate-all       # Generate code if needed
+just pre-commit         # Format + lint + test
 ```
 
 **Adding a new module:**
 
 ```bash
-make new-module <name>
-make generate-all       # After adding SQL/proto
-make migrate-up
+just new-module <name>
+just generate-all       # After adding SQL/proto
+just migrate-up
 ```
 
 ### Help
 
--   **List all commands**: `make help`
+-   **List all commands**: `just help`
 -   **Full reference**: See `docs/MAKE_COMMANDS_REFERENCE.md`

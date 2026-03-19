@@ -5,7 +5,15 @@ package feature
 
 import (
 	"context"
+	"fmt"
 	"sync"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+const (
+	flagTrue  = "true"
+	flagFalse = "false"
 )
 
 // Flag represents a feature flag with its configuration.
@@ -173,6 +181,115 @@ func (m *InMemoryManager) RegisterFlag(name, description string, enabled bool) {
 	})
 }
 
+// SQLManager is a database-backed implementation of feature flag management.
+type SQLManager struct {
+	db *pgxpool.Pool
+	// tableMap maps module/context to table name
+	tableMap map[string]string
+}
+
+// NewSQLManager creates a new SQLManager.
+func NewSQLManager(db *pgxpool.Pool) *SQLManager {
+	return &SQLManager{
+		db: db,
+		tableMap: map[string]string{
+			"system":     "admin.system_config",
+			"feeds":      "feeds.feed_config",
+			"auth":       "auth.auth_config",
+			"bets":       "bets.bets_config",
+			"events":     "events.events_config",
+			"kyc":        "kyc.kyc_config",
+			"wallet":     "wallet.wallet_config",
+			"settlement": "settlement.settlement_config",
+			"admin":      "admin.admin_config",
+		},
+	}
+}
+
+// IsEnabled checks if a feature flag is enabled globally.
+// It assumes the flag is in the "system" context.
+func (m *SQLManager) IsEnabled(ctx context.Context, flagName string) bool {
+	return m.IsEnabledFor(ctx, flagName, Context{Attributes: map[string]interface{}{"context": "system"}})
+}
+
+// IsEnabledFor checks if a feature flag is enabled for a specific context.
+// The context should contain a "context" attribute mapping to a module name.
+func (m *SQLManager) IsEnabledFor(ctx context.Context, flagName string, featureCtx Context) bool {
+	module, ok := featureCtx.Attributes["context"].(string)
+	if !ok {
+		module = "system"
+	}
+
+	tableName, ok := m.tableMap[module]
+	if !ok {
+		return false
+	}
+
+	query := "SELECT value FROM " + tableName + " WHERE key = $1"
+
+	var val string
+
+	err := m.db.QueryRow(ctx, query, flagName).Scan(&val)
+	if err != nil {
+		return false
+	}
+
+	return val == flagTrue
+}
+
+// GetFlag returns the full flag configuration (simplified for SQLManager).
+func (m *SQLManager) GetFlag(ctx context.Context, flagName string) (*Flag, bool) {
+	// For now, only basic Enabled check is implemented in SQLManager
+	enabled := m.IsEnabled(ctx, flagName)
+	return &Flag{Name: flagName, Enabled: enabled}, true
+}
+
+// SetFlag updates or creates a flag in the "system" context.
+func (m *SQLManager) SetFlag(ctx context.Context, flag Flag) error {
+	query := `
+		INSERT INTO admin.system_config (key, value, updated_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (key) DO UPDATE
+		SET value = EXCLUDED.value, updated_at = NOW()
+	`
+
+	val := flagFalse
+
+	if flag.Enabled {
+		val = flagTrue
+	}
+
+	if _, err := m.db.Exec(ctx, query, flag.Name, val); err != nil {
+		return fmt.Errorf("failed to set feature flag in database: %w", err)
+	}
+
+	return nil
+}
+
+// ListFlags returns all registered flags from the "system" context.
+func (m *SQLManager) ListFlags(ctx context.Context) []Flag {
+	query := "SELECT key, value FROM admin.system_config"
+
+	rows, err := m.db.Query(ctx, query)
+	if err != nil {
+		return nil
+	}
+
+	defer rows.Close()
+
+	var flags []Flag
+
+	for rows.Next() {
+		var key, val string
+
+		if err := rows.Scan(&key, &val); err == nil {
+			flags = append(flags, Flag{Name: key, Enabled: val == flagTrue})
+		}
+	}
+
+	return flags
+}
+
 // hashToBucket converts a string to a bucket number (0-100) for consistent hashing.
 func hashToBucket(s string) int {
 	if s == "" {
@@ -182,8 +299,8 @@ func hashToBucket(s string) int {
 	// Simple hash function for bucket assignment
 	var hash uint32
 
-	for _, c := range s {
-		hash = hash*31 + uint32(c)
+	for _, b := range []byte(s) {
+		hash = hash*31 + uint32(b)
 	}
 
 	return int(hash % 100)

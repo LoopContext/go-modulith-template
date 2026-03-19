@@ -26,6 +26,16 @@ func ContextWithClaims(ctx context.Context, c Claims) context.Context {
 	return ctx
 }
 
+// SystemContext returns a context with platform-level claims for internal
+// service-to-service calls (e.g., event bus handlers, background workers)
+// that are not initiated by an authenticated user.
+func SystemContext(ctx context.Context) context.Context {
+	return ContextWithClaims(ctx, Claims{
+		UserID: "system",
+		Role:   "platform",
+	})
+}
+
 // UserIDFromContext extracts the authenticated user id from context.
 func UserIDFromContext(ctx context.Context) (string, bool) {
 	v, ok := ctx.Value(ctxUserID).(string)

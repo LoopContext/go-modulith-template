@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Development environment diagnostic script for Go Modulith Template
+# Development environment diagnostic script for OPOS
 # Comprehensive health check and diagnostics
 
 set -e
@@ -190,7 +190,7 @@ else
         echo "  Start Docker Desktop or docker service"
         ((ERRORS++))
     else
-        CONTAINERS=("modulith_db" "modulith_redis" "modulith_jaeger" "modulith_prometheus" "modulith_grafana")
+        CONTAINERS=("modulith_db" "modulith_redis" "template_jaeger" "template_prometheus" "template_grafana")
         for container in "${CONTAINERS[@]}"; do
             if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container}$"; then
                 STATUS=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || echo "unknown")
@@ -225,10 +225,11 @@ echo ""
 check_port_detailed $(get_app_port_from_env "HTTP_PORT" "8000") "HTTP"
 check_port_detailed $(get_app_port_from_env "GRPC_PORT" "9000") "gRPC"
 check_container_port $(get_port_from_env "DB_PORT" "5432") "PostgreSQL" "modulith_db"
-check_container_port $(get_port_from_env "REDIS_PORT" "6379") "Redis" "modulith_redis"
-check_container_port $(get_port_from_env "JAEGER_UI_PORT" "16686") "Jaeger UI" "modulith_jaeger"
-check_container_port $(get_port_from_env "PROMETHEUS_PORT" "9090") "Prometheus" "modulith_prometheus"
-check_container_port $(get_port_from_env "GRAFANA_PORT" "3000") "Grafana" "modulith_grafana"
+check_container_port $(get_port_from_env "REDIS_PORT" "6379") "Valkey" "modulith_redis"
+check_container_port $(get_port_from_env "JAEGER_UI_PORT" "16686") "Jaeger UI" "template_jaeger"
+check_container_port $(get_port_from_env "PROMETHEUS_PORT" "9090") "Prometheus" "template_prometheus"
+check_container_port $(get_port_from_env "GRAFANA_PORT" "3000") "Grafana" "template_grafana"
+check_port_detailed $(get_app_port_from_env "VITE_PORT" "3001") "Admin Panel"
 
 echo ""
 
@@ -239,38 +240,36 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_db"; then
-    echo -n "  PostgreSQL connection: "
+    echo -n "   - PostgreSQL Ready: "
     if docker exec modulith_db pg_isready -U postgres > /dev/null 2>&1; then
-        echo -e "${GREEN}✓${NC} connected"
-
-        # Try to query
-        echo -n "  Database query test: "
-        if docker exec modulith_db psql -U postgres -d postgres -c "SELECT 1" > /dev/null 2>&1; then
+        echo -e "${GREEN}✓${NC} YES"
+    else
+        echo -e "${RED}✗${NC} NO (Container running but not ready)"
+        ((ERRORS++))
+    fi
+    echo -n "   - Database 'postgres' accessible: "
+    if docker exec modulith_db psql -U postgres -d postgres -c "SELECT 1" > /dev/null 2>&1; then
             echo -e "${GREEN}✓${NC} working"
         else
             echo -e "${YELLOW}⚠${NC} connection issues"
             ((WARNINGS++))
         fi
-    else
-        echo -e "${RED}✗${NC} not ready"
-        ((ERRORS++))
-    fi
 else
     echo -e "${YELLOW}⚠${NC} Database container not running"
-    echo "  Start with: make docker-up"
+    echo "  Start with: just docker-up"
     ((WARNINGS++))
 fi
 
 echo ""
 
-# Section: Redis Connectivity
+# Section: Valkey Connectivity
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}Redis Connectivity${NC}"
+echo -e "${BLUE}Valkey Connectivity${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
 if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_redis"; then
-    echo -n "  Redis connection: "
+    echo -n "   - Valkey PING: "
     if docker exec modulith_redis redis-cli ping > /dev/null 2>&1; then
         echo -e "${GREEN}✓${NC} connected"
     else
@@ -278,7 +277,7 @@ if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_redis"; then
         ((ERRORS++))
     fi
 else
-    echo -e "${YELLOW}⚠${NC} Redis container not running"
+    echo -e "${YELLOW}⚠${NC} Valkey container not running"
     ((WARNINGS++))
 fi
 
@@ -290,7 +289,7 @@ echo -e "${BLUE}Configuration Files${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
-CONFIG_FILES=("configs/server.yaml" "go.mod" "go.sum" "docker-compose.yaml")
+CONFIG_FILES=("configs/server.yaml" "go.mod" "go.sum" "docker-compose.yaml" "web/admin/vite.config.ts")
 for file in "${CONFIG_FILES[@]}"; do
     if [ -f "$file" ]; then
         echo -e "${GREEN}✓${NC} $file"

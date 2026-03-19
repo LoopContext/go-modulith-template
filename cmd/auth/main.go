@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 	"net"
@@ -22,7 +21,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -53,7 +52,7 @@ func main() {
 		return
 	}
 
-	db := initializeDBAuth(ctx, cfg)
+	db := initializeDBAuth(cfg)
 	if db == nil {
 		shutdownObs()
 		return
@@ -105,17 +104,25 @@ func initializeObservabilityAuth(ctx context.Context, cfg *config.AppConfig) (me
 	return
 }
 
-func initializeDBAuth(ctx context.Context, cfg *config.AppConfig) *sql.DB {
-	db, err := sql.Open("pgx", cfg.DBDSN)
+func initializeDBAuth(cfg *config.AppConfig) *pgxpool.Pool {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	poolCfg, err := pgxpool.ParseConfig(cfg.DBDSN)
 	if err != nil {
-		slog.Error("Failed to open DB", "error", err)
+		slog.Error("Failed to parse DB config", "error", err)
 		return nil
 	}
 
-	if err := db.PingContext(ctx); err != nil {
-		slog.Error("Failed to ping DB", "error", err)
+	db, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
+	if err != nil {
+		slog.Error("Failed to create DB pool", "error", err)
+		return nil
+	}
 
-		_ = db.Close()
+	if err := db.Ping(ctx); err != nil {
+		slog.Error("Failed to ping DB", "error", err)
+		db.Close()
 
 		return nil
 	}
@@ -123,13 +130,11 @@ func initializeDBAuth(ctx context.Context, cfg *config.AppConfig) *sql.DB {
 	return db
 }
 
-func closeDBAuth(db *sql.DB) {
-	if err := db.Close(); err != nil {
-		slog.Error("Failed to close DB", "error", err)
-	}
+func closeDBAuth(db *pgxpool.Pool) {
+	db.Close()
 }
 
-func setupAndStartServersAuth(_ context.Context, cfg *config.AppConfig, db *sql.DB, metricsHandler http.Handler, stop context.CancelFunc) (httpSrv *http.Server, grpcServer *grpc.Server) {
+func setupAndStartServersAuth(_ context.Context, cfg *config.AppConfig, db *pgxpool.Pool, metricsHandler http.Handler, stop context.CancelFunc) (httpSrv *http.Server, grpcServer *grpc.Server) {
 	httpSrv = setupHTTPServer(cfg, db, metricsHandler)
 	startHTTPServerAuth(cfg, httpSrv, stop)
 
@@ -161,8 +166,8 @@ func startHTTPServerAuth(cfg *config.AppConfig, httpSrv *http.Server, stop conte
 	}()
 }
 
-func setupGRPCServerAuth(cfg *config.AppConfig, db *sql.DB, _ net.Listener) *grpc.Server {
-	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTSecret)
+func setupGRPCServerAuth(cfg *config.AppConfig, db *pgxpool.Pool, _ net.Listener) *grpc.Server {
+	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTPublicKeyPEM)
 	if err != nil {
 		slog.Error("Failed to initialize jwt verifier", "error", err)
 		return nil
@@ -429,7 +434,7 @@ func runMigrations(dbDSN string) error {
 	return nil
 }
 
-func setupHTTPServer(cfg *config.AppConfig, db *sql.DB, metricsHandler http.Handler) *http.Server {
+func setupHTTPServer(cfg *config.AppConfig, db *pgxpool.Pool, metricsHandler http.Handler) *http.Server {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -438,7 +443,7 @@ func setupHTTPServer(cfg *config.AppConfig, db *sql.DB, metricsHandler http.Hand
 	})
 
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		if err := db.PingContext(r.Context()); err != nil {
+		if err := db.Ping(r.Context()); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = w.Write([]byte("Disconnected"))
 

@@ -59,8 +59,8 @@ aws eks update-kubeconfig \
 
 ```bash
 # Build images
-make docker-build                # modulith-server:latest
-make docker-build-module auth    # modulith-auth:latest
+just docker-build                # modulith-server:latest
+just docker-build-module auth    # modulith-auth:latest
 
 # Tag and push to registry (example: ECR)
 docker tag modulith-server:latest 123456789.dkr.ecr.us-east-1.amazonaws.com/modulith-server:v1.0.0

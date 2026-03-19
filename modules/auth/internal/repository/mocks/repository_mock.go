@@ -43,6 +43,20 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 	return m.recorder
 }
 
+// AssignRole mocks base method.
+func (m *MockRepository) AssignRole(ctx context.Context, userID, roleName string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AssignRole", ctx, userID, roleName)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AssignRole indicates an expected call of AssignRole.
+func (mr *MockRepositoryMockRecorder) AssignRole(ctx, userID, roleName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssignRole", reflect.TypeOf((*MockRepository)(nil).AssignRole), ctx, userID, roleName)
+}
+
 // BlacklistToken mocks base method.
 func (m *MockRepository) BlacklistToken(ctx context.Context, tokenHash, userID, reason string, expiresAt time.Time) error {
 	m.ctrl.T.Helper()
@@ -435,6 +449,21 @@ func (mr *MockRepositoryMockRecorder) GetUserByPhone(ctx, phone any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByPhone", reflect.TypeOf((*MockRepository)(nil).GetUserByPhone), ctx, phone)
 }
 
+// GetUserRole mocks base method.
+func (m *MockRepository) GetUserRole(ctx context.Context, id string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserRole", ctx, id)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserRole indicates an expected call of GetUserRole.
+func (mr *MockRepositoryMockRecorder) GetUserRole(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserRole", reflect.TypeOf((*MockRepository)(nil).GetUserRole), ctx, id)
+}
+
 // GetValidMagicCodeByEmail mocks base method.
 func (m *MockRepository) GetValidMagicCodeByEmail(ctx context.Context, email, code string) (*store.AuthMagicCode, error) {
 	m.ctrl.T.Helper()
@@ -494,6 +523,48 @@ func (mr *MockRepositoryMockRecorder) IsTokenBlacklisted(ctx, tokenHash any) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsTokenBlacklisted", reflect.TypeOf((*MockRepository)(nil).IsTokenBlacklisted), ctx, tokenHash)
 }
 
+// MarkEmailVerified mocks base method.
+func (m *MockRepository) MarkEmailVerified(ctx context.Context, userID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkEmailVerified", ctx, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkEmailVerified indicates an expected call of MarkEmailVerified.
+func (mr *MockRepositoryMockRecorder) MarkEmailVerified(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkEmailVerified", reflect.TypeOf((*MockRepository)(nil).MarkEmailVerified), ctx, userID)
+}
+
+// MarkPhoneVerified mocks base method.
+func (m *MockRepository) MarkPhoneVerified(ctx context.Context, userID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkPhoneVerified", ctx, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkPhoneVerified indicates an expected call of MarkPhoneVerified.
+func (mr *MockRepositoryMockRecorder) MarkPhoneVerified(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkPhoneVerified", reflect.TypeOf((*MockRepository)(nil).MarkPhoneVerified), ctx, userID)
+}
+
+// RemoveUserRoles mocks base method.
+func (m *MockRepository) RemoveUserRoles(ctx context.Context, userID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveUserRoles", ctx, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveUserRoles indicates an expected call of RemoveUserRoles.
+func (mr *MockRepositoryMockRecorder) RemoveUserRoles(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveUserRoles", reflect.TypeOf((*MockRepository)(nil).RemoveUserRoles), ctx, userID)
+}
+
 // RevokeAllUserSessions mocks base method.
 func (m *MockRepository) RevokeAllUserSessions(ctx context.Context, userID, exceptSessionID string) (int, error) {
 	m.ctrl.T.Helper()
@@ -521,6 +592,20 @@ func (m *MockRepository) RevokeSession(ctx context.Context, id string) error {
 func (mr *MockRepositoryMockRecorder) RevokeSession(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeSession", reflect.TypeOf((*MockRepository)(nil).RevokeSession), ctx, id)
+}
+
+// StoreOutbox mocks base method.
+func (m *MockRepository) StoreOutbox(ctx context.Context, eventName string, payload any) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreOutbox", ctx, eventName, payload)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StoreOutbox indicates an expected call of StoreOutbox.
+func (mr *MockRepositoryMockRecorder) StoreOutbox(ctx, eventName, payload any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreOutbox", reflect.TypeOf((*MockRepository)(nil).StoreOutbox), ctx, eventName, payload)
 }
 
 // UpdateExternalAccountProfile mocks base method.
@@ -566,17 +651,17 @@ func (mr *MockRepositoryMockRecorder) UpdateSessionActivity(ctx, id any) *gomock
 }
 
 // UpdateUserProfile mocks base method.
-func (m *MockRepository) UpdateUserProfile(ctx context.Context, id, displayName, avatarURL string) error {
+func (m *MockRepository) UpdateUserProfile(ctx context.Context, id, displayName, avatarURL, timezone string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateUserProfile", ctx, id, displayName, avatarURL)
+	ret := m.ctrl.Call(m, "UpdateUserProfile", ctx, id, displayName, avatarURL, timezone)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateUserProfile indicates an expected call of UpdateUserProfile.
-func (mr *MockRepositoryMockRecorder) UpdateUserProfile(ctx, id, displayName, avatarURL any) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) UpdateUserProfile(ctx, id, displayName, avatarURL, timezone any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserProfile", reflect.TypeOf((*MockRepository)(nil).UpdateUserProfile), ctx, id, displayName, avatarURL)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserProfile", reflect.TypeOf((*MockRepository)(nil).UpdateUserProfile), ctx, id, displayName, avatarURL, timezone)
 }
 
 // WithTx mocks base method.

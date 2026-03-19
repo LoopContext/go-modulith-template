@@ -2,62 +2,65 @@ package auth
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
+	"github.com/cmelgarejo/go-modulith-template/internal/audit"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/cmelgarejo/go-modulith-template/internal/feature"
+	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 )
 
-func TestInitialize_EmptyJWTSecret(t *testing.T) {
+func TestInitialize_EmptyJWTPrivateKey(t *testing.T) {
 	grpcServer := grpc.NewServer()
 	bus := events.NewBus()
 
 	cfg := Config{
-		JWTSecret: "",
+		JWTPrivateKeyPEM: "",
 	}
 
-	err := Initialize(nil, grpcServer, bus, cfg)
+	auditLog := &audit.NoopLogger{}
+	flagManager := feature.NewInMemoryManager()
+
+	err := Initialize(nil, grpcServer, bus, cfg, auditLog, flagManager)
 	if err == nil {
-		t.Fatal("expected error when JWT secret is empty")
+		t.Fatal("expected error when JWT private key is empty")
 	}
 }
 
-func TestInitialize_InvalidJWTSecret(t *testing.T) {
+func TestInitialize_InvalidJWTPrivateKey(t *testing.T) {
 	grpcServer := grpc.NewServer()
 	bus := events.NewBus()
 
-	// JWT secret that's too short (less than 32 bytes)
 	cfg := Config{
-		JWTSecret: "short",
+		JWTPrivateKeyPEM: "not-valid-pem",
 	}
 
-	err := Initialize(nil, grpcServer, bus, cfg)
+	auditLog := &audit.NoopLogger{}
+	flagManager := feature.NewInMemoryManager()
+
+	err := Initialize(nil, grpcServer, bus, cfg, auditLog, flagManager)
 	if err == nil {
-		t.Fatal("expected error when JWT secret is too short")
+		t.Fatal("expected error when JWT private key is invalid")
 	}
 }
 
 func TestInitialize_Success(t *testing.T) {
-	// Note: This test will fail in a real scenario without a DB connection
-	// In a real test, you'd use a test database or mock
-	// For now, we test the configuration validation part
 	grpcServer := grpc.NewServer()
 	bus := events.NewBus()
 
 	cfg := Config{
-		JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
+		JWTPrivateKeyPEM: testutil.TestJWTPrivateKeyPEM,
 	}
 
-	// This will fail because db is nil, but that's expected
-	// The important part is that it passes JWT secret validation
-	err := Initialize(nil, grpcServer, bus, cfg)
+	auditLog := &audit.NoopLogger{}
+	flagManager := feature.NewInMemoryManager()
 
-	// We expect it to fail, but not due to JWT secret validation
+	err := Initialize(nil, grpcServer, bus, cfg, auditLog, flagManager)
 	if err != nil {
-		// Check that it's not a JWT secret error
-		if err.Error() == "JWT secret is empty, cannot initialize auth module" {
-			t.Error("JWT secret validation failed incorrectly")
+		if err.Error() == "JWT private key (JWT_PRIVATE_KEY) is required to initialize auth module (RS256)" {
+			t.Error("JWT private key validation failed incorrectly")
 		}
 	}
 }
@@ -81,11 +84,16 @@ func TestRegisterGatewayWithConn_NilConn(t *testing.T) {
 // TestConfig verifies the Config structure
 func TestConfig(t *testing.T) {
 	cfg := Config{
-		JWTSecret: "test-secret",
+		JWTPrivateKeyPEM: testutil.TestJWTPrivateKeyPEM,
+		JWTPublicKeyPEM:  testutil.TestJWTPublicKeyPEM,
 	}
 
-	if cfg.JWTSecret != "test-secret" {
-		t.Errorf("expected JWT secret 'test-secret', got %s", cfg.JWTSecret)
+	if cfg.JWTPrivateKeyPEM == "" {
+		t.Error("expected JWT private key to be set")
+	}
+
+	if cfg.JWTPublicKeyPEM == "" {
+		t.Error("expected JWT public key to be set")
 	}
 }
 
@@ -95,13 +103,15 @@ func TestInitialize_NilDB(_ *testing.T) {
 	bus := events.NewBus()
 
 	cfg := Config{
-		JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
+		JWTPrivateKeyPEM: testutil.TestJWTPrivateKeyPEM,
 	}
 
-	var nilDB *sql.DB
+	var nilDB *pgxpool.Pool
 
+	auditLog := &audit.NoopLogger{}
+	flagManager := feature.NewInMemoryManager()
 	// Should not panic even with nil DB (repository creation should handle it)
-	_ = Initialize(nilDB, grpcServer, bus, cfg)
+	_ = Initialize(nilDB, grpcServer, bus, cfg, auditLog, flagManager)
 
 	// The function might return an error or not depending on implementation
 	// The important thing is it doesn't panic
@@ -119,7 +129,7 @@ func TestInitialize_NilBus(t *testing.T) {
 	grpcServer := grpc.NewServer()
 
 	cfg := Config{
-		JWTSecret: "valid-secret-key-that-is-at-least-32-bytes-long",
+		JWTPrivateKeyPEM: testutil.TestJWTPrivateKeyPEM,
 	}
 
 	// Should not panic even with nil bus
@@ -129,5 +139,7 @@ func TestInitialize_NilBus(t *testing.T) {
 		}
 	}()
 
-	_ = Initialize(nil, grpcServer, nil, cfg)
+	auditLog := &audit.NoopLogger{}
+	flagManager := feature.NewInMemoryManager()
+	_ = Initialize(nil, grpcServer, nil, cfg, auditLog, flagManager)
 }

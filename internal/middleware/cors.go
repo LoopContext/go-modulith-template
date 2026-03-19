@@ -62,14 +62,7 @@ func CORS(config CORSConfig) func(http.Handler) http.Handler {
 
 // setCORSHeaders sets the appropriate CORS headers on the response.
 func setCORSHeaders(w http.ResponseWriter, r *http.Request, config CORSConfig) {
-	origin := r.Header.Get("Origin")
-
-	// Check if origin is allowed
-	if origin != "" && isOriginAllowed(origin, config.AllowedOrigins) {
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-	} else if len(config.AllowedOrigins) == 1 && config.AllowedOrigins[0] == "*" {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-	}
+	setOriginHeaders(w, r, config)
 
 	if config.AllowCredentials {
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -89,6 +82,42 @@ func setCORSHeaders(w http.ResponseWriter, r *http.Request, config CORSConfig) {
 
 	if config.MaxAge > 0 {
 		w.Header().Set("Access-Control-Max-Age", fmt.Sprintf("%d", config.MaxAge))
+	}
+}
+
+func setOriginHeaders(w http.ResponseWriter, r *http.Request, config CORSConfig) {
+	origin := r.Header.Get("Origin")
+	hasGlobalWildcard := false
+
+	for _, allowed := range config.AllowedOrigins {
+		if allowed == "*" {
+			hasGlobalWildcard = true
+			break
+		}
+	}
+
+	if origin != "" && isOriginAllowed(origin, config.AllowedOrigins) {
+		setAllowedOriginHeader(w, origin, hasGlobalWildcard, config.AllowCredentials)
+		return
+	}
+
+	if hasGlobalWildcard {
+		if config.AllowCredentials {
+			w.Header().Set("Access-Control-Allow-Origin", "null")
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+	}
+}
+
+func setAllowedOriginHeader(w http.ResponseWriter, origin string, hasGlobalWildcard, allowCredentials bool) {
+	switch {
+	case hasGlobalWildcard && allowCredentials:
+		w.Header().Set("Access-Control-Allow-Origin", "null")
+	case hasGlobalWildcard:
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	default:
+		w.Header().Set("Access-Control-Allow-Origin", origin)
 	}
 }
 

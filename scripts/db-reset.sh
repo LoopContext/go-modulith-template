@@ -62,10 +62,10 @@ echo ""
 echo "✅ All module schemas dropped"
 echo ""
 echo "🔄 Running migrations to recreate schemas..."
-if make migrate-up >/dev/null 2>&1; then
+if just migrate-up >/dev/null 2>&1; then
     echo "✅ Migrations completed successfully"
 else
-    echo "⚠️  Migration had errors (run 'make migrate-up' manually to see details)"
+    echo "⚠️  Migration had errors (run 'just migrate-up' manually to see details)"
     exit 1
 fi
 

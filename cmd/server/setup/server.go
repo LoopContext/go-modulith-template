@@ -1,4 +1,3 @@
-// Package setup provides server setup and configuration utilities.
 package setup
 
 import (
@@ -9,11 +8,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cmelgarejo/go-modulith-template/internal/audit"
+
 	"github.com/cmelgarejo/go-modulith-template/internal/authn"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/i18n"
 	"github.com/cmelgarejo/go-modulith-template/internal/middleware"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/cmelgarejo/go-modulith-template/internal/telemetry"
 	"github.com/cmelgarejo/go-modulith-template/internal/validation"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -27,7 +29,7 @@ func GRPC(cfg *config.AppConfig, reg *registry.Registry) (*grpc.Server, net.List
 		return nil, nil, fmt.Errorf("failed to listen gRPC: %w", err)
 	}
 
-	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTSecret)
+	verifier, err := authn.NewJWTVerifier(cfg.Auth.JWTPublicKeyPEM)
 	if err != nil {
 		_ = lis.Close()
 		return nil, nil, fmt.Errorf("failed to init jwt verifier: %w", err)
@@ -45,6 +47,8 @@ func GRPC(cfg *config.AppConfig, reg *registry.Registry) (*grpc.Server, net.List
 				Verifier:      verifier,
 				PublicMethods: public,
 			}),
+			audit.UnaryServerInterceptor(reg.AuditLogger()), // Audit authenticated requests
+			telemetry.UnaryServerInterceptor(),              // Record metrics for all calls
 		),
 	)
 
@@ -75,15 +79,15 @@ func AndStartServers(ctx context.Context, cfg *config.AppConfig, reg *registry.R
 		return nil, nil, nil
 	}
 
-	httpServer := StartHTTPServer(cfg, mux)
+	httpServer := StartHTTPServer(cfg, mux, reg)
 	StartGRPCServer(cfg, grpcServer, lis, stop)
 
 	return grpcServer, httpServer, gatewayConn
 }
 
 // StartHTTPServer creates and starts the HTTP server.
-func StartHTTPServer(cfg *config.AppConfig, mux *http.ServeMux) *http.Server {
-	handler := BuildHTTPHandler(cfg, mux)
+func StartHTTPServer(cfg *config.AppConfig, mux *http.ServeMux, reg *registry.Registry) *http.Server {
+	handler := BuildHTTPHandler(cfg, mux, reg)
 	server := CreateHTTPServer(cfg, handler)
 	StartServerAsync(server)
 
@@ -91,7 +95,7 @@ func StartHTTPServer(cfg *config.AppConfig, mux *http.ServeMux) *http.Server {
 }
 
 // BuildHTTPHandler builds the HTTP handler with all middleware.
-func BuildHTTPHandler(cfg *config.AppConfig, mux *http.ServeMux) http.Handler {
+func BuildHTTPHandler(cfg *config.AppConfig, mux *http.ServeMux, reg *registry.Registry) http.Handler {
 	// Wrap with middleware (innermost first)
 	var handler http.Handler = mux
 
@@ -105,7 +109,7 @@ func BuildHTTPHandler(cfg *config.AppConfig, mux *http.ServeMux) http.Handler {
 
 	// Apply rate limiting middleware if enabled
 	if cfg.RateLimitEnabled {
-		rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
+		rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst, reg.Cache())
 		handler = rateLimiter.Middleware()(handler)
 
 		slog.Info("Rate limiting enabled",
@@ -123,6 +127,9 @@ func BuildHTTPHandler(cfg *config.AppConfig, mux *http.ServeMux) http.Handler {
 	}
 
 	handler = middleware.Timeout(requestTimeout)(handler)
+
+	// Apply security headers (HSTS, CSP, etc.)
+	handler = middleware.SecurityHeaders()(handler)
 
 	// Apply logging middleware (logs requests with method, path, status, duration)
 	handler = middleware.LoggingWithDefaults()(handler)

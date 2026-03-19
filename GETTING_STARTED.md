@@ -55,7 +55,7 @@ git commit -m "Initial commit from go-modulith-template"
 For the fastest setup, use the automated quickstart script:
 
 ```bash
-make quickstart
+just quickstart
 ```
 
 This will automatically:
@@ -73,7 +73,7 @@ This will automatically:
 Install all required development tools:
 
 ```bash
-make install-deps
+just install-deps
 ```
 
 This will install:
@@ -93,7 +93,7 @@ This will install:
 which migrate sqlc buf air golangci-lint
 
 # Or run validation
-make validate-setup
+just validate-setup
 ```
 
 ---
@@ -169,12 +169,12 @@ EOF
 
 ## Step 4: Start Infrastructure
 
-> **Note:** If you used `make quickstart`, this step is already complete. Skip to Step 5.
+> **Note:** If you used `just quickstart`, this step is already complete. Skip to Step 5.
 
 Start the required infrastructure services (PostgreSQL, Redis, etc.):
 
 ```bash
-make docker-up
+just docker-up
 ```
 
 This starts:
@@ -191,12 +191,12 @@ This starts:
 docker-compose ps
 
 # Or run comprehensive diagnostics
-make doctor
+just doctor
 ```
 
 You should see all services in "Up" status.
 
-> **Tip:** To start only the database and Redis (faster startup), use `make docker-up-minimal`.
+> **Tip:** To start only the database and Redis (faster startup), use `just docker-up-minimal`.
 
 ---
 
@@ -205,7 +205,7 @@ You should see all services in "Up" status.
 Now let's add a new module. For this example, we'll create an "order" module:
 
 ```bash
-make new-module order
+just new-module order
 ```
 
 This command will:
@@ -310,7 +310,7 @@ Now generate the code from your proto definitions and SQL queries:
 Generate Go code from your Protocol Buffer definitions:
 
 ```bash
-make proto
+just proto
 ```
 
 This will:
@@ -324,7 +324,7 @@ This will:
 Generate type-safe Go code from your SQL queries:
 
 ```bash
-make sqlc
+just sqlc
 ```
 
 This will:
@@ -348,7 +348,7 @@ ls -la modules/order/internal/db/store/
 Run database migrations to create the schema for your new module:
 
 ```bash
-make migrate
+just migrate
 ```
 
 Or run migrations manually using the subcommand:
@@ -395,7 +395,7 @@ You should see tables for your new module (e.g., `orders` table if you created a
 Run tests to verify everything works:
 
 ```bash
-make test
+just test
 ```
 
 Or run tests for a specific module:
@@ -409,7 +409,7 @@ go test ./modules/order/...
 If you're writing tests that require mocks:
 
 ```bash
-make generate-mocks
+just generate-mocks
 ```
 
 This generates mocks for all interfaces in your modules.
@@ -419,7 +419,7 @@ This generates mocks for all interfaces in your modules.
 Run the linter to ensure code quality:
 
 ```bash
-make lint
+just lint
 ```
 
 Fix any issues reported by the linter.
@@ -435,7 +435,7 @@ Now you're ready to run the server with your new module!
 Run the monolith server with hot reload:
 
 ```bash
-make dev
+just dev
 ```
 
 This will:
@@ -451,7 +451,7 @@ This will:
 Run your module as a standalone service:
 
 ```bash
-make dev-module order
+just dev-module order
 ```
 
 This runs only the order module with hot reload.
@@ -462,7 +462,7 @@ Build and run without hot reload:
 
 ```bash
 # Build the server
-make build
+just build
 
 # Run it
 ./bin/server
@@ -548,7 +548,7 @@ For integration tests that require a real database, use testcontainers:
 
 ```bash
 # Run integration tests (requires Docker)
-make test-integration
+just test-integration
 
 # Or run specific integration tests
 go test -v -run Integration ./examples/...
@@ -575,10 +575,10 @@ See `examples/integration_test_example.go` for a complete example showing:
 
 ```bash
 # Generate coverage report
-make coverage-report
+just coverage-report
 
 # View HTML coverage report
-make coverage-html
+just coverage-html
 ```
 
 ## Next Steps
@@ -594,13 +594,13 @@ Now that you have a working module, you can:
 2. **Add More Methods**
 
     - Update `proto/order/v1/order.proto` to add new RPC methods
-    - Run `make proto` to regenerate code
+    - Run `just proto` to regenerate code
     - Implement the methods in your service
 
 3. **Add Database Migrations**
 
     ```bash
-    make migrate-create MODULE=order NAME=add_indexes
+    just migrate-create MODULE=order NAME=add_indexes
     ```
 
     This creates new migration files in `modules/order/resources/db/migration/`
@@ -608,8 +608,8 @@ Now that you have a working module, you can:
 4. **Add Seed Data**
 
     - Edit `modules/order/resources/db/seed/001_example_data.sql`
-    - Run `make seed` or `go run cmd/server/main.go seed`
-    - Note: The module must implement `SeedPath()` method in `module.go` (automatically included when using `make new-module`)
+    - Run `just seed` or `go run cmd/server/main.go seed`
+    - Note: The module must implement `SeedPath()` method in `module.go` (automatically included when using `just new-module`)
 
 5. **Add Tests**
 
@@ -630,10 +630,10 @@ Before troubleshooting, run diagnostic tools:
 
 ```bash
 # Comprehensive environment diagnostics
-make doctor
+just doctor
 
 # Validate setup and prerequisites
-make validate-setup
+just validate-setup
 ```
 
 ### Issue: Module not found after registration
@@ -650,7 +650,7 @@ make validate-setup
 **Solution:**
 
 -   Check database connection string in `configs/server.yaml`
--   Ensure PostgreSQL is running: `docker-compose ps` or `make doctor`
+-   Ensure PostgreSQL is running: `docker-compose ps` or `just doctor`
 -   Check migration files are valid SQL
 -   Verify database container is healthy: `docker ps`
 
@@ -658,7 +658,7 @@ make validate-setup
 
 **Solution:**
 
--   Verify `buf` is installed: `which buf` or `make validate-setup`
+-   Verify `buf` is installed: `which buf` or `just validate-setup`
 -   Check `buf.yaml` and `buf.gen.yaml` are correct
 -   Ensure proto files are valid: `buf lint`
 
@@ -674,18 +674,18 @@ make validate-setup
 
 **Solution:**
 
--   Run `make doctor` to check environment health
+-   Run `just doctor` to check environment health
 -   Check logs for specific errors
 -   Verify all required environment variables are set
--   Ensure database is accessible: `make doctor` will check this
--   Check ports 8000 and 9000 are not in use: `make validate-setup` shows port status
+-   Ensure database is accessible: `just doctor` will check this
+-   Check ports 8000 and 9000 are not in use: `just validate-setup` shows port status
 -   Verify Docker containers are running: `docker-compose ps`
 
 ### Issue: Port conflicts
 
 **Solution:**
 
--   Run `make doctor` to identify which ports are in use
+-   Run `just doctor` to identify which ports are in use
 -   Stop conflicting services or change ports in `configs/server.yaml`
 -   Check `docker-compose ps` for running containers
 

@@ -190,7 +190,7 @@ proto/
 
 ### 7.3 When to Create a New Version
 
-Create a new API version (`v2`, `v3`, etc.) when you need to make **breaking changes**:
+Create a new API version (`v2`, `v3`, etc.) when you need to just **breaking changes**:
 
 -   **Removing fields** from messages
 -   **Changing field types** (e.g., `string` → `int32`)
@@ -214,7 +214,7 @@ Create a new API version (`v2`, `v3`, etc.) when you need to make **breaking cha
 3.  Update package name: `package {module}.v{version};`
 4.  Update REST paths: Change `/v{old}/` to `/v{new}/` in HTTP annotations
 5.  Update Go package option: `option go_package = ".../proto/{module}/v{version};{module}v{version}";`
-6.  Generate code: `make proto`
+6.  Generate code: `just proto`
 7.  Implement new service handlers in the module
 
 #### Automated Process
@@ -223,7 +223,7 @@ Use the provided tooling:
 
 ```bash
 # Create a new API version for a module
-make proto-version-create MODULE_NAME=auth VERSION=v2
+just proto-version-create MODULE_NAME=auth VERSION=v2
 
 # This will:
 # - Create proto/auth/v2/ directory
@@ -248,10 +248,10 @@ Check for breaking changes before committing:
 
 ```bash
 # Check for breaking changes in proto files
-make proto-breaking-check
+just proto-breaking-check
 
 # Or check a specific module
-make proto-breaking-check MODULE_NAME=auth
+just proto-breaking-check MODULE_NAME=auth
 ```
 
 ### 7.6 Backward Compatibility Strategy
@@ -267,7 +267,7 @@ make proto-breaking-check MODULE_NAME=auth
 **Step 1: Create new version**
 
 ```bash
-make proto-version-create MODULE_NAME=auth VERSION=v2
+just proto-version-create MODULE_NAME=auth VERSION=v2
 ```
 
 **Step 2: Modify the new proto file**
@@ -303,7 +303,7 @@ service AuthService {
 **Step 3: Generate code**
 
 ```bash
-make proto
+just proto
 ```
 
 **Step 4: Implement service handlers**
@@ -622,7 +622,7 @@ The system automatically validates configuration before starting:
 We use Docker Compose to start dependencies (Database).
 
 -   PostgreSQL port is configurable via `DB_PORT` in the host's `.env`.
--   Useful commands in `Makefile`: `make docker-up`, `make docker-down`.
+-   Useful commands in `Makefile`: `just docker-up`, `just docker-down`.
 
 ## 12. Observability
 
@@ -872,17 +872,17 @@ internal/graphql/
 
 ```bash
 # 1. Add GraphQL to project
-make graphql-init
+just graphql-init
 
 # 2. Define schemas per module in internal/graphql/schema/
 
 # 3. Generate code
-make graphql-generate-all
+just graphql-generate-all
 
 # 4. Implement resolvers in internal/graphql/resolver/
 
 # 5. Validate
-make graphql-validate
+just graphql-validate
 ```
 
 **Endpoints:**
@@ -1044,17 +1044,17 @@ The system:
 
 ```bash
 # Run all migrations for all modules
-make migrate-up  # or simply: make migrate
+just migrate-up  # or simply: just migrate
 
 # Revert last migration for a specific module
-make migrate-down MODULE_NAME=users
+just migrate-down MODULE_NAME=users
 
 # Create a new migration for a module
-make migrate-create MODULE_NAME=users NAME=add_profile_fields
+just migrate-create MODULE_NAME=users NAME=add_profile_fields
 
 # Delete all tables and re-run migrations
-make db-down    # Only deletes tables
-make db-reset   # Deletes and re-runs (db-down + migrate-up)
+just db-down    # Only deletes tables
+just db-reset   # Deletes and re-runs (db-down + migrate-up)
 ```
 
 #### Manual Migration Execution Only
@@ -1063,7 +1063,7 @@ make db-reset   # Deletes and re-runs (db-down + migrate-up)
 # Run only migrations without starting server
 go run cmd/server/main.go -migrate
 # or
-make migrate
+just migrate
 ```
 
 #### Benefits
@@ -1094,7 +1094,7 @@ Seed data can be executed via:
 
 ```bash
 # Run seed data for all modules
-make seed
+just seed
 
 # Or using subcommand
 go run cmd/server/main.go seed
@@ -1107,7 +1107,7 @@ The system:
 3. Each module manages its own seed data
 4. Seed data is typically used for development and testing
 
-**Note:** Seed data is NOT executed automatically on server startup. It must be run explicitly via `make seed` or the seed subcommand.
+**Note:** Seed data is NOT executed automatically on server startup. It must be run explicitly via `just seed` or the seed subcommand.
 
 ### Phase 3: Repository Layer (Adapter)
 
@@ -1243,13 +1243,13 @@ To facilitate unit testing, we use **gomock** (`go.uber.org/mock`) to generate a
 
 ```bash
 # Install tool
-make install-mocks
+just install-mocks
 
 # Generate all mocks
-make generate-mocks
+just generate-mocks
 
 # Run unit tests (generates mocks automatically)
-make test-unit
+just test-unit
 ```
 
 **Adding mocks to a new interface:**
@@ -1267,7 +1267,7 @@ type MyInterface interface {
 }
 ```
 
-2.  Generate: `make generate-mocks`
+2.  Generate: `just generate-mocks`
 
 3.  Use in tests:
 
@@ -1310,11 +1310,11 @@ See `modules/auth/internal/service/service_mock_test.go` for complete examples o
 
 For a smooth development experience, we use **Air** to automatically recompile code on save:
 
-1.  **Monolith:** `make dev`
-2.  **Any Module:** `make dev-module {name}` (e.g. `make dev-module auth`)
+1.  **Monolith:** `just dev`
+2.  **Any Module:** `just dev-module {name}` (e.g. `just dev-module auth`)
 
 > [!TIP]
-> Air watches for changes in `.go`, `.yaml`, `.yml`, `.proto`, `.sql`, `.env` files and specific configuration files, restarting the binary instantly. The module generator (`make new-module`) automatically creates the necessary `.air.{module}.toml` file.
+> Air watches for changes in `.go`, `.yaml`, `.yml`, `.proto`, `.sql`, `.env` files and specific configuration files, restarting the binary instantly. The module generator (`just new-module`) automatically creates the necessary `.air.{module}.toml` file.
 
 ### Generic Build Commands
 
@@ -1322,17 +1322,17 @@ The project provides wildcard commands to work with any module:
 
 ```bash
 # Build
-make build-module auth      # Generates bin/auth
-make build-module payments  # Generates bin/payments
-make build-all              # Compiles server + all modules
+just build-module auth      # Generates bin/auth
+just build-module payments  # Generates bin/payments
+just build-all              # Compiles server + all modules
 
 # Docker
-make docker-build-module auth      # Generates modulith-auth:latest
-make docker-build-module payments  # Generates modulith-payments:latest
+just docker-build-module auth      # Generates modulith-auth:latest
+just docker-build-module payments  # Generates modulith-payments:latest
 
 # Development with Hot Reload
-make dev-module auth      # Runs auth with hot reload
-make dev-module payments  # Runs payments with hot reload
+just dev-module auth      # Runs auth with hot reload
+just dev-module payments  # Runs payments with hot reload
 ```
 
 > [!NOTE]
@@ -1499,7 +1499,7 @@ These examples demonstrate best practices for:
 
 To accelerate the start of new modules and ensure they follow defined standards, we have a robust scaffolding tool.
 
--   **Command:** `make new-module {name}` (e.g. `make new-module payments`)
+-   **Command:** `just new-module {name}` (e.g. `just new-module payments`)
 -   **Automation:**
     -   Generates standard folder structure.
     -   Creates boilerplate files (`module.go`, `service.go`, `repository.go`, `proto`).
@@ -1537,22 +1537,22 @@ To accelerate the start of new modules and ensure they follow defined standards,
 
 ```bash
 # Generate code
-make proto  # Generates gRPC code
-make sqlc   # Generates DB code
+just proto  # Generates gRPC code
+just sqlc   # Generates DB code
 
 # Build
-make build-module payments
+just build-module payments
 
 # Docker
-make docker-build-module payments
+just docker-build-module payments
 
 # Development
-make dev-module payments
+just dev-module payments
 ```
 
 ### Quick Start: Creating Your First Module
 
-Once the module is generated with `make new-module orders`, implement the business logic:
+Once the module is generated with `just new-module orders`, implement the business logic:
 
 ```go
 // modules/orders/internal/service/service.go
@@ -1649,7 +1649,7 @@ func GetUser(ctx context.Context, id string) (*store.User, error)
 func GetMagicCode(ctx context.Context, code string) (*store.MagicCode, error)
 ```
 
-After running `make sqlc`, check `modules/<mod>/internal/db/store/models.go` to see the exact generated type names.
+After running `just sqlc`, check `modules/<mod>/internal/db/store/models.go` to see the exact generated type names.
 
 **Transaction Handling:**
 
@@ -1762,14 +1762,14 @@ After generating a module, verify it compiles:
 
 ```bash
 # Generate code
-make proto
-make sqlc
+just proto
+just sqlc
 
 # Build the module
 go build ./modules/<module-name>/...
 
 # Or build the entire project
-make build
+just build
 ```
 
 #### Common Issues and Solutions
@@ -1821,12 +1821,12 @@ When extending generated modules:
 
 3. **Add SQL Queries:**
    - Place in `modules/<name>/internal/db/query/<name>.sql`
-   - Run `make sqlc` to generate code
+   - Run `just sqlc` to generate code
    - Update repository interface and implementation
 
 4. **Add Proto Methods:**
    - Edit `proto/<name>/v1/<name>.proto`
-   - Run `make proto` to generate code
+   - Run `just proto` to generate code
    - Implement in service layer
 
 ## 18. Granular Deployment and Configuration (Microservices Path)
@@ -1892,15 +1892,15 @@ We use an optimized `Dockerfile` with two stages that supports dynamic building 
 
 ```bash
 # Build monolith server
-make docker-build
+just docker-build
 # Generates: modulith-server:latest
 
 # Build a specific module
-make docker-build-module auth
+just docker-build-module auth
 # Generates: modulith-auth:latest
 
 # Build any module
-make docker-build-module payments
+just docker-build-module payments
 # Generates: modulith-payments:latest
 ```
 
@@ -2015,11 +2015,11 @@ The project includes an advanced coverage reporting system:
 
 ```bash
 # Visual report in terminal with statistics
-make coverage-report
+just coverage-report
 
 # Interactive HTML report
-make test-coverage
-make coverage-html
+just test-coverage
+just coverage-html
 ```
 
 The coverage report shows:
@@ -2050,7 +2050,7 @@ We've adopted a strict set of rules to guarantee consistency:
 
 **Mandatory Process:**
 
-1.  **Run:** `make lint` after ANY modification to `.go` files.
+1.  **Run:** `just lint` after ANY modification to `.go` files.
 2.  **Iterate:** Fix all errors until reaching **0 issues**.
 3.  **Appropriate Fixes:**
     -   `errcheck`: Add error handling or explicitly assign to `_` if the error should be intentionally ignored.
@@ -2415,7 +2415,7 @@ Administrative task system for maintenance and cleanup operations.
 
 ```bash
 # Run an administrative task
-make admin TASK=cleanup-sessions
+just admin TASK=cleanup-sessions
 
 # Or directly with the binary
 ./bin/server admin cleanup-sessions

@@ -212,19 +212,19 @@ echo ""
 # Step 5: Regenerate code and tidy dependencies
 echo "🔄 Step 5: Regenerating code and tidying dependencies..."
 echo ""
-echo "  Running 'make generate-all'..."
-if make generate-all >/dev/null 2>&1; then
+echo "  Running 'just generate-all'..."
+if just generate-all >/dev/null 2>&1; then
     echo "  ✅ Code generation completed"
 else
-    echo "  ⚠️  Code generation had errors (run 'make generate-all' manually to see details)"
+    echo "  ⚠️  Code generation had errors (run 'just generate-all' manually to see details)"
 fi
 
 echo ""
-echo "  Running 'make tidy'..."
-if make tidy >/dev/null 2>&1; then
+echo "  Running 'just tidy'..."
+if just tidy >/dev/null 2>&1; then
     echo "  ✅ Dependencies tidied"
 else
-    echo "  ⚠️  Tidy had errors (run 'make tidy' manually to see details)"
+    echo "  ⚠️  Tidy had errors (run 'just tidy' manually to see details)"
 fi
 
 echo ""

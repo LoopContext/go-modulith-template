@@ -3,11 +3,11 @@ package testutil
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -61,17 +61,17 @@ func (c *PostgresContainer) Close(ctx context.Context) error {
 	return nil
 }
 
-// DB returns a database connection to the test container.
-func (c *PostgresContainer) DB(ctx context.Context) (*sql.DB, error) {
-	db, err := sql.Open("pgx", c.DSN)
+// Pool returns a database connection pool to the test container.
+func (c *PostgresContainer) Pool(ctx context.Context) (*pgxpool.Pool, error) {
+	pool, err := pgxpool.New(ctx, c.DSN)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, fmt.Errorf("failed to open database pool: %w", err)
 	}
 
-	if err := db.PingContext(ctx); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("failed to ping database pool: %w", err)
 	}
 
-	return db, nil
+	return pool, nil
 }

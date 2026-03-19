@@ -40,6 +40,7 @@ func TestNewRegistry_WithProviders(t *testing.T) {
 				ClientID:     "test-google-client-id",
 				ClientSecret: "test-google-secret",
 			},
+			//nolint:gosec
 			GitHub: config.OAuthProviderConfig{
 				Enabled:      true,
 				ClientID:     "test-github-client-id",

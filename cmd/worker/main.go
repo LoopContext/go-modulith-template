@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 	"os"
@@ -19,7 +18,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/version"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
 
@@ -80,38 +79,36 @@ func loadConfig() *config.AppConfig {
 	return cfg
 }
 
-func initDB(cfg *config.AppConfig) *sql.DB {
-	db, err := sql.Open("pgx", cfg.DBDSN)
+func initDB(cfg *config.AppConfig) *pgxpool.Pool {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	poolCfg, err := pgxpool.ParseConfig(cfg.DBDSN)
 	if err != nil {
-		slog.Error("Failed to open DB", "error", err)
+		slog.Error("Failed to parse DB config", "error", err)
 		return nil
 	}
 
 	// Configure connection pool
-	db.SetMaxOpenConns(cfg.DBMaxOpenConns)
-	db.SetMaxIdleConns(cfg.DBMaxIdleConns)
+	poolCfg.MaxConns = int32(cfg.DBMaxOpenConns) // #nosec G115
+	poolCfg.MinConns = int32(cfg.DBMaxIdleConns) // #nosec G115
 
-	// Parse lifetime duration
 	if cfg.DBConnMaxLifetime != "" {
 		if lifetime, err := time.ParseDuration(cfg.DBConnMaxLifetime); err == nil {
-			db.SetConnMaxLifetime(lifetime)
+			poolCfg.MaxConnLifetime = lifetime
 		}
 	}
 
-	// Parse connect timeout and ping with context
-	connectTimeout := 10 * time.Second
-
-	if cfg.DBConnectTimeout != "" {
-		if parsed, err := time.ParseDuration(cfg.DBConnectTimeout); err == nil {
-			connectTimeout = parsed
-		}
+	db, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
+	if err != nil {
+		slog.Error("Failed to create DB pool", "error", err)
+		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
-	defer cancel()
+	if err := db.Ping(ctx); err != nil {
+		slog.Error("Failed to ping DB", "error", err)
+		db.Close()
 
-	if err := db.PingContext(ctx); err != nil {
-		slog.Error("Failed to ping DB", "error", err, "timeout", connectTimeout)
 		return nil
 	}
 
@@ -120,13 +117,11 @@ func initDB(cfg *config.AppConfig) *sql.DB {
 	return db
 }
 
-func closeDB(db *sql.DB) {
-	if err := db.Close(); err != nil {
-		slog.Error("Failed to close DB", "error", err)
-	}
+func closeDB(db *pgxpool.Pool) {
+	db.Close()
 }
 
-func createRegistry(cfg *config.AppConfig, db *sql.DB) *registry.Registry {
+func createRegistry(cfg *config.AppConfig, db *pgxpool.Pool) *registry.Registry {
 	// Create shared services
 	ebus := events.NewBus()
 	ntf := notifier.NewLogNotifier()
