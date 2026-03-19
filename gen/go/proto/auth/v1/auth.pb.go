@@ -572,27 +572,27 @@ func (x *RegisterResponse) GetUser() *User {
 }
 
 // refresh_token may be empty when using HttpOnly cookie (cookie takes precedence).
-type RefreshTokenRequest struct {
+type RefreshSessionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RefreshToken  string                 `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RefreshTokenRequest) Reset() {
-	*x = RefreshTokenRequest{}
+func (x *RefreshSessionRequest) Reset() {
+	*x = RefreshSessionRequest{}
 	mi := &file_proto_auth_v1_auth_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RefreshTokenRequest) String() string {
+func (x *RefreshSessionRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RefreshTokenRequest) ProtoMessage() {}
+func (*RefreshSessionRequest) ProtoMessage() {}
 
-func (x *RefreshTokenRequest) ProtoReflect() protoreflect.Message {
+func (x *RefreshSessionRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_auth_v1_auth_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -604,19 +604,19 @@ func (x *RefreshTokenRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RefreshTokenRequest.ProtoReflect.Descriptor instead.
-func (*RefreshTokenRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use RefreshSessionRequest.ProtoReflect.Descriptor instead.
+func (*RefreshSessionRequest) Descriptor() ([]byte, []int) {
 	return file_proto_auth_v1_auth_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *RefreshTokenRequest) GetRefreshToken() string {
+func (x *RefreshSessionRequest) GetRefreshToken() string {
 	if x != nil {
 		return x.RefreshToken
 	}
 	return ""
 }
 
-type RefreshTokenResponse struct {
+type RefreshSessionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccessToken   string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
 	RefreshToken  string                 `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
@@ -625,20 +625,20 @@ type RefreshTokenResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RefreshTokenResponse) Reset() {
-	*x = RefreshTokenResponse{}
+func (x *RefreshSessionResponse) Reset() {
+	*x = RefreshSessionResponse{}
 	mi := &file_proto_auth_v1_auth_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RefreshTokenResponse) String() string {
+func (x *RefreshSessionResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RefreshTokenResponse) ProtoMessage() {}
+func (*RefreshSessionResponse) ProtoMessage() {}
 
-func (x *RefreshTokenResponse) ProtoReflect() protoreflect.Message {
+func (x *RefreshSessionResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_auth_v1_auth_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -650,26 +650,26 @@ func (x *RefreshTokenResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RefreshTokenResponse.ProtoReflect.Descriptor instead.
-func (*RefreshTokenResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use RefreshSessionResponse.ProtoReflect.Descriptor instead.
+func (*RefreshSessionResponse) Descriptor() ([]byte, []int) {
 	return file_proto_auth_v1_auth_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *RefreshTokenResponse) GetAccessToken() string {
+func (x *RefreshSessionResponse) GetAccessToken() string {
 	if x != nil {
 		return x.AccessToken
 	}
 	return ""
 }
 
-func (x *RefreshTokenResponse) GetRefreshToken() string {
+func (x *RefreshSessionResponse) GetRefreshToken() string {
 	if x != nil {
 		return x.RefreshToken
 	}
 	return ""
 }
 
-func (x *RefreshTokenResponse) GetExpiresIn() int64 {
+func (x *RefreshSessionResponse) GetExpiresIn() int64 {
 	if x != nil {
 		return x.ExpiresIn
 	}
@@ -2488,10 +2488,10 @@ const file_proto_auth_v1_auth_proto_rawDesc = "" +
 	"\x10RegisterResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12!\n" +
-	"\x04user\x18\x03 \x01(\v2\r.auth.v1.UserR\x04user\":\n" +
-	"\x13RefreshTokenRequest\x12#\n" +
-	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"}\n" +
-	"\x14RefreshTokenResponse\x12!\n" +
+	"\x04user\x18\x03 \x01(\v2\r.auth.v1.UserR\x04user\"<\n" +
+	"\x15RefreshSessionRequest\x12#\n" +
+	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"\x7f\n" +
+	"\x16RefreshSessionResponse\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x1d\n" +
 	"\n" +
@@ -2612,11 +2612,11 @@ const file_proto_auth_v1_auth_proto_rawDesc = "" +
 	"\x1fRequestEmailVerificationRequest\"V\n" +
 	" RequestEmailVerificationResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2\xbd\x12\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage2\xc3\x12\n" +
 	"\vAuthService\x12n\n" +
 	"\fRequestLogin\x12\x1c.auth.v1.RequestLoginRequest\x1a\x1d.auth.v1.RequestLoginResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/v1/auth/login/request\x12r\n" +
-	"\rCompleteLogin\x12\x1d.auth.v1.CompleteLoginRequest\x1a\x1e.auth.v1.CompleteLoginResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/v1/auth/login/complete\x12n\n" +
-	"\fRefreshToken\x12\x1c.auth.v1.RefreshTokenRequest\x1a\x1d.auth.v1.RefreshTokenResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/v1/auth/token/refresh\x12U\n" +
+	"\rCompleteLogin\x12\x1d.auth.v1.CompleteLoginRequest\x1a\x1e.auth.v1.CompleteLoginResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/v1/auth/login/complete\x12t\n" +
+	"\x0eRefreshSession\x12\x1e.auth.v1.RefreshSessionRequest\x1a\x1f.auth.v1.RefreshSessionResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/v1/auth/token/refresh\x12U\n" +
 	"\x06Logout\x12\x16.auth.v1.LogoutRequest\x1a\x17.auth.v1.LogoutResponse\"\x1a\x82\xd3\xe4\x93\x02\x14:\x01*\"\x0f/v1/auth/logout\x12_\n" +
 	"\n" +
 	"GetProfile\x12\x1a.auth.v1.GetProfileRequest\x1a\x1b.auth.v1.GetProfileResponse\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/v1/auth/profile\x12k\n" +
@@ -2658,8 +2658,8 @@ var file_proto_auth_v1_auth_proto_goTypes = []any{
 	(*CompleteLoginResponse)(nil),            // 5: auth.v1.CompleteLoginResponse
 	(*RegisterRequest)(nil),                  // 6: auth.v1.RegisterRequest
 	(*RegisterResponse)(nil),                 // 7: auth.v1.RegisterResponse
-	(*RefreshTokenRequest)(nil),              // 8: auth.v1.RefreshTokenRequest
-	(*RefreshTokenResponse)(nil),             // 9: auth.v1.RefreshTokenResponse
+	(*RefreshSessionRequest)(nil),            // 8: auth.v1.RefreshSessionRequest
+	(*RefreshSessionResponse)(nil),           // 9: auth.v1.RefreshSessionResponse
 	(*LogoutRequest)(nil),                    // 10: auth.v1.LogoutRequest
 	(*LogoutResponse)(nil),                   // 11: auth.v1.LogoutResponse
 	(*User)(nil),                             // 12: auth.v1.User
@@ -2713,7 +2713,7 @@ var file_proto_auth_v1_auth_proto_depIdxs = []int32{
 	39, // 12: auth.v1.ListLinkedAccountsResponse.accounts:type_name -> auth.v1.ExternalAccount
 	2,  // 13: auth.v1.AuthService.RequestLogin:input_type -> auth.v1.RequestLoginRequest
 	4,  // 14: auth.v1.AuthService.CompleteLogin:input_type -> auth.v1.CompleteLoginRequest
-	8,  // 15: auth.v1.AuthService.RefreshToken:input_type -> auth.v1.RefreshTokenRequest
+	8,  // 15: auth.v1.AuthService.RefreshSession:input_type -> auth.v1.RefreshSessionRequest
 	10, // 16: auth.v1.AuthService.Logout:input_type -> auth.v1.LogoutRequest
 	13, // 17: auth.v1.AuthService.GetProfile:input_type -> auth.v1.GetProfileRequest
 	15, // 18: auth.v1.AuthService.UpdateProfile:input_type -> auth.v1.UpdateProfileRequest
@@ -2733,7 +2733,7 @@ var file_proto_auth_v1_auth_proto_depIdxs = []int32{
 	42, // 32: auth.v1.AuthService.RequestEmailVerification:input_type -> auth.v1.RequestEmailVerificationRequest
 	3,  // 33: auth.v1.AuthService.RequestLogin:output_type -> auth.v1.RequestLoginResponse
 	5,  // 34: auth.v1.AuthService.CompleteLogin:output_type -> auth.v1.CompleteLoginResponse
-	9,  // 35: auth.v1.AuthService.RefreshToken:output_type -> auth.v1.RefreshTokenResponse
+	9,  // 35: auth.v1.AuthService.RefreshSession:output_type -> auth.v1.RefreshSessionResponse
 	11, // 36: auth.v1.AuthService.Logout:output_type -> auth.v1.LogoutResponse
 	14, // 37: auth.v1.AuthService.GetProfile:output_type -> auth.v1.GetProfileResponse
 	16, // 38: auth.v1.AuthService.UpdateProfile:output_type -> auth.v1.UpdateProfileResponse

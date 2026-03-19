@@ -603,13 +603,13 @@
     },
     "/v1/auth/token/refresh": {
       "post": {
-        "summary": "RefreshToken exchanges a refresh token for a new access token",
-        "operationId": "AuthService_RefreshToken",
+        "summary": "RefreshSession exchanges a refresh token for a new access token",
+        "operationId": "AuthService_RefreshSession",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1RefreshTokenResponse"
+              "$ref": "#/definitions/v1RefreshSessionResponse"
             }
           },
           "default": {
@@ -626,7 +626,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1RefreshTokenRequest"
+              "$ref": "#/definitions/v1RefreshSessionRequest"
             }
           }
         ],
@@ -935,7 +935,7 @@
         }
       }
     },
-    "v1RefreshTokenRequest": {
+    "v1RefreshSessionRequest": {
       "type": "object",
       "properties": {
         "refreshToken": {
@@ -944,7 +944,7 @@
       },
       "description": "refresh_token may be empty when using HttpOnly cookie (cookie takes precedence)."
     },
-    "v1RefreshTokenResponse": {
+    "v1RefreshSessionResponse": {
       "type": "object",
       "properties": {
         "accessToken": {

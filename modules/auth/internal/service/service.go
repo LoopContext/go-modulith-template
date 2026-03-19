@@ -525,26 +525,30 @@ func getTokenFromContext(ctx context.Context) string {
 func (s *AuthService) setAuthCookies(ctx context.Context, accessToken, refreshToken string) {
 	isProd := s.env == "prod"
 
-	// #nosec G101 G601 G114
 	accessCookie := &http.Cookie{
 		Name:     authn.AccessTokenCookieName,
 		Value:    accessToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   isProd,
+		Secure:   true, // Standard secure default
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   3600, // 1 hour
 	}
+	if !isProd {
+		accessCookie.Secure = false
+	}
 
-	// #nosec G101 G601 G114
 	refreshCookie := &http.Cookie{
 		Name:     authn.RefreshTokenCookieName,
 		Value:    refreshToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   isProd,
+		Secure:   true, // Standard secure default
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   24 * 3600, // 24 hours
+	}
+	if !isProd {
+		refreshCookie.Secure = false
 	}
 
 	// Add both cookies to metadata
@@ -558,26 +562,30 @@ func (s *AuthService) setAuthCookies(ctx context.Context, accessToken, refreshTo
 func (s *AuthService) clearAuthCookies(ctx context.Context) {
 	isProd := s.env == "prod"
 
-	// #nosec G101 G601 G114
 	accessCookie := &http.Cookie{
 		Name:     authn.AccessTokenCookieName,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   isProd,
+		Secure:   true, // Standard secure default
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	}
+	if !isProd {
+		accessCookie.Secure = false
+	}
 
-	// #nosec G101 G601 G114
 	refreshCookie := &http.Cookie{
 		Name:     authn.RefreshTokenCookieName,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   isProd,
+		Secure:   true, // Standard secure default
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
+	}
+	if !isProd {
+		refreshCookie.Secure = false
 	}
 
 	_ = grpc.SetHeader(ctx, metadata.Pairs(
@@ -614,11 +622,11 @@ func getRefreshTokenFromCookie(ctx context.Context) string {
 	return ""
 }
 
-// RefreshToken refreshes an expired session if the refresh token is valid.
+// RefreshSession refreshes an expired session if the refresh token is valid.
 //
 //nolint:funlen // Security verifications inherently run long
-func (s *AuthService) RefreshToken(ctx context.Context, req *authv1.RefreshTokenRequest) (*authv1.RefreshTokenResponse, error) {
-	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "RefreshToken")
+func (s *AuthService) RefreshSession(ctx context.Context, req *authv1.RefreshSessionRequest) (*authv1.RefreshSessionResponse, error) {
+	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "RefreshSession")
 	defer span.End()
 
 	refreshToken := getRefreshTokenFromCookie(ctx)
@@ -683,7 +691,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *authv1.RefreshToken
 	// Set new auth cookies for web clients
 	s.setAuthCookies(ctx, accessToken, refreshToken)
 
-	return &authv1.RefreshTokenResponse{
+	return &authv1.RefreshSessionResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    3600,

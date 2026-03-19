@@ -170,7 +170,7 @@ func (m *Module) PublicEndpoints() []string {
 		"/auth.v1.AuthService/RequestLogin",
 		"/auth.v1.AuthService/CompleteLogin",
 		"/auth.v1.AuthService/Register",
-		"/auth.v1.AuthService/RefreshToken",
+		"/auth.v1.AuthService/RefreshSession",
 		"/auth.v1.AuthService/GetOAuthProviders",
 		"/auth.v1.AuthService/InitiateOAuth",
 		"/auth.v1.AuthService/CompleteOAuth",

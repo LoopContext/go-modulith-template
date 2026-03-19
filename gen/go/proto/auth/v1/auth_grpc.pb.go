@@ -21,7 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	AuthService_RequestLogin_FullMethodName             = "/auth.v1.AuthService/RequestLogin"
 	AuthService_CompleteLogin_FullMethodName            = "/auth.v1.AuthService/CompleteLogin"
-	AuthService_RefreshToken_FullMethodName             = "/auth.v1.AuthService/RefreshToken"
+	AuthService_RefreshSession_FullMethodName           = "/auth.v1.AuthService/RefreshSession"
 	AuthService_Logout_FullMethodName                   = "/auth.v1.AuthService/Logout"
 	AuthService_GetProfile_FullMethodName               = "/auth.v1.AuthService/GetProfile"
 	AuthService_UpdateProfile_FullMethodName            = "/auth.v1.AuthService/UpdateProfile"
@@ -49,8 +49,8 @@ type AuthServiceClient interface {
 	RequestLogin(ctx context.Context, in *RequestLoginRequest, opts ...grpc.CallOption) (*RequestLoginResponse, error)
 	// CompleteLogin keeps the code and verifies it to return a token
 	CompleteLogin(ctx context.Context, in *CompleteLoginRequest, opts ...grpc.CallOption) (*CompleteLoginResponse, error)
-	// RefreshToken exchanges a refresh token for a new access token
-	RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error)
+	// RefreshSession exchanges a refresh token for a new access token
+	RefreshSession(ctx context.Context, in *RefreshSessionRequest, opts ...grpc.CallOption) (*RefreshSessionResponse, error)
 	// Logout invalidates the current session and blacklists the token
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
 	// GetProfile returns the current user's profile (requires authentication)
@@ -115,10 +115,10 @@ func (c *authServiceClient) CompleteLogin(ctx context.Context, in *CompleteLogin
 	return out, nil
 }
 
-func (c *authServiceClient) RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error) {
+func (c *authServiceClient) RefreshSession(ctx context.Context, in *RefreshSessionRequest, opts ...grpc.CallOption) (*RefreshSessionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RefreshTokenResponse)
-	err := c.cc.Invoke(ctx, AuthService_RefreshToken_FullMethodName, in, out, cOpts...)
+	out := new(RefreshSessionResponse)
+	err := c.cc.Invoke(ctx, AuthService_RefreshSession_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -303,8 +303,8 @@ type AuthServiceServer interface {
 	RequestLogin(context.Context, *RequestLoginRequest) (*RequestLoginResponse, error)
 	// CompleteLogin keeps the code and verifies it to return a token
 	CompleteLogin(context.Context, *CompleteLoginRequest) (*CompleteLoginResponse, error)
-	// RefreshToken exchanges a refresh token for a new access token
-	RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error)
+	// RefreshSession exchanges a refresh token for a new access token
+	RefreshSession(context.Context, *RefreshSessionRequest) (*RefreshSessionResponse, error)
 	// Logout invalidates the current session and blacklists the token
 	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
 	// GetProfile returns the current user's profile (requires authentication)
@@ -355,8 +355,8 @@ func (UnimplementedAuthServiceServer) RequestLogin(context.Context, *RequestLogi
 func (UnimplementedAuthServiceServer) CompleteLogin(context.Context, *CompleteLoginRequest) (*CompleteLoginResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CompleteLogin not implemented")
 }
-func (UnimplementedAuthServiceServer) RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RefreshToken not implemented")
+func (UnimplementedAuthServiceServer) RefreshSession(context.Context, *RefreshSessionRequest) (*RefreshSessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RefreshSession not implemented")
 }
 func (UnimplementedAuthServiceServer) Logout(context.Context, *LogoutRequest) (*LogoutResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Logout not implemented")
@@ -466,20 +466,20 @@ func _AuthService_CompleteLogin_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_RefreshToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RefreshTokenRequest)
+func _AuthService_RefreshSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefreshSessionRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).RefreshToken(ctx, in)
+		return srv.(AuthServiceServer).RefreshSession(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_RefreshToken_FullMethodName,
+		FullMethod: AuthService_RefreshSession_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).RefreshToken(ctx, req.(*RefreshTokenRequest))
+		return srv.(AuthServiceServer).RefreshSession(ctx, req.(*RefreshSessionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -806,8 +806,8 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AuthService_CompleteLogin_Handler,
 		},
 		{
-			MethodName: "RefreshToken",
-			Handler:    _AuthService_RefreshToken_Handler,
+			MethodName: "RefreshSession",
+			Handler:    _AuthService_RefreshSession_Handler,
 		},
 		{
 			MethodName: "Logout",

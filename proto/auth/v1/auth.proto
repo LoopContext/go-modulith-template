@@ -25,8 +25,8 @@ service AuthService {
     };
   }
 
-  // RefreshToken exchanges a refresh token for a new access token
-  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse) {
+  // RefreshSession exchanges a refresh token for a new access token
+  rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse) {
     option (google.api.http) = {
       post: "/v1/auth/token/refresh"
       body: "*"
@@ -243,11 +243,11 @@ message RegisterResponse {
 // --- Token Messages ---
 
 // refresh_token may be empty when using HttpOnly cookie (cookie takes precedence).
-message RefreshTokenRequest {
+message RefreshSessionRequest {
   string refresh_token = 1;
 }
 
-message RefreshTokenResponse {
+message RefreshSessionResponse {
   string access_token = 1;
   string refresh_token = 2;
   int64 expires_in = 3;
