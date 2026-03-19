@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
 	"github.com/cmelgarejo/go-modulith-template/internal/authtoken"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
 	"github.com/cmelgarejo/go-modulith-template/internal/migration"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )

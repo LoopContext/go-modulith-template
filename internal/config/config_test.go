@@ -245,7 +245,6 @@ func TestValidate_JWTPEMLength(t *testing.T) {
 		}
 	})
 
-
 	t.Run("JWT public key long enough", func(t *testing.T) {
 		cfg := &AppConfig{
 			Env:      envDev,
@@ -262,7 +261,6 @@ func TestValidate_JWTPEMLength(t *testing.T) {
 		}
 	})
 }
-
 
 func TestLoad_InvalidYAMLFile(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -284,11 +282,11 @@ func setupTestEnv(t *testing.T) {
 	t.Helper()
 
 	envVars := map[string]string{
-		"ENV":           "test",
-		"HTTP_PORT":     "3000",
-		"GRPC_PORT":     "4000",
-		"DB_DSN":        "postgres://localhost/test",
-		"OTLP_ENDPOINT": "http://localhost:4317",
+		"ENV":            "test",
+		"HTTP_PORT":      "3000",
+		"GRPC_PORT":      "4000",
+		"DB_DSN":         "postgres://localhost/test",
+		"OTLP_ENDPOINT":  "http://localhost:4317",
 		"JWT_PUBLIC_KEY": "test-public-key-pem-that-is-at-least-100-characters-long-to-pass-validation-logic-for-pem-format-checking-in-config-validation",
 	}
 

@@ -276,4 +276,3 @@ func ExampleGRPCIntegrationTest(t *testing.T) {
 
 	t.Log("gRPC integration test template - implement based on your needs")
 }
-

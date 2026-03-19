@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // TestExampleModuleCommunication demonstrates testing inter-module communication.
@@ -94,7 +94,6 @@ func setupRegistryModule(_ *testing.T, db *pgxpool.Pool, cfg *config.AppConfig, 
 
 	return reg
 }
-
 
 func testEventPublishing(ctx context.Context, t *testing.T, eventBus *events.Bus, eventCollector *testutil.EventCollector) {
 	// When a module performs an action, it should publish events

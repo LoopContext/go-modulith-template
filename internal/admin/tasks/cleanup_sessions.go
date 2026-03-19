@@ -40,7 +40,6 @@ func (t *CleanupExpiredSessionsTask) Execute(ctx context.Context) error {
 
 	count := result.RowsAffected()
 
-
 	slog.Info("Cleaned up expired sessions", "count", count)
 
 	return nil

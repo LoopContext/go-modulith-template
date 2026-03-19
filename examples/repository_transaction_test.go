@@ -5,9 +5,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 )
 
 // TestExampleRepositoryTransaction demonstrates testing repository transactions.
@@ -187,4 +187,3 @@ func testConcurrentTransactions(ctx context.Context, t *testing.T, db *pgxpool.P
 		t.Errorf("Expected 2 rows, got %d", count)
 	}
 }
-

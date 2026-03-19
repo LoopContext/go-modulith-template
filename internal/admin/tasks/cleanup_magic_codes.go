@@ -39,7 +39,6 @@ func (t *CleanupExpiredMagicCodesTask) Execute(ctx context.Context) error {
 
 	count := result.RowsAffected()
 
-
 	slog.Info("Cleaned up expired magic codes", "count", count)
 
 	return nil

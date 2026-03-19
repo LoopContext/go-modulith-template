@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // TestExampleFullModule demonstrates a complete end-to-end test for a module.
@@ -149,7 +149,6 @@ func setupRegistryFull(_ *testing.T, db *pgxpool.Pool, cfg *config.AppConfig, ev
 
 	return reg
 }
-
 
 func setupGRPCServerFull(t *testing.T, cfg *config.AppConfig, reg *registry.Registry) *testutil.GRPCTestServer {
 	grpcServer, err := testutil.NewGRPCTestServer(cfg, reg)

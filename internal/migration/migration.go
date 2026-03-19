@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/golang-migrate/migrate/v4"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/golang-migrate/migrate/v4"
 
 	// Import pgx5 driver for migrations
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"

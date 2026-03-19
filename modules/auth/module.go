@@ -9,7 +9,6 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
 	"github.com/cmelgarejo/go-modulith-template/internal/audit"
 	"github.com/cmelgarejo/go-modulith-template/internal/authtoken"
@@ -21,6 +20,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/service"
 	authSeed "github.com/cmelgarejo/go-modulith-template/modules/auth/resources/db/seed"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Config is an alias for backwards compatibility.
@@ -159,7 +159,6 @@ func (m *Module) Seed(ctx context.Context, r interface{}) error {
 	if err := authSeed.Seed(ctx, reg.DB(), cfg, reg.AuditLogger()); err != nil {
 		return fmt.Errorf("failed to seed auth module: %w", err)
 	}
-
 
 	return nil
 }

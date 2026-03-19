@@ -5,11 +5,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // TestExampleGRPCService demonstrates testing gRPC services end-to-end.

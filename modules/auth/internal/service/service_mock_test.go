@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
 	"github.com/cmelgarejo/go-modulith-template/internal/audit"
 	"github.com/cmelgarejo/go-modulith-template/internal/authtoken"
@@ -17,6 +16,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository/mocks"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/service"
+	"github.com/jackc/pgx/v5/pgtype"
 	"go.uber.org/mock/gomock"
 )
 
@@ -90,6 +90,7 @@ func TestRequestLogin_WithMock(t *testing.T) {
 }
 
 // TestCompleteLogin_WithMock demonstrates testing CompleteLogin with mocks
+//
 //nolint:funlen // Complex login flow requires comprehensive test cases
 func TestCompleteLogin_WithMock(t *testing.T) {
 	t.Parallel()

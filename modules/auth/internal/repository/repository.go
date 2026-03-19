@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/cmelgarejo/go-modulith-template/internal/outbox"
 	"github.com/cmelgarejo/go-modulith-template/internal/telemetry"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/db/store"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Repository defines the data access methods for the authentication module.

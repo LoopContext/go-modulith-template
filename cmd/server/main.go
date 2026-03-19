@@ -10,14 +10,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/cmelgarejo/go-modulith-template/cmd/server/commands"
 	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
 	"github.com/cmelgarejo/go-modulith-template/cmd/server/setup"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/migration"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
 )
 
@@ -79,7 +79,6 @@ func main() {
 	runServer(ctx, cfg, reg, stop)
 }
 
-
 func handleSubcommand(args []string) {
 	command := args[0]
 
@@ -125,7 +124,6 @@ func handleSeedSubcommand(command string, args []string) {
 	}
 }
 
-
 func initializeServices(ctx context.Context, cfg *config.AppConfig) (func(), *pgxpool.Pool) {
 	shutdownObs, err := observability.InitObservability(ctx, cfg)
 	if err != nil {
@@ -163,7 +161,6 @@ func handleSpecialFlags(dbDSN string, reg *registry.Registry) bool {
 	return false
 }
 
-
 func runServer(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry, stop context.CancelFunc) {
 	// Call module lifecycle OnStart hooks
 	if err := reg.OnStartAll(ctx); err != nil {
@@ -192,7 +189,6 @@ func runServer(ctx context.Context, cfg *config.AppConfig, reg *registry.Registr
 	setup.ShutdownServers(cfg, httpServer, grpcServer, reg.WebSocketHub())
 	// runServer returns after graceful shutdown, main() will exit with code 0
 }
-
 
 func closeGatewayConn(conn *grpc.ClientConn) {
 	if conn != nil {

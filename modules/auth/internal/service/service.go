@@ -17,7 +17,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/jackc/pgx/v5"
 	authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
 	"github.com/cmelgarejo/go-modulith-template/internal/audit"
 	"github.com/cmelgarejo/go-modulith-template/internal/authn"
@@ -29,6 +28,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/telemetry"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/db/store"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository"
+	"github.com/jackc/pgx/v5"
 	"go.jetify.com/typeid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

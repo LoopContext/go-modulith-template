@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // InitDB initializes and connects to the database pool.

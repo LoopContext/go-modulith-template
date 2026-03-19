@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
 	"github.com/cmelgarejo/go-modulith-template/internal/events"
 	"github.com/cmelgarejo/go-modulith-template/internal/migration"
@@ -12,6 +11,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestIntegration_SQLRepository_CreateUser(t *testing.T) {

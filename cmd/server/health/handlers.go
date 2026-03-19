@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const healthStatusHealthy = "healthy"

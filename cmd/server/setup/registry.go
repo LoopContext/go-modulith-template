@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/cmelgarejo/go-modulith-template/internal/audit"
 	"github.com/cmelgarejo/go-modulith-template/internal/cache"
 	"github.com/cmelgarejo/go-modulith-template/internal/config"
@@ -16,6 +15,7 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/registry"
 	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // CreateRegistry creates a new registry with all dependencies.
@@ -90,4 +90,3 @@ func RegisterModules(reg *registry.Registry) {
 	// Add more modules as needed:
 	// reg.Register(wallet.NewModule())
 }
-

@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
 	"github.com/cmelgarejo/go-modulith-template/internal/audit"
 	"github.com/cmelgarejo/go-modulith-template/internal/authn"
@@ -18,6 +16,8 @@ import (
 	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/db/store"
 	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository/mocks"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/grpc/metadata"
