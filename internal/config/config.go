@@ -381,6 +381,38 @@ func (c *AppConfig) OverrideWithEnv(sources map[string]string, sourceName string
 		c.Feeds.APIFootballKey = apiKey
 		sources["API_FOOTBALL_KEY"] = sourceName
 	}
+
+	// Valkey configuration
+	if addr := os.Getenv("VALKEY_ADDR"); addr != "" {
+		c.ValkeyAddr = addr
+		sources["VALKEY_ADDR"] = sourceName
+	}
+
+	if password := os.Getenv("VALKEY_PASSWORD"); password != "" {
+		c.ValkeyPassword = password
+		sources["VALKEY_PASSWORD"] = sourceName
+	}
+
+	if db := os.Getenv("VALKEY_DB"); db != "" {
+		if val, err := strconv.Atoi(db); err == nil {
+			c.ValkeyDB = val
+			sources["VALKEY_DB"] = sourceName
+		}
+	}
+
+	if poolSize := os.Getenv("VALKEY_POOL_SIZE"); poolSize != "" {
+		if val, err := strconv.Atoi(poolSize); err == nil {
+			c.ValkeyPoolSize = val
+			sources["VALKEY_POOL_SIZE"] = sourceName
+		}
+	}
+
+	if minIdle := os.Getenv("VALKEY_MIN_IDLE_CONNS"); minIdle != "" {
+		if val, err := strconv.Atoi(minIdle); err == nil {
+			c.ValkeyMinIdleConns = val
+			sources["VALKEY_MIN_IDLE_CONNS"] = sourceName
+		}
+	}
 }
 
 // overrideOAuthEnv handles OAuth-specific environment variables.
@@ -554,6 +586,25 @@ func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]
 	// Feeds from .env
 	c.overrideEnvVar("THE_ODDS_API_KEY", func(val string) { c.Feeds.TheOddsAPIKey = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("API_FOOTBALL_KEY", func(val string) { c.Feeds.APIFootballKey = val }, sources, systemEnvVars, sourceName)
+
+	// Valkey from .env
+	c.overrideEnvVar("VALKEY_ADDR", func(val string) { c.ValkeyAddr = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("VALKEY_PASSWORD", func(val string) { c.ValkeyPassword = val }, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("VALKEY_DB", func(val string) {
+		if v, err := strconv.Atoi(val); err == nil {
+			c.ValkeyDB = v
+		}
+	}, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("VALKEY_POOL_SIZE", func(val string) {
+		if v, err := strconv.Atoi(val); err == nil {
+			c.ValkeyPoolSize = v
+		}
+	}, sources, systemEnvVars, sourceName)
+	c.overrideEnvVar("VALKEY_MIN_IDLE_CONNS", func(val string) {
+		if v, err := strconv.Atoi(val); err == nil {
+			c.ValkeyMinIdleConns = v
+		}
+	}, sources, systemEnvVars, sourceName)
 
 	// OAuth configuration from .env
 	c.overrideOAuthEnvFromDotenv(sources, systemEnvVars, sourceName)

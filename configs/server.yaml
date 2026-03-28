@@ -29,6 +29,13 @@ write_timeout: 10s     # HTTP server write timeout
 request_timeout: 30s   # Request handler timeout (middleware)
 shutdown_timeout: 30s  # Graceful shutdown timeout
 
+# Valkey configuration (Replaces Redis)
+valkey_addr: localhost:6379
+valkey_password: ""
+valkey_db: 0
+valkey_pool_size: 10
+valkey_min_idle_conns: 2
+
 # Internationalization
 default_locale: en     # Default locale for i18n (en, es)
 

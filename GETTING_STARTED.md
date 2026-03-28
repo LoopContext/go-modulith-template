@@ -171,7 +171,7 @@ EOF
 
 > **Note:** If you used `just quickstart`, this step is already complete. Skip to Step 5.
 
-Start the required infrastructure services (PostgreSQL, Redis, etc.):
+Start the required infrastructure services (PostgreSQL, Valkey, etc.):
 
 ```bash
 just docker-up
@@ -180,7 +180,7 @@ just docker-up
 This starts:
 
 -   **PostgreSQL** - Main database (port 5432)
--   **Redis** - Cache and session storage (port 6379)
+-   **Valkey** - Cache and session storage (port 6379)
 -   **Jaeger** - Distributed tracing UI [http://localhost:16686](http://localhost:16686)
 -   **Prometheus** - Metrics collection [http://localhost:9090](http://localhost:9090)
 -   **Grafana** - Visualization dashboards ([http://localhost:3000](http://localhost:3000), user: `admin`, password: `admin`)
@@ -196,7 +196,7 @@ just doctor
 
 You should see all services in "Up" status.
 
-> **Tip:** To start only the database and Redis (faster startup), use `just docker-up-minimal`.
+> **Tip:** To start only the database and Valkey (faster startup), use `just docker-up-minimal`.
 
 ---
 

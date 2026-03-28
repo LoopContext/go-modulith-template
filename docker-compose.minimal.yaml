@@ -16,16 +16,16 @@ services:
     networks:
       - modulith-network
 
-  redis:
-    image: redis:7-alpine
-    container_name: modulith_redis
+  valkey:
+    image: valkey/valkey:8.0-alpine
+    container_name: modulith_valkey
     ports:
-      - "${REDIS_PORT:-6379}:6379"
-    command: redis-server --appendonly yes
+      - "${VALKEY_PORT:-6379}:6379"
+    command: valkey-server --appendonly yes
     volumes:
-      - redis_data:/data
+      - valkey_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -34,7 +34,7 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
+  valkey_data:
 
 networks:
   modulith-network:

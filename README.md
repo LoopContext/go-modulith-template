@@ -24,6 +24,7 @@ This is a professional template for building Go applications following the **Mod
 -   👷 **Worker Process**: Background process for asynchronous tasks, event consumers, and scheduled jobs.
 -   🔐 **Secrets Management**: Abstraction for secret management (env vars, Vault, AWS Secrets Manager).
 -   📊 **Complete Observability**: Local stack with Jaeger, Prometheus, and Grafana for development and debugging.
+-   ⚡ **High-Performance Caching**: Native support for **Valkey** (the truly open-source Redis alternative) for caching and sessions.
 -   📊 **Optional GraphQL**: Optional support with gqlgen for flexible and frontend-friendly APIs (subscriptions included).
 -   📧 **Notification System**: Templates + extensible providers (SendGrid, Twilio, AWS SES/SNS).
 -   🔑 **Complete Auth**: Passwordless login, sessions, refresh tokens, revocation, and profile management.
@@ -69,7 +70,7 @@ This will:
 4. Run database migrations
 5. Optionally run seed data
 
-> 💡 **Tip**: For a minimal setup (database + Redis only), use `just docker-up-minimal`.
+> 💡 **Tip**: For a minimal setup (database + Valkey only), use `just docker-up-minimal`.
 
 ### Manual Setup
 
@@ -98,12 +99,12 @@ just docker-up
 This starts:
 
 -   **PostgreSQL**: Main database
--   **Redis**: Cache and session storage
+-   **Valkey**: Cache and session storage
 -   **Jaeger**: Distributed tracing (UI at http://localhost:16686)
 -   **Prometheus**: Metrics and alerts (UI at http://localhost:9090)
 -   **Grafana**: Visualization dashboards (UI at http://localhost:3000, user: `admin`, password: `admin`)
 
-> 💡 **Tip**: To start only the database and Redis, use `just docker-up-minimal`.
+> 💡 **Tip**: To start only the database and Valkey, use `just docker-up-minimal`.
 
 #### 4. Configure (Optional)
 
@@ -159,7 +160,7 @@ See [environment variables documentation](docs/ENVIRONMENT.md) for more details.
 The template follows the **stateless processes** principle:
 
 -   ✅ **No local state:** No temporary files are written or state stored on disk
--   ✅ **State in external services:** Sessions in PostgreSQL, optional cache in Redis
+-   ✅ **State in external services:** Sessions in PostgreSQL, optional cache in Valkey
 -   ✅ **Horizontal scaling:** Any instance can handle any request
 -   ⚠️ **WebSocket:** Requires sticky sessions for scaling (see documentation)
 
@@ -274,8 +275,8 @@ open gen/openapiv2/proto/auth/v1/auth.swagger.json
 
 ### Docker
 
--   `just docker-up`: Starts all infrastructure services (PostgreSQL, Redis, Jaeger, Prometheus, Grafana).
--   `just docker-up-minimal`: Starts minimal services (PostgreSQL + Redis only) for faster startup.
+-   `just docker-up`: Starts all infrastructure services (PostgreSQL, Valkey, Jaeger, Prometheus, Grafana).
+-   `just docker-up-minimal`: Starts minimal services (PostgreSQL + Valkey only) for faster startup.
 -   `just docker-down`: Stops Docker containers.
 -   `just docker-build`: Builds the server Docker image (`modulith-server:latest`).
 -   `just docker-build-module MODULE_NAME`: Builds the Docker image for a specific module (e.g.: `just docker-build-module auth`).

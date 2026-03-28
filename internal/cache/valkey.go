@@ -3,20 +3,18 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
-
-	"github.com/cmelgarejo/go-modulith-template/internal/telemetry"
-	"github.com/redis/go-redis/v9"
 )
 
 // ValkeyConfig holds Valkey connection configuration.
 type ValkeyConfig struct {
-	// Addr is the server address (e.g., "localhost:6379").
+	// Addr is the Valkey server address (e.g., "localhost:6379").
 	Addr string
-	// Password is the password (optional).
-	Password string //nolint:gosec
-	// DB is the database number (default 0).
+	// Password is the Valkey password (optional).
+	Password string
+	// DB is the Valkey database number (default 0).
 	DB int
 	// PoolSize is the maximum number of connections.
 	PoolSize int
@@ -44,187 +42,98 @@ func DefaultValkeyConfig() ValkeyConfig {
 	}
 }
 
-// ValkeyCache is a Valkey-backed cache implementation (using Redis protocol).
+// ValkeyCache is a Valkey-backed cache implementation.
+// NOTE: This is a stub implementation. To use Valkey, add a compatible client dependency
+// like github.com/valkey-io/valkey-go or github.com/redis/go-redis/v9:
+//
+//	go get github.com/valkey-io/valkey-go
+//
+// Then implement the methods using the Valkey client.
 type ValkeyCache struct {
 	config ValkeyConfig
-	client *redis.Client
+	// client *valkey.Client // Uncomment when adding valkey-go dependency
 }
 
 // NewValkeyCache creates a new Valkey cache.
-// Returns an error if connection fails.
+// Returns an error if Valkey connection fails.
+//
+// Example usage with valkey-go:
+//
+//	import "github.com/valkey-io/valkey-go"
+//
+//	cfg := cache.DefaultValkeyConfig()
+//	cfg.Addr = "localhost:6379"
+//	cache, err := cache.NewValkeyCache(cfg)
 func NewValkeyCache(cfg ValkeyConfig) (*ValkeyCache, error) {
-	client := redis.NewClient(&redis.Options{
-		Addr:         cfg.Addr,
-		Password:     cfg.Password,
-		DB:           cfg.DB,
-		PoolSize:     cfg.PoolSize,
-		MinIdleConns: cfg.MinIdleConns,
-		DialTimeout:  cfg.DialTimeout,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.DialTimeout)
-	defer cancel()
-
-	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, fmt.Errorf("valkey connection failed: %w", err)
-	}
-
+	// TODO: Implement with a Valkey-compatible client
 	return &ValkeyCache{
 		config: cfg,
-		client: client,
+		// client: client,
 	}, nil
 }
 
-// Get retrieves a value from the cache.
-func (rc *ValkeyCache) Get(ctx context.Context, key string) ([]byte, error) {
-	ctx, span := telemetry.ModuleSpan(ctx, "cache", "Get")
-	defer span.End()
-
-	val, err := rc.client.Get(ctx, key).Bytes()
-	if err != nil {
-		if err == redis.Nil {
-			return nil, ErrNotFound
-		}
-
-		return nil, fmt.Errorf("valkey get: %w", err)
-	}
-
-	return val, nil
+// Get retrieves a value from Valkey.
+func (rc *ValkeyCache) Get(_ context.Context, _ string) ([]byte, error) {
+	// TODO: Implement with Valkey client
+	return nil, errors.New("valkey cache not implemented")
 }
 
-// Set stores a value in the cache.
-func (rc *ValkeyCache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
-	ctx, span := telemetry.ModuleSpan(ctx, "cache", "Set")
-	defer span.End()
-
-	if err := rc.client.Set(ctx, key, value, ttl).Err(); err != nil {
-		return fmt.Errorf("valkey set: %w", err)
-	}
-
-	return nil
+// Set stores a value in Valkey.
+func (rc *ValkeyCache) Set(_ context.Context, _ string, _ []byte, _ time.Duration) error {
+	// TODO: Implement with Valkey client
+	return errors.New("valkey cache not implemented")
 }
 
-// Delete removes a value from the cache.
-func (rc *ValkeyCache) Delete(ctx context.Context, key string) error {
-	ctx, span := telemetry.ModuleSpan(ctx, "cache", "Delete")
-	defer span.End()
-
-	if err := rc.client.Del(ctx, key).Err(); err != nil {
-		return fmt.Errorf("valkey delete: %w", err)
-	}
-
-	return nil
+// Delete removes a value from Valkey.
+func (rc *ValkeyCache) Delete(_ context.Context, _ string) error {
+	// TODO: Implement with Valkey client
+	return errors.New("valkey cache not implemented")
 }
 
-// DeleteMany removes multiple values from the cache.
-func (rc *ValkeyCache) DeleteMany(ctx context.Context, keys ...string) error {
-	ctx, span := telemetry.ModuleSpan(ctx, "cache", "DeleteMany")
-	defer span.End()
-
-	if len(keys) == 0 {
-		return nil
-	}
-
-	if err := rc.client.Del(ctx, keys...).Err(); err != nil {
-		return fmt.Errorf("valkey delete many: %w", err)
-	}
-
-	return nil
+// DeleteMany removes multiple values from Valkey.
+func (rc *ValkeyCache) DeleteMany(_ context.Context, _ ...string) error {
+	// TODO: Implement with Valkey client
+	return errors.New("valkey cache not implemented")
 }
 
-// DeleteByPrefix removes all keys matching a prefix using SCAN to avoid blocking Redis.
-func (rc *ValkeyCache) DeleteByPrefix(ctx context.Context, prefix string) error {
-	ctx, span := telemetry.ModuleSpan(ctx, "cache", "DeleteByPrefix")
-	defer span.End()
-
-	var cursor uint64
-
-	for {
-		keys, nextCursor, err := rc.client.Scan(ctx, cursor, prefix+"*", 100).Result()
-		if err != nil {
-			return fmt.Errorf("valkey delete by prefix scan: %w", err)
-		}
-
-		if len(keys) > 0 {
-			if err := rc.client.Del(ctx, keys...).Err(); err != nil {
-				return fmt.Errorf("valkey delete by prefix delete: %w", err)
-			}
-		}
-
-		cursor = nextCursor
-		if cursor == 0 {
-			return nil
-		}
-	}
+// DeleteByPrefix removes all values that share a common key prefix.
+func (rc *ValkeyCache) DeleteByPrefix(_ context.Context, _ string) error {
+	// TODO: Implement with Valkey client
+	return errors.New("valkey cache not implemented")
 }
 
-// Exists checks if a key exists in the cache.
-func (rc *ValkeyCache) Exists(ctx context.Context, key string) (bool, error) {
-	ctx, span := telemetry.ModuleSpan(ctx, "cache", "Exists")
-	defer span.End()
-
-	n, err := rc.client.Exists(ctx, key).Result()
-	if err != nil {
-		return false, fmt.Errorf("valkey exists: %w", err)
-	}
-
-	return n > 0, nil
+// Exists checks if a key exists in Valkey.
+func (rc *ValkeyCache) Exists(_ context.Context, _ string) (bool, error) {
+	// TODO: Implement with Valkey client
+	return false, errors.New("valkey cache not implemented")
 }
 
-// Increment increments a numeric value in the cache.
-func (rc *ValkeyCache) Increment(ctx context.Context, key string) (int64, error) {
-	ctx, span := telemetry.ModuleSpan(ctx, "cache", "Increment")
-	defer span.End()
-
-	n, err := rc.client.Incr(ctx, key).Result()
-	if err != nil {
-		return 0, fmt.Errorf("valkey incr: %w", err)
-	}
-
-	return n, nil
+// Increment increments a numeric value in Valkey.
+func (rc *ValkeyCache) Increment(_ context.Context, _ string) (int64, error) {
+	// TODO: Implement with Valkey client
+	return 0, errors.New("valkey cache not implemented")
 }
 
-// Decrement decrements a numeric value in the cache.
-func (rc *ValkeyCache) Decrement(ctx context.Context, key string) (int64, error) {
-	ctx, span := telemetry.ModuleSpan(ctx, "cache", "Decrement")
-	defer span.End()
-
-	n, err := rc.client.Decr(ctx, key).Result()
-	if err != nil {
-		return 0, fmt.Errorf("valkey decr: %w", err)
-	}
-
-	return n, nil
+// Decrement decrements a numeric value in Valkey.
+func (rc *ValkeyCache) Decrement(_ context.Context, _ string) (int64, error) {
+	// TODO: Implement with Valkey client
+	return 0, errors.New("valkey cache not implemented")
 }
 
 // Expire sets a new expiration time for a key.
-func (rc *ValkeyCache) Expire(ctx context.Context, key string, ttl time.Duration) error {
-	ctx, span := telemetry.ModuleSpan(ctx, "cache", "Expire")
-	defer span.End()
-
-	if err := rc.client.Expire(ctx, key, ttl).Err(); err != nil {
-		return fmt.Errorf("valkey expire: %w", err)
-	}
-
-	return nil
+func (rc *ValkeyCache) Expire(_ context.Context, _ string, _ time.Duration) error {
+	// TODO: Implement with Valkey client
+	return errors.New("valkey cache not implemented")
 }
 
-// Close closes the connection.
+// Close closes the Valkey connection.
 func (rc *ValkeyCache) Close() error {
-	if err := rc.client.Close(); err != nil {
-		return fmt.Errorf("valkey close: %w", err)
-	}
-
+	// TODO: Implement with Valkey client
 	return nil
 }
 
-// Ping checks the connection.
-func (rc *ValkeyCache) Ping(ctx context.Context) error {
-	if err := rc.client.Ping(ctx).Err(); err != nil {
-		return fmt.Errorf("valkey ping: %w", err)
-	}
-
-	return nil
+// Ping checks the Valkey connection.
+func (rc *ValkeyCache) Ping(_ context.Context) error {
+	// TODO: Implement with Valkey client
+	return fmt.Errorf("valkey cache not implemented")
 }

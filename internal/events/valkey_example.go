@@ -1,8 +1,10 @@
 // Package events provides event bus implementations.
 //
-// This file contains a complete example implementation of Redis Pub/Sub event bus.
-// To use this implementation, uncomment the code and add the dependency:
+// This file contains a complete example implementation of Valkey Pub/Sub event bus.
+// To use this implementation, uncomment the code and add a compatible dependency:
 //
+//	go get github.com/valkey-io/valkey-go
+//	OR
 //	go get github.com/redis/go-redis/v9
 package events
 
@@ -18,8 +20,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// RedisBusExample is a complete Redis Pub/Sub event bus implementation.
-type RedisBusExample struct {
+// ValkeyBusExample is a complete Valkey Pub/Sub event bus implementation.
+type ValkeyBusExample struct {
 	config   DistributedBusConfig
 	handlers map[string][]Handler
 	client   *redis.Client
@@ -27,26 +29,26 @@ type RedisBusExample struct {
 	mu       sync.RWMutex
 }
 
-// NewRedisBusExample creates a new Redis Pub/Sub event bus.
-func NewRedisBusExample(cfg DistributedBusConfig) (*RedisBusExample, error) {
+// NewValkeyBusExample creates a new Valkey Pub/Sub event bus.
+func NewValkeyBusExample(cfg DistributedBusConfig) (*ValkeyBusExample, error) {
 	if len(cfg.Brokers) == 0 {
-		return nil, errors.New("at least one Redis broker address required")
+		return nil, errors.New("at least one Valkey broker address required")
 	}
 
 	client := redis.NewClient(&redis.Options{
-		Addr: cfg.Brokers[0], // Use first broker as Redis address
+		Addr: cfg.Brokers[0], // Use first broker as Valkey address
 	})
 
 	// Test connection
 	ctx := context.Background()
 	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
+		return nil, fmt.Errorf("failed to connect to Valkey: %w", err)
 	}
 
 	// Create pubsub
 	pubsub := client.Subscribe(ctx, cfg.Topic)
 
-	return &RedisBusExample{
+	return &ValkeyBusExample{
 		config:   cfg,
 		handlers: make(map[string][]Handler),
 		client:   client,
@@ -55,15 +57,15 @@ func NewRedisBusExample(cfg DistributedBusConfig) (*RedisBusExample, error) {
 }
 
 // Subscribe registers a handler for a specific event name.
-func (rb *RedisBusExample) Subscribe(eventName string, handler Handler) {
+func (rb *ValkeyBusExample) Subscribe(eventName string, handler Handler) {
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
 
 	rb.handlers[eventName] = append(rb.handlers[eventName], handler)
 }
 
-// Publish sends an event to Redis Pub/Sub.
-func (rb *RedisBusExample) Publish(ctx context.Context, event Event) error {
+// Publish sends an event to Valkey Pub/Sub.
+func (rb *ValkeyBusExample) Publish(ctx context.Context, event Event) error {
 	// Serialize event
 	eventData := map[string]interface{}{
 		"name":    event.Name,
@@ -75,9 +77,9 @@ func (rb *RedisBusExample) Publish(ctx context.Context, event Event) error {
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
-	// Publish to Redis channel
+	// Publish to Valkey channel
 	if err := rb.client.Publish(ctx, rb.config.Topic, eventBytes).Err(); err != nil {
-		slog.ErrorContext(ctx, "Failed to publish event to Redis",
+		slog.ErrorContext(ctx, "Failed to publish event to Valkey",
 			"event", event.Name,
 			"error", err,
 		)
@@ -87,8 +89,8 @@ func (rb *RedisBusExample) Publish(ctx context.Context, event Event) error {
 	return nil
 }
 
-// Start begins consuming messages from Redis and dispatching to handlers.
-func (rb *RedisBusExample) Start(ctx context.Context) error {
+// Start begins consuming messages from Valkey and dispatching to handlers.
+func (rb *ValkeyBusExample) Start(ctx context.Context) error {
 	ch := rb.pubsub.Channel()
 
 	go func() {
@@ -105,8 +107,8 @@ func (rb *RedisBusExample) Start(ctx context.Context) error {
 	return nil
 }
 
-// dispatch dispatches a Redis message to registered handlers.
-func (rb *RedisBusExample) dispatch(ctx context.Context, msg *redis.Message) {
+// dispatch dispatches a Valkey message to registered handlers.
+func (rb *ValkeyBusExample) dispatch(ctx context.Context, msg *redis.Message) {
 	// Deserialize event
 	var eventData struct {
 		Name    string      `json:"name"`
@@ -147,8 +149,8 @@ func (rb *RedisBusExample) dispatch(ctx context.Context, msg *redis.Message) {
 	}
 }
 
-// Close closes the Redis connections.
-func (rb *RedisBusExample) Close() error {
+// Close closes the Valkey connections.
+func (rb *ValkeyBusExample) Close() error {
 	var errs []error
 
 	if rb.pubsub != nil {
