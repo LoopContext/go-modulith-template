@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/config"
+	"github.com/LoopContext/go-modulith-template/internal/config"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

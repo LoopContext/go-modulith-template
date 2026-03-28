@@ -117,7 +117,7 @@ CREATE INDEX IF NOT EXISTS idx_outbox_unpublished
 The outbox repository is in `internal/outbox/outbox.go`:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/outbox"
+import "github.com/LoopContext/go-modulith-template/internal/outbox"
 
 // Create outbox repository
 outboxRepo := outbox.NewRepository(db)
@@ -142,7 +142,7 @@ if err := tx.Commit(); err != nil {
 The outbox publisher reads events from the outbox table and publishes them:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/outbox"
+import "github.com/LoopContext/go-modulith-template/internal/outbox"
 
 // Create publisher
 publisher := outbox.NewPublisher(outboxRepo, func(ctx context.Context, eventName string, payload interface{}) {
@@ -266,8 +266,8 @@ import (
     "context"
     "time"
 
-    "github.com/cmelgarejo/go-modulith-template/internal/events"
-    "github.com/cmelgarejo/go-modulith-template/internal/outbox"
+    "github.com/LoopContext/go-modulith-template/internal/events"
+    "github.com/LoopContext/go-modulith-template/internal/outbox"
 )
 
 func startOutboxPublisher(ctx context.Context, outboxRepo *outbox.Repository, eventBus *events.Bus) {

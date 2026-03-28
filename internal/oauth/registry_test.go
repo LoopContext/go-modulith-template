@@ -3,7 +3,7 @@ package oauth
 import (
 	"testing"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/config"
+	"github.com/LoopContext/go-modulith-template/internal/config"
 )
 
 func TestNewRegistry_Disabled(t *testing.T) {

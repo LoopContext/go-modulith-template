@@ -7,11 +7,11 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
-	"github.com/cmelgarejo/go-modulith-template/cmd/server/setup"
-	"github.com/cmelgarejo/go-modulith-template/internal/config"
-	"github.com/cmelgarejo/go-modulith-template/internal/migration"
-	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/LoopContext/go-modulith-template/cmd/server/observability"
+	"github.com/LoopContext/go-modulith-template/cmd/server/setup"
+	"github.com/LoopContext/go-modulith-template/internal/config"
+	"github.com/LoopContext/go-modulith-template/internal/migration"
+	"github.com/LoopContext/go-modulith-template/internal/registry"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

@@ -12,7 +12,7 @@ import (
 	"github.com/markbates/goth/providers/microsoftonline"
 	"github.com/markbates/goth/providers/twitter"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/config"
+	"github.com/LoopContext/go-modulith-template/internal/config"
 )
 
 // providerDisplayNames maps provider names to display names.

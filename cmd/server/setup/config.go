@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/cmelgarejo/go-modulith-template/cmd/server/observability"
-	"github.com/cmelgarejo/go-modulith-template/internal/appversion"
-	"github.com/cmelgarejo/go-modulith-template/internal/config"
-	"github.com/cmelgarejo/go-modulith-template/internal/i18n"
+	"github.com/LoopContext/go-modulith-template/cmd/server/observability"
+	"github.com/LoopContext/go-modulith-template/internal/appversion"
+	"github.com/LoopContext/go-modulith-template/internal/config"
+	"github.com/LoopContext/go-modulith-template/internal/i18n"
 	"github.com/joho/godotenv"
 )
 

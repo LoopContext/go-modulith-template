@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/i18n"
+	"github.com/LoopContext/go-modulith-template/internal/i18n"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

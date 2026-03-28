@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/feature"
+	"github.com/LoopContext/go-modulith-template/internal/feature"
 )
 
 func TestInMemoryManager_BasicFlag(t *testing.T) {

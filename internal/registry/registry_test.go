@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/registry"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 )

@@ -68,7 +68,7 @@ type Notifier interface {
 ### Development (LogNotifier)
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/notifier"
+import "github.com/LoopContext/go-modulith-template/internal/notifier"
 
 ntf := notifier.NewLogNotifier()
 ntf.SendEmail(ctx, notifier.Message{
@@ -82,8 +82,8 @@ ntf.SendEmail(ctx, notifier.Message{
 
 ```go
 import (
-    "github.com/cmelgarejo/go-modulith-template/internal/notifier"
-    "github.com/cmelgarejo/go-modulith-template/internal/notifier/providers"
+    "github.com/LoopContext/go-modulith-template/internal/notifier"
+    "github.com/LoopContext/go-modulith-template/internal/notifier/providers"
 )
 
 // Create providers

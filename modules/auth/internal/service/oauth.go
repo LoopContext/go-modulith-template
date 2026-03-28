@@ -11,9 +11,9 @@ import (
 
 	"go.jetify.com/typeid"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/authtoken"
-	"github.com/cmelgarejo/go-modulith-template/internal/oauth"
-	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository"
+	"github.com/LoopContext/go-modulith-template/internal/authtoken"
+	"github.com/LoopContext/go-modulith-template/internal/oauth"
+	"github.com/LoopContext/go-modulith-template/modules/auth/internal/repository"
 )
 
 // OAuthService handles OAuth-related business logic.

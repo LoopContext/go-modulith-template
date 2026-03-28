@@ -215,9 +215,9 @@ package resolver
 import (
     "context"
 
-    "github.com/cmelgarejo/go-modulith-template/internal/graphql/generated"
-    pb "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
-    "github.com/cmelgarejo/go-modulith-template/internal/events"
+    "github.com/LoopContext/go-modulith-template/internal/graphql/generated"
+    pb "github.com/LoopContext/go-modulith-template/gen/go/proto/auth/v1"
+    "github.com/LoopContext/go-modulith-template/internal/events"
 )
 
 // authResolver contains auth module resolvers
@@ -360,7 +360,7 @@ The integration happens in `cmd/server/setup/gateway.go`:
 // cmd/server/setup/gateway.go
 
 import (
-    graphqlServer "github.com/cmelgarejo/go-modulith-template/internal/graphql"
+    graphqlServer "github.com/LoopContext/go-modulith-template/internal/graphql"
 )
 
 func Gateway(ctx context.Context, cfg *config.AppConfig, reg *registry.Registry, wsHub *websocket.Hub) (*http.ServeMux, *grpc.ClientConn, error) {

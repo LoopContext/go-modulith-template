@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/LoopContext/go-modulith-template/internal/registry"
 )
 
 type mockSeederRegistry struct {

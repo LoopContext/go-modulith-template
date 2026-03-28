@@ -4,7 +4,7 @@ package audit
 import (
 	"context"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/events"
 )
 
 // LogParams defines the data for an audit log entry.

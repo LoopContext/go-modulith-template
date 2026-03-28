@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
+	"github.com/LoopContext/go-modulith-template/internal/testutil"
 )
 
 func TestPostgresContainer(t *testing.T) {

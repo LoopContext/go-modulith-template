@@ -6,7 +6,7 @@ import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 import "buf/validate/validate.proto";
 
-option go_package = "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1;authv1";
+option go_package = "github.com/LoopContext/go-modulith-template/gen/go/proto/auth/v1;authv1";
 
 service AuthService {
   // RequestLogin initiates the login process by sending a magic code to email or phone

@@ -3,12 +3,12 @@ package registry
 import (
 	"net/http"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/audit"
-	"github.com/cmelgarejo/go-modulith-template/internal/cache"
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/feature"
-	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
-	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
+	"github.com/LoopContext/go-modulith-template/internal/audit"
+	"github.com/LoopContext/go-modulith-template/internal/cache"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/feature"
+	"github.com/LoopContext/go-modulith-template/internal/notifier"
+	"github.com/LoopContext/go-modulith-template/internal/websocket"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

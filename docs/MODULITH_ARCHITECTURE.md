@@ -372,7 +372,7 @@ The template provides a standardized error handling system in `internal/errors` 
 Instead of manually mapping each error to gRPC codes, we use typed domain errors:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/errors"
+import "github.com/LoopContext/go-modulith-template/internal/errors"
 
 // In the service
 func (s *Service) CreateUser(ctx context.Context, req *pb.Request) (*pb.Response, error) {
@@ -487,7 +487,7 @@ The template includes authorization helpers in `internal/authz` to implement rol
 #### Permission Verification
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/authz"
+import "github.com/LoopContext/go-modulith-template/internal/authz"
 
 func (s *Service) DeleteUser(ctx context.Context, req *pb.Request) (*pb.Response, error) {
     // Require specific permission
@@ -673,7 +673,7 @@ To eliminate OpenTelemetry boilerplate, the template provides helpers that simpl
 #### Spans by Layer
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/telemetry"
+import "github.com/LoopContext/go-modulith-template/internal/telemetry"
 
 // Service layer - auto-includes module and operation attributes
 func (s *Service) CreateUser(ctx context.Context, req *pb.Request) (*pb.Response, error) {
@@ -737,7 +737,7 @@ To avoid tight coupling between modules, we have an internal **Event Bus** (`int
 To avoid typos and improve autocomplete, the template includes typed constants for common events:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/events"
+import "github.com/LoopContext/go-modulith-template/internal/events"
 
 // In the service - using typed constants
 bus.Publish(ctx, events.Event{
@@ -1356,7 +1356,7 @@ The template provides comprehensive testing utilities to simplify integration te
 Create test registries easily with `testutil.NewTestRegistryBuilder()`:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/testutil"
+import "github.com/LoopContext/go-modulith-template/internal/testutil"
 
 func TestMyModule(t *testing.T) {
     // Set up test database (using testcontainers)
@@ -2130,7 +2130,7 @@ type Cache interface {
 ### Usage Example
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/cache"
+import "github.com/LoopContext/go-modulith-template/internal/cache"
 
 // Create in-memory cache
 mc := cache.NewMemoryCache()
@@ -2160,7 +2160,7 @@ To protect the system against cascading failures, the template includes resilien
 Implements the Circuit Breaker pattern for external services:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/resilience"
+import "github.com/LoopContext/go-modulith-template/internal/resilience"
 
 // Create circuit breaker
 config := resilience.DefaultCircuitBreakerConfig()
@@ -2206,7 +2206,7 @@ Feature flag system for gradual rollouts and A/B testing.
 ### Basic Usage
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/feature"
+import "github.com/LoopContext/go-modulith-template/internal/feature"
 
 // Create manager
 fm := feature.NewInMemoryManager()
@@ -2289,7 +2289,7 @@ gRPC errors include the code in the message: `[ERROR_CODE] message`
 ### Usage
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/errors"
+import "github.com/LoopContext/go-modulith-template/internal/errors"
 
 // Create error with specific code
 err := errors.WithCode(errors.CodeUserNotFound, "user not found")
@@ -2438,7 +2438,7 @@ import (
     "fmt"
     "log/slog"
 
-    "github.com/cmelgarejo/go-modulith-template/internal/admin"
+    "github.com/LoopContext/go-modulith-template/internal/admin"
 )
 
 type MyTask struct {
@@ -2577,7 +2577,7 @@ secret, err := provider.GetSecret(ctx, "DB_PASSWORD")
 ### Usage
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/secrets"
+import "github.com/LoopContext/go-modulith-template/internal/secrets"
 
 // Initialize provider (from configuration)
 var secretProvider secrets.Provider

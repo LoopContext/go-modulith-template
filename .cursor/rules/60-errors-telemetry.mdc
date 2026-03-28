@@ -10,7 +10,7 @@ Use domain error types instead of raw errors for better gRPC mapping and automat
 
 ```go
 import (
-    "github.com/cmelgarejo/go-modulith-template/internal/errors"
+    "github.com/LoopContext/go-modulith-template/internal/errors"
 )
 
 // Instead of:
@@ -47,7 +47,7 @@ if err := repo.CreateUser(ctx, id, email); err != nil {
 Use telemetry helpers for consistent tracing:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/telemetry"
+import "github.com/LoopContext/go-modulith-template/internal/telemetry"
 
 // Service layer
 func (s *Service) CreateUser(ctx context.Context, req *pb.Request) (*pb.Response, error) {
@@ -78,7 +78,7 @@ func (r *Repo) GetUser(ctx context.Context, id string) (*User, error) {
 Use typed event constants instead of strings:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/events"
+import "github.com/LoopContext/go-modulith-template/internal/events"
 
 // Instead of:
 bus.Publish(ctx, events.Event{

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/testutil"
 )
 
 const (

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/cache"
+	"github.com/LoopContext/go-modulith-template/internal/cache"
 	"golang.org/x/time/rate"
 )
 

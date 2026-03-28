@@ -97,7 +97,7 @@ rule_files:
 To add custom metrics, use the telemetry package:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/telemetry"
+import "github.com/LoopContext/go-modulith-template/internal/telemetry"
 
 // Register custom counter
 telemetry.Counter("custom_operations_total", "Description")

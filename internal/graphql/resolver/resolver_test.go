@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/websocket"
 )
 
 func TestNewRootResolver(t *testing.T) {

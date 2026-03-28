@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/events"
 )
 
 // Invalidator connects cache invalidation rules to the in-process event bus.

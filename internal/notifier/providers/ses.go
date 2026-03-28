@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
-	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
+	"github.com/LoopContext/go-modulith-template/internal/notifier"
 )
 
 // SESConfig holds configuration for the AWS SES provider.

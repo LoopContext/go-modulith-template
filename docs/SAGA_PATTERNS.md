@@ -48,7 +48,7 @@ The template provides a simple, in-memory saga orchestrator in `internal/saga` f
 ```go
 import (
     "context"
-    "github.com/cmelgarejo/go-modulith-template/internal/saga"
+    "github.com/LoopContext/go-modulith-template/internal/saga"
 )
 
 // Create a new saga

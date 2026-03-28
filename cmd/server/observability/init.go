@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/config"
+	"github.com/LoopContext/go-modulith-template/internal/config"
 )
 
 // InitObservability initializes all observability components (metrics, tracing).

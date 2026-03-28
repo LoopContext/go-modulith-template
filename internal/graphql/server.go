@@ -7,8 +7,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/websocket"
 )
 
 // Setup initializes and returns a GraphQL handler.

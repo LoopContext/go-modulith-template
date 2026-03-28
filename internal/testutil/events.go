@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/events"
 )
 
 // EventCollector collects events for testing.

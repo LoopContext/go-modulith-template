@@ -22,8 +22,8 @@ Use domain errors with i18n support:
 
 ```go
 import (
-    "github.com/cmelgarejo/go-modulith-template/internal/errors"
-    "github.com/cmelgarejo/go-modulith-template/internal/i18n"
+    "github.com/LoopContext/go-modulith-template/internal/errors"
+    "github.com/LoopContext/go-modulith-template/internal/i18n"
 )
 
 // In service layer - use domain errors with translation keys
@@ -61,7 +61,7 @@ func (s *Service) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.GetU
 When publishing events that trigger notifications, include locale in payload:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/i18n"
+import "github.com/LoopContext/go-modulith-template/internal/i18n"
 
 // Detect locale from context
 locale := i18n.LocaleFromContext(ctx)
@@ -88,7 +88,7 @@ The notification subscriber will automatically translate messages using the loca
 For custom messages or when you need direct translation:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/i18n"
+import "github.com/LoopContext/go-modulith-template/internal/i18n"
 
 // Simple translation
 message := i18n.T(ctx, cfg.DefaultLocale, "errors.user_not_found", nil)

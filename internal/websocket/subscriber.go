@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/events"
 )
 
 // Subscriber listens to the event bus and forwards events to WebSocket clients.

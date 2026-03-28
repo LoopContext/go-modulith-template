@@ -2,10 +2,10 @@
 package testutil
 
 import (
-	"github.com/cmelgarejo/go-modulith-template/internal/audit"
-	"github.com/cmelgarejo/go-modulith-template/internal/config"
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/LoopContext/go-modulith-template/internal/audit"
+	"github.com/LoopContext/go-modulith-template/internal/config"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/registry"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

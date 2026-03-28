@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
+	"github.com/LoopContext/go-modulith-template/internal/notifier"
 )
 
 func TestNewTemplateManager(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/events"
 )
 
 func TestNewSubscriber(t *testing.T) {

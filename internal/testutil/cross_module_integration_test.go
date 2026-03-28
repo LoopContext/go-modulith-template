@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
-	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
-	"github.com/cmelgarejo/go-modulith-template/modules/auth"
+	authv1 "github.com/LoopContext/go-modulith-template/gen/go/proto/auth/v1"
+	"github.com/LoopContext/go-modulith-template/internal/testutil"
+	"github.com/LoopContext/go-modulith-template/modules/auth"
 )
 
 func TestSetupCrossModuleTest(t *testing.T) {

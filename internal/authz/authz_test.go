@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/authn"
-	"github.com/cmelgarejo/go-modulith-template/internal/errors"
+	"github.com/LoopContext/go-modulith-template/internal/authn"
+	"github.com/LoopContext/go-modulith-template/internal/errors"
 )
 
 func TestRequirePermission(t *testing.T) {

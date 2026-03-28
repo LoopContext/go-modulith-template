@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/migration"
-	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/LoopContext/go-modulith-template/internal/migration"
+	"github.com/LoopContext/go-modulith-template/internal/registry"
 )
 
 // RunMigrationsForTest runs migrations for a test registry.

@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/registry"
+	"github.com/LoopContext/go-modulith-template/internal/registry"
 )
 
 // ModuleSeeder defines the interface for modules that provide seed data.

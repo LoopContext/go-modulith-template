@@ -144,10 +144,10 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/graphql/generated"
-	"github.com/cmelgarejo/go-modulith-template/internal/graphql/resolver"
-	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/graphql/generated"
+	"github.com/LoopContext/go-modulith-template/internal/graphql/resolver"
+	"github.com/LoopContext/go-modulith-template/internal/websocket"
 )
 
 // Setup initializes and returns a GraphQL handler.
@@ -206,8 +206,8 @@ if [ ! -f "${RESOLVER_DIR}/resolver.go" ] || grep -q "This is a stub file" "${RE
 package resolver
 
 import (
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/websocket"
 )
 
 // Resolver is the root resolver that implements all GraphQL operations.
@@ -263,15 +263,15 @@ if [ -f "${GATEWAY_FILE}" ]; then
         cp "${GATEWAY_FILE}" "${TEMP_FILE}"
 
         # Add import after websocket import if not present
-        if ! grep -q 'graphqlServer "github.com/cmelgarejo/go-modulith-template/internal/graphql"' "${TEMP_FILE}"; then
+        if ! grep -q 'graphqlServer "github.com/LoopContext/go-modulith-template/internal/graphql"' "${TEMP_FILE}"; then
             if [[ "$OSTYPE" == "darwin"* ]]; then
                 # macOS sed - add after websocket import
                 sed -i '' '/^[[:space:]]*"github.com\/cmelgarejo\/go-modulith-template\/internal\/websocket"$/a\
-	graphqlServer "github.com/cmelgarejo/go-modulith-template/internal/graphql"
+	graphqlServer "github.com/LoopContext/go-modulith-template/internal/graphql"
 ' "${TEMP_FILE}"
             else
                 # Linux sed
-                sed -i '/^[[:space:]]*"github.com\/cmelgarejo\/go-modulith-template\/internal\/websocket"$/a\	graphqlServer "github.com/cmelgarejo/go-modulith-template/internal/graphql"' "${TEMP_FILE}"
+                sed -i '/^[[:space:]]*"github.com\/cmelgarejo\/go-modulith-template\/internal\/websocket"$/a\	graphqlServer "github.com/LoopContext/go-modulith-template/internal/graphql"' "${TEMP_FILE}"
             fi
             echo "✅ Added GraphQL import to cmd/server/setup/gateway.go"
         fi

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/telemetry"
+	"github.com/LoopContext/go-modulith-template/internal/telemetry"
 )
 
 func TestNewCounter(t *testing.T) {

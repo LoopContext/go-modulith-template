@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/authn"
+	"github.com/LoopContext/go-modulith-template/internal/authn"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"

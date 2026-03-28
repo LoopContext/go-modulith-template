@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/resilience"
+	"github.com/LoopContext/go-modulith-template/internal/resilience"
 )
 
 var errService = errors.New("service error")

@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
+	"github.com/LoopContext/go-modulith-template/internal/notifier"
 )
 
 // SendGridConfig holds configuration for the SendGrid provider.

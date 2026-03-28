@@ -2,7 +2,7 @@
 package testutil
 
 import (
-	"github.com/cmelgarejo/go-modulith-template/internal/config"
+	"github.com/LoopContext/go-modulith-template/internal/config"
 )
 
 // TestConfig returns a minimal valid config for testing (RS256 JWT keys).

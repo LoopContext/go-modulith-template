@@ -9,8 +9,8 @@
 package resolver
 
 import (
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/websocket"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/websocket"
 )
 
 // RootResolver is the root resolver that implements all GraphQL operations.

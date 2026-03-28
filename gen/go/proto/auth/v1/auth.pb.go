@@ -2634,7 +2634,7 @@ const file_proto_auth_v1_auth_proto_rawDesc = "" +
 	"\x12ListLinkedAccounts\x12\".auth.v1.ListLinkedAccountsRequest\x1a#.auth.v1.ListLinkedAccountsResponse\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/auth/oauth/accounts\x12]\n" +
 	"\bRegister\x12\x18.auth.v1.RegisterRequest\x1a\x19.auth.v1.RegisterResponse\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/register\x12m\n" +
 	"\x0fGetSystemConfig\x12\x1f.auth.v1.GetSystemConfigRequest\x1a .auth.v1.GetSystemConfigResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/auth/config\x12\x99\x01\n" +
-	"\x18RequestEmailVerification\x12(.auth.v1.RequestEmailVerificationRequest\x1a).auth.v1.RequestEmailVerificationResponse\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/email/verify/requestBHZFgithub.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1;authv1b\x06proto3"
+	"\x18RequestEmailVerification\x12(.auth.v1.RequestEmailVerificationRequest\x1a).auth.v1.RequestEmailVerificationResponse\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/email/verify/requestBHZFgithub.com/LoopContext/go-modulith-template/gen/go/proto/auth/v1;authv1b\x06proto3"
 
 var (
 	file_proto_auth_v1_auth_proto_rawDescOnce sync.Once

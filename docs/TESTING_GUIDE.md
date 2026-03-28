@@ -170,7 +170,7 @@ func TestModule_Initialize(t *testing.T) {
 Use testcontainers for integration tests:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/testutil"
+import "github.com/LoopContext/go-modulith-template/internal/testutil"
 
 func TestWithDatabase(t *testing.T) {
     ctx := context.Background()

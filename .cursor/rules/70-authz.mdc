@@ -9,7 +9,7 @@ alwaysApply: false
 Use authz helpers for role-based access control:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/authz"
+import "github.com/LoopContext/go-modulith-template/internal/authz"
 
 func (s *Service) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) (*pb.DeleteUserResponse, error) {
     // Require specific permission
@@ -41,7 +41,7 @@ func (s *Service) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) (*p
 Define custom roles for your module:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/authz"
+import "github.com/LoopContext/go-modulith-template/internal/authz"
 
 func init() {
     authz.RegisterRole("moderator", []authz.Permission{

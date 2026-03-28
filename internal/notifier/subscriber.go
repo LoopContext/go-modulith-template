@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/i18n"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/i18n"
 )
 
 // Event names used for the notification bus

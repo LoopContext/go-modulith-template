@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/audit"
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/feature"
-	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
+	"github.com/LoopContext/go-modulith-template/internal/audit"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/feature"
+	"github.com/LoopContext/go-modulith-template/internal/testutil"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 )

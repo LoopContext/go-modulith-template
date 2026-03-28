@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/middleware"
+	"github.com/LoopContext/go-modulith-template/internal/middleware"
 )
 
 func TestLogging_BasicRequest(t *testing.T) {

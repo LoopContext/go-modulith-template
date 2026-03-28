@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/cache"
+	"github.com/LoopContext/go-modulith-template/internal/cache"
 )
 
 func TestMemoryCache_SetGet(t *testing.T) {

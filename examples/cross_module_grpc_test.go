@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
-	"github.com/cmelgarejo/go-modulith-template/modules/auth"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/testutil"
+	"github.com/LoopContext/go-modulith-template/modules/auth"
 )
 
 // setupGRPCTestServer sets up a gRPC test server with database and registry.

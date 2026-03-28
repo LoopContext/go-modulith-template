@@ -34,7 +34,7 @@ Clone this repository to use it as a template for your project:
 
 ```bash
 # Clone the repository
-git clone https://github.com/cmelgarejo/go-modulith-template.git my-project
+git clone https://github.com/LoopContext/go-modulith-template.git my-project
 cd my-project
 
 # Remove the existing git history (optional, if you want a fresh start)
@@ -106,7 +106,7 @@ If you want to change the Go module name, update `go.mod`:
 
 ```bash
 # Edit go.mod and change the module path
-# From: module github.com/cmelgarejo/go-modulith-template
+# From: module github.com/LoopContext/go-modulith-template
 # To:   module github.com/your-org/your-project
 ```
 
@@ -293,8 +293,8 @@ func RegisterModules(reg *registry.Registry) {
 ```go
 import (
     // ... existing imports ...
-    "github.com/cmelgarejo/go-modulith-template/modules/auth"
-    "github.com/cmelgarejo/go-modulith-template/modules/order"  // Add this line
+    "github.com/LoopContext/go-modulith-template/modules/auth"
+    "github.com/LoopContext/go-modulith-template/modules/order"  // Add this line
     // ... rest of imports ...
 )
 ```

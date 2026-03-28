@@ -33,7 +33,7 @@ go test ./... -cover 2>&1 | \
     # Extract package name and coverage
     if ($2 ~ /github.com/) {
       pkg = $2
-      gsub("github.com/cmelgarejo/go-modulith-template/", "", pkg)
+      gsub("github.com/LoopContext/go-modulith-template/", "", pkg)
       cov = $(NF-2)
 
       # Add emoji based on coverage
@@ -90,7 +90,7 @@ go tool cover -func=coverage.out | \
   sort -k3 -t' ' -rn | \
   head -10 | \
   awk -F':' '{
-    gsub("github.com/cmelgarejo/go-modulith-template/", "", $1)
+    gsub("github.com/LoopContext/go-modulith-template/", "", $1)
     split($0, arr, " ")
     coverage = arr[length(arr)]
     covnum = coverage
@@ -128,7 +128,7 @@ else
     grep -v "gen/" | \
     awk '{
       pkg = $2
-      gsub("github.com/cmelgarejo/go-modulith-template/", "", pkg)
+      gsub("github.com/LoopContext/go-modulith-template/", "", pkg)
       cov = $(NF-2)
       printf "  🔴  %-50s %s\n", pkg, cov
     }'

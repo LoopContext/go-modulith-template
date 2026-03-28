@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cmelgarejo/go-modulith-template/cmd/visualize/analyzer"
+	"github.com/LoopContext/go-modulith-template/cmd/visualize/analyzer"
 )
 
 var (

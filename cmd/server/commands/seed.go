@@ -5,8 +5,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/cmelgarejo/go-modulith-template/cmd/server/setup"
-	"github.com/cmelgarejo/go-modulith-template/internal/migration"
+	"github.com/LoopContext/go-modulith-template/cmd/server/setup"
+	"github.com/LoopContext/go-modulith-template/internal/migration"
 )
 
 // RunSeedCommand runs the seed command.

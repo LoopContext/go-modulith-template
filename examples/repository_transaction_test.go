@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
+	"github.com/LoopContext/go-modulith-template/internal/testutil"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -14,8 +14,8 @@ import (
 	reflect "reflect"
 	time "time"
 
-	store "github.com/cmelgarejo/go-modulith-template/modules/auth/internal/db/store"
-	repository "github.com/cmelgarejo/go-modulith-template/modules/auth/internal/repository"
+	store "github.com/LoopContext/go-modulith-template/modules/auth/internal/db/store"
+	repository "github.com/LoopContext/go-modulith-template/modules/auth/internal/repository"
 	gomock "go.uber.org/mock/gomock"
 )
 

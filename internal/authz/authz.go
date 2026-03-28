@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/authn"
-	"github.com/cmelgarejo/go-modulith-template/internal/errors"
+	"github.com/LoopContext/go-modulith-template/internal/authn"
+	"github.com/LoopContext/go-modulith-template/internal/errors"
 )
 
 // Permission represents a permission string (e.g., "users:read", "orders:write").

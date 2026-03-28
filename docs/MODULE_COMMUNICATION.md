@@ -86,7 +86,7 @@ In the modulith scenario, all modules run in a **single process** (`cmd/server/m
     // modules/order/internal/service/order_service.go
 
     import (
-        authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
+        authv1 "github.com/LoopContext/go-modulith-template/gen/go/proto/auth/v1"
         "google.golang.org/grpc"
     )
 
@@ -286,7 +286,7 @@ In the microservices scenario, each module runs as an **independent process** (`
 
     ```go
     // Use circuit breaker and retries
-    import "github.com/cmelgarejo/go-modulith-template/internal/resilience"
+    import "github.com/LoopContext/go-modulith-template/internal/resilience"
 
     cb := resilience.NewCircuitBreaker("auth-service", ...)
     retry := resilience.NewRetry(3, time.Second)
@@ -487,7 +487,7 @@ package service
 
 import (
     "context"
-    authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
+    authv1 "github.com/LoopContext/go-modulith-template/gen/go/proto/auth/v1"
     "google.golang.org/grpc"
     "google.golang.org/grpc/credentials/insecure"
 )
@@ -557,8 +557,8 @@ package service
 import (
     "context"
     "crypto/tls"
-    authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
-    "github.com/cmelgarejo/go-modulith-template/internal/resilience"
+    authv1 "github.com/LoopContext/go-modulith-template/gen/go/proto/auth/v1"
+    "github.com/LoopContext/go-modulith-template/internal/resilience"
     "google.golang.org/grpc"
     "google.golang.org/grpc/credentials"
 )
@@ -790,7 +790,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrder
 
 ```go
 // Use the template's error system
-import "github.com/cmelgarejo/go-modulith-template/internal/errors"
+import "github.com/LoopContext/go-modulith-template/internal/errors"
 
 if err != nil {
     // Map network errors to domain errors

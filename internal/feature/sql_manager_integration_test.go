@@ -4,12 +4,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/config"
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/feature"
-	"github.com/cmelgarejo/go-modulith-template/internal/migration"
-	"github.com/cmelgarejo/go-modulith-template/internal/registry"
-	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
+	"github.com/LoopContext/go-modulith-template/internal/config"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/feature"
+	"github.com/LoopContext/go-modulith-template/internal/migration"
+	"github.com/LoopContext/go-modulith-template/internal/registry"
+	"github.com/LoopContext/go-modulith-template/internal/testutil"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 )

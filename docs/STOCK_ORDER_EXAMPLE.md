@@ -61,7 +61,7 @@ package stock.v1;
 import "google/api/annotations.proto";
 import "buf/validate/validate.proto";
 
-option go_package = "github.com/cmelgarejo/go-modulith-template/gen/go/proto/stock/v1;stockv1";
+option go_package = "github.com/LoopContext/go-modulith-template/gen/go/proto/stock/v1;stockv1";
 
 service StockService {
   // Reserve stock for an order
@@ -288,7 +288,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/cmelgarejo/go-modulith-template/modules/stock/internal/db/store"
+	"github.com/LoopContext/go-modulith-template/modules/stock/internal/db/store"
 )
 
 type Repository interface {
@@ -435,11 +435,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	stockv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/stock/v1"
-	"github.com/cmelgarejo/go-modulith-template/internal/errors"
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/telemetry"
-	"github.com/cmelgarejo/go-modulith-template/modules/stock/internal/repository"
+	stockv1 "github.com/LoopContext/go-modulith-template/gen/go/proto/stock/v1"
+	"github.com/LoopContext/go-modulith-template/internal/errors"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/telemetry"
+	"github.com/LoopContext/go-modulith-template/modules/stock/internal/repository"
 )
 
 type StockService struct {
@@ -714,7 +714,7 @@ package order.v1;
 import "google/api/annotations.proto";
 import "buf/validate/validate.proto";
 
-option go_package = "github.com/cmelgarejo/go-modulith-template/gen/go/proto/order/v1;orderv1";
+option go_package = "github.com/LoopContext/go-modulith-template/gen/go/proto/order/v1;orderv1";
 
 service OrderService {
   // Create a new order
@@ -923,12 +923,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	orderv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/order/v1"
-	stockv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/stock/v1"
-	"github.com/cmelgarejo/go-modulith-template/internal/errors"
-	"github.com/cmelgarejo/go-modulith-template/internal/events"
-	"github.com/cmelgarejo/go-modulith-template/internal/telemetry"
-	"github.com/cmelgarejo/go-modulith-template/modules/order/internal/repository"
+	orderv1 "github.com/LoopContext/go-modulith-template/gen/go/proto/order/v1"
+	stockv1 "github.com/LoopContext/go-modulith-template/gen/go/proto/stock/v1"
+	"github.com/LoopContext/go-modulith-template/internal/errors"
+	"github.com/LoopContext/go-modulith-template/internal/events"
+	"github.com/LoopContext/go-modulith-template/internal/telemetry"
+	"github.com/LoopContext/go-modulith-template/modules/order/internal/repository"
 )
 
 type OrderService struct {

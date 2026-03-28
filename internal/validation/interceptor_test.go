@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	authv1 "github.com/cmelgarejo/go-modulith-template/gen/go/proto/auth/v1"
+	authv1 "github.com/LoopContext/go-modulith-template/gen/go/proto/auth/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

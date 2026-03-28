@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/outbox"
-	"github.com/cmelgarejo/go-modulith-template/internal/telemetry"
-	"github.com/cmelgarejo/go-modulith-template/modules/auth/internal/db/store"
+	"github.com/LoopContext/go-modulith-template/internal/outbox"
+	"github.com/LoopContext/go-modulith-template/internal/telemetry"
+	"github.com/LoopContext/go-modulith-template/modules/auth/internal/db/store"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"

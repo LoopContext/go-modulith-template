@@ -5,10 +5,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/config"
-	"github.com/cmelgarejo/go-modulith-template/internal/registry"
-	"github.com/cmelgarejo/go-modulith-template/internal/testutil"
-	"github.com/cmelgarejo/go-modulith-template/modules/auth"
+	"github.com/LoopContext/go-modulith-template/internal/config"
+	"github.com/LoopContext/go-modulith-template/internal/registry"
+	"github.com/LoopContext/go-modulith-template/internal/testutil"
+	"github.com/LoopContext/go-modulith-template/modules/auth"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/version"
+	"github.com/LoopContext/go-modulith-template/internal/version"
 )
 
 const (

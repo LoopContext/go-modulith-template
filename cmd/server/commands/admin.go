@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/cmelgarejo/go-modulith-template/cmd/server/setup"
-	"github.com/cmelgarejo/go-modulith-template/internal/admin"
-	adminTasks "github.com/cmelgarejo/go-modulith-template/internal/admin/tasks"
+	"github.com/LoopContext/go-modulith-template/cmd/server/setup"
+	"github.com/LoopContext/go-modulith-template/internal/admin"
+	adminTasks "github.com/LoopContext/go-modulith-template/internal/admin/tasks"
 )
 
 // RunAdminCommand runs the admin command.

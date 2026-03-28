@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
+	"github.com/LoopContext/go-modulith-template/internal/notifier"
 )
 
 // TwilioConfig holds configuration for the Twilio provider.

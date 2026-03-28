@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/saga"
+	"github.com/LoopContext/go-modulith-template/internal/saga"
 )
 
 // Mock services for demonstration

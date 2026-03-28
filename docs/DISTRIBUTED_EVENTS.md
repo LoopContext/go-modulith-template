@@ -127,7 +127,7 @@ go get github.com/segmentio/kafka-go
 2. Configure Kafka bus:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/events"
+import "github.com/LoopContext/go-modulith-template/internal/events"
 
 cfg := events.DefaultDistributedBusConfig()
 cfg.Brokers = []string{"kafka:9092"}
@@ -168,7 +168,7 @@ go get github.com/redis/go-redis/v9
 2. Configure Redis bus:
 
 ```go
-import "github.com/cmelgarejo/go-modulith-template/internal/events"
+import "github.com/LoopContext/go-modulith-template/internal/events"
 
 cfg := events.DefaultDistributedBusConfig()
 cfg.Brokers = []string{"redis:6379"}

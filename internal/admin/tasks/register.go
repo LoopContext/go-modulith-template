@@ -2,7 +2,7 @@
 package tasks
 
 import (
-	"github.com/cmelgarejo/go-modulith-template/internal/admin"
+	"github.com/LoopContext/go-modulith-template/internal/admin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

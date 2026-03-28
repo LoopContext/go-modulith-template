@@ -86,7 +86,7 @@ if [ -z "$SOURCE_PROTO" ]; then
 fi
 
 PROTO_FILENAME=$(basename "$SOURCE_PROTO")
-PROJECT_NAME="github.com/cmelgarejo/go-modulith-template"
+PROJECT_NAME="github.com/LoopContext/go-modulith-template"
 
 echo "📦 Creating new API version: $MODULE_NAME/$VERSION"
 echo "   Source: $SOURCE_PROTO"

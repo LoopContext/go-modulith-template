@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sns/types"
-	"github.com/cmelgarejo/go-modulith-template/internal/notifier"
+	"github.com/LoopContext/go-modulith-template/internal/notifier"
 )
 
 // SNSConfig holds configuration for the AWS SNS provider.

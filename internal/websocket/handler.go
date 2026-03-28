@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/cmelgarejo/go-modulith-template/internal/authn"
+	"github.com/LoopContext/go-modulith-template/internal/authn"
 	"github.com/gorilla/websocket"
 )
 
