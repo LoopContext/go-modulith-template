@@ -1,125 +1,109 @@
-# 🚀 Go-Modulith-Template
+# Go Modulith Template 🚀
 
-![Go Version](https://img.shields.io/badge/Go-1.25-blue.svg)
-![Architecture](https://img.shields.io/badge/Architecture-Modular_Monolith-green.svg)
-![License](https://img.shields.io/badge/License-MIT-gray.svg)
-![AI-Native](https://img.shields.io/badge/AI-Native_Development-blueviolet.svg)
+<p align="center">
+  <img src="docs/assets/hero.png" width="800" alt="Go Modulith Architecture">
+</p>
 
-A professional, high-performance **Modular Monolith ("Modulith")** boilerplate for Go (1.24/1.25+). This project establishes an architectural standard for building robust, scalable, and maintainable applications with a modern, strictly typed technology stack.
 
-> [!NOTE]
-> This is a **pure Go** project designed for operational excellence and high-speed development with AI-native tools like Cursor.
+![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-19.9%25-yellow)
+![Go](https://img.shields.io/badge/go-1.25+-blue)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
----
+This is a professional, production-ready template for building Go applications following the **Modular Monolith (Modulith)** pattern. Designed for high-performance, maintainability, and scalability, it allows your application to evolve from a monolith to microservices without architectural friction.
 
-## ✨ Core Pillars
+## ✨ Key Features
 
-### 🏛️ Modern Architecture
-- **In-Process gRPC**: Module communication via the gRPC stack with zero network overhead.
-- **Strict Isolation**: Explicit module boundaries ensuring that "a rotten module never infects the others".
-- **API First**: Protocol Buffers as the single source of truth for gRPC, REST (Gateway), and GraphQL.
-- **TypeID (UUIDv7)**: Lexicographically sortable, prefixed, and contextual identifiers (Stripe-style).
+-   🏗️ **Modular Architecture**: Clean domain boundaries with decoupling via an internal **Event Bus**.
+-   📦 **Registry Pattern**: Explicit dependency injection without magic for maximum control and testability.
+-   🔐 **gRPC & Protobuf**: High-performance, type-safe RPC communication with automated generation via `buf`.
+-   🗄️ **SQLC & Migrations**: Type-safe data access and multi-module schema management with `golang-migrate`.
+-   ⚡ **High-Performance Caching**: Native support for **Valkey** (the open-source Redis alternative) for sessions and rate limiting.
+-   🔐 **Complete Auth System**: Passwordless login, sessions, JWT, refresh tokens, and RBAC.
+-   🔗 **OAuth/Social Login**: Integrated with **Goth** for Google, Facebook, GitHub, Apple, Microsoft, and Twitter/X.
+-   🤖 **Messaging Bot Engine**: Built-in support for **WhatsApp** and **Telegram** provider integrations.
+-   🔌 **WebSocket Real-Time**: Bidirectional communication integrated with the event bus for instant notifications.
+-   📊 **Observability Stack**: Native integration with **OpenTelemetry**, Jaeger (Tracing), Prometheus (Metrics), and Grafana dashboards.
+-   ⚙️ **Flexible Configuration**: Hierarchy-based system (PORT > YAML > .env > system ENV > defaults) with source logging.
+-   ⚡ **Resilience & Errors**: Integrated circuit breakers, retries, and a domain-specific error system mapped to gRPC codes.
+-   📧 **Notification System**: Extensible providers (SendGrid, Twilio, AWS SES/SNS) with template support.
+-   📊 **Optional GraphQL**: Advanced support with gqlgen for flexible frontend APIs (subscriptions included).
+-   🧪 **Test Utilities**: Comprehensive suite (`internal/testutil`) for integration tests with **Testcontainers**, gRPC servers, and mocks.
+-   🛠️ **DevX Excellence**: Hot reload with **Air**, task automation with **Just**, and environment diagnostics with `doctor`.
 
-### 🛠️ Developer Experience (DX)
-- **AI-Native Rules**: +10 `.cursor/rules/` files to guide code generation, ensuring architectural consistency and code quality.
-- **Comprehensive Tooling**: `just` command-line toolkit for diagnostics (`doctor`), setup (`quickstart`), and daily development.
-- **Fast Scaffolding**: One command to create new functional modules with migrations, protos, and config.
-- **Hot Reload**: Advanced live-reloading server with `air`.
+## 🛠️ Prerequisites
 
-### 🛡️ Enterprise-Grade Features
-- **Security & RBAC**: Internal authorization system with role and permission-based access control.
-- **Saga & Outbox Patterns**: Robust handling of distributed transactions and event consistency.
-- **Resilience**: Integrated metrics, circuit breakers, and retry mechanisms.
-- **Observability**: First-class OpenTelemetry (OTel) support for Metrics and Distributed Tracing.
+-   Go 1.25+
+-   Docker & Docker Compose
+-   Development tools: `sqlc`, `buf`, `migrate`, `air`, `golangci-lint`, `just`.
 
----
+## 🚀 Quick Start
 
-## 🏗️ Technology Stack
+### 1. Automated Setup (Recommended)
 
-| Layer | Technology |
-| :--- | :--- |
-| **Language** | Go 1.25+ |
-| **API** | gRPC, Protocol Buffers, gRPC-Gateway (REST), GraphQL |
-| **Persistence** | PostgreSQL, SQLC (Type-safe SQL), golang-migrate |
-| **Infrastructure** | Docker Compose, Just (Task runner) |
-| **Observability** | OpenTelemetry, Prometheus, Jaeger, slog (Structured Logging) |
-| **Security** | JWT, OAuth (goth), Protovalidate |
-| **I18n** | go-i18n (Multi-language support) |
-
----
-
-## 📂 Project Structure
-
-```text
-├── cmd/               # Entrypoints (Monolith server, Worker, Visualizer)
-├── proto/             # API Definitions (Single Source of Truth)
-├── modules/           # Functional Business Modules (Auth, Stock, etc.)
-├── internal/          # Shared components (Saga, Outbox, Events, Telemetry)
-├── .cursor/rules/     # Architectural guidelines for AI assistants
-└── configs/           # Environment-specific YAML configurations
-```
-
----
-
-## ⚡ Quick Start
+The fastest way to get started is using the automated quickstart:
 
 ```bash
-# 1. Clone your new project
 git clone https://github.com/LoopContext/go-modulith-template.git my-project
 cd my-project
-
-# 2. Automated setup (installs deps, starts docker, runs migrations)
 just quickstart
+```
 
-# 3. Development with hot reload
+This will validate your environment, install missing tools, start the Docker stack, and run migrations.
+
+### 2. Manual Infrastructure
+
+To start the complete observability and persistence stack:
+
+```bash
+just docker-up
+```
+
+Starts: **PostgreSQL**, **Valkey**, **Jaeger**, **Prometheus**, and **Grafana**.
+
+### 3. Development Mode
+
+Run the monolith with hot reload (monitors code, proto, sql, and configs):
+
+```bash
 just dev
 ```
 
----
-
-## 📖 Key Modules & Features
-
-### 👤 Auth Module
-A complete authentication provider supporting:
-- **Magic Codes**: Passwordless authentication via email.
-- **OAuth Integration**: Link accounts from Google, GitHub, Facebook, and more.
-- **Session Management**: Secure, persistent user sessions.
-
-### 🔄 Distributed Patterns
-- **Events Bus**: Internal Pub/Sub for decoupled module communication.
-- **Outbox Pattern**: Ensures event consistency with database transactions.
-- **Saga Pattern**: Orchestrates complex flows (like order creation) across modules.
-
-### 🌐 Multiple API Flavors
-- **gRPC**: Native high-performance communication.
-- **REST**: Automatically exposed via `grpc-gateway`.
-- **GraphQL**: Subscriptions and flexible queries (via gqlgen).
-- **WebSocket**: Bidirectional real-time events.
-
----
-
-## 🧪 Testing & Quality
-
-We maintain a strict quality barrier:
-- **Testcontainers**: Real database integration tests.
-- **Strict Linting**: Comprehensive `golangci-lint` rules (MANDATORY).
-- **Mocking**: Automated mock generation for all module interfaces.
+Run a specific module (e.g., auth):
 
 ```bash
-just test-unit       # Fast unit tests
-just test-coverage   # Full coverage report
-just lint            # Quality validation
+just dev-module auth
 ```
 
+## 🏗️ Project Structure
+
+-   `cmd/`: Main entry points (server, worker, admin tasks, migration ops).
+-   `internal/`: Core shared services (registry, cache, events, authz, telemetry).
+-   `modules/`: Domain-specific modules (auth, stock, etc.). Each module is independent.
+-   `proto/`: Protobuf definitions for gRPC and Event schemas.
+-   `scripts/`: Utility scripts for DevX (scaffolding, validation, e2e).
+-   `web/`: Documentation site and optional frontend examples.
+
+## 📖 Complete Documentation
+
+-   **[Architecture Guide](docs/MODULITH_ARCHITECTURE.md)** - Patterns, internal communication, and error handling.
+-   **[Module Communication](docs/MODULE_COMMUNICATION.md)** - In-process vs Network gRPC and the Event Bus.
+-   **[OAuth/Social Integration](docs/OAUTH_INTEGRATION.md)** - Social login setup guide.
+-   **[Messaging Bot Engine](docs/NOTIFICATION_SYSTEM.md)** - WhatsApp and Telegram provider setup.
+-   **[Real-Time WebSocket](docs/WEBSOCKET_GUIDE.md)** - Bidirectional event broadcasting.
+-   **[GraphQL Integration](docs/GRAPHQL_INTEGRATION.md)** - Optional gqlgen setup.
+-   **[Deployment Guide](deployment/README.md)** - Kubernetes, Helm Charts, and IaC (OpenTofu).
+
+## 🛠️ Main Commands (`just`)
+
+-   `just proto`: Generate gRPC and OpenAPI code.
+-   `just sqlc`: Generate type-safe SQL code.
+-   `just new-module <name>`: Scaffold a new domain module.
+-   `just test`: Run all unit and integration tests.
+-   `just lint`: Run strict linter (MANDATORY for quality).
+-   `just visualize`: Generate a visual graph of module connections.
+-   `just admin TASK=<name>`: Execute maintenance tasks (e.g., `cleanup-sessions`).
+
 ---
 
-## 🧠 AI-Assisted Development
-
-This project is optimized for **Cursor** and **Windsurf**. The guidelines in `.cursor/rules/` ensure that your AI assistant understands the architecture, from TypeID generation to gRPC error handling.
-
-> [!TIP]
-> Just use "Chat" or "Composer" in Cursor and look at the project-specific rules in the status bar to see them in action.
-
----
-
-Made with ❤️ by the **LoopContext** team for developers seeking operational excellence.
+Made with ❤️ for developers seeking operational excellence.
