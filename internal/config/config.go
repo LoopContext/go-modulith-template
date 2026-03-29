@@ -101,7 +101,7 @@ type SeedUser struct {
 }
 
 // PlatformEmail returns the email of the platform-role user from the seed config.
-// Falls back to "system@opos.dev" if no platform user is configured.
+// Falls back to "system@loopcontext.dev" if no platform user is configured.
 func (s *SeedConfig) PlatformEmail() string {
 	for _, u := range s.Users {
 		if u.Role == "platform" {
@@ -109,7 +109,7 @@ func (s *SeedConfig) PlatformEmail() string {
 		}
 	}
 
-	return "system@opos.dev"
+	return "system@loopcontext.dev"
 }
 
 // E2EConfig contains configuration for E2E tests.

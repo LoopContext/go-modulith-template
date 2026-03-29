@@ -114,7 +114,7 @@ dev:
         exit 1; \
     fi
     @if tmux has-session -t template 2>/dev/null; then \
-        echo "Session 'opos' already exists. Attaching..."; \
+        echo "Session 'modulith' already exists. Attaching..."; \
         tmux attach-session -t template; \
     else \
         echo "Starting tmux session 'template' with 4 panes (FE/FE, Backend, Terminal)..."; \
@@ -638,7 +638,7 @@ be-graphql-validate:
 
 # Visualize module connections
 be-visualize format="html" serve="false":
-    @echo "🔍 Analyzing OPOS modulith architecture..."
+    @echo "🔍 Analyzing Modulith modulith architecture..."
     @if [ "{{serve}}" = "true" ]; then \
         go run ./cmd/visualize/main.go -format={{format}} -serve; \
     else \

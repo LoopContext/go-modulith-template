@@ -69,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   WebSocket guide (WEBSOCKET_GUIDE.md)
 -   GraphQL integration guide (GRAPHQL_INTEGRATION.md)
 -   Deployment guide (DEPLOYMENT_SYNC.md)
--   Frontend proposal (FRONTEND_PROPOSAL.md)
+-   Frontend prloopcontextal (FRONTEND_PRLoopContextAL.md)
 -   Getting started guide (GETTING_STARTED.md)
 -   Contributing guidelines (CONTRIBUTING.md)
 

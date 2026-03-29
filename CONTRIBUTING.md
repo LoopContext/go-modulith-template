@@ -124,9 +124,9 @@ When reporting a bug, include:
 3. **Go version**: `go version`
 4. **Relevant logs**: If applicable
 
-## 💡 Proposing Features
+## 💡 Prloopcontexting Features
 
-To propose new functionality:
+To prloopcontexte new functionality:
 
 1. **Open an issue** first to discuss it
 2. Explain the use case

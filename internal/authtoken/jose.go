@@ -81,8 +81,8 @@ func (s *Service) CreateToken(userID, role string, duration time.Duration) (stri
 		Expiry:    jwt.NewNumericDate(now.Add(duration)),
 		IssuedAt:  jwt.NewNumericDate(now),
 		NotBefore: jwt.NewNumericDate(now),
-		Issuer:    "opos-auth-service",
-		Audience:  []string{"opos-microservices", "opos-frontend"},
+		Issuer:    "loopcontext-auth-service",
+		Audience:  []string{"loopcontext-services", "loopcontext-frontend"},
 		ID:        jti,
 	}
 	privateClaims := map[string]interface{}{
