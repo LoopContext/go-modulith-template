@@ -107,17 +107,16 @@ dev-module name: (be-dev-module name)
 
 # Run admin panel E2E tests in UI mode
 
-# Run the monolith with live reload in a multi-pane tmux session (backend, admin, app)
-dev:
+# Run development server with automated setup
+dev: be-setup
     @if ! command -v tmux > /dev/null; then \
         echo "Error: tmux is not installed. Please install it first (e.g., brew install tmux)"; \
         exit 1; \
     fi
     @if tmux has-session -t template 2>/dev/null; then \
-        echo "Session 'modulith' already exists. Attaching..."; \
+        echo "Session 'template' already exists. Attaching..."; \
         tmux attach-session -t template; \
     else \
-        echo "Starting tmux session 'template' with 4 panes (FE/FE, Backend, Terminal)..."; \
         echo "Starting tmux session 'template' (Backend, Terminal)..."; \
         tmux new-session -d -s template -n services; \
         tmux set-option -t template mouse on; \
@@ -135,8 +134,20 @@ stop:
         tmux kill-session -t template; \
         echo "✅ Dev environment stopped."; \
     else \
-        echo "No active 'opos' tmux session found."; \
+        echo "No active 'template' tmux session found."; \
     fi
+
+# Run setup (infra + migrate + seed) non-interactively
+setup: be-setup
+
+# Run seed data
+seed-data: be-seed
+
+# Run example E2E flow to demonstrate the system
+example: be-example
+
+# Complete demo (setup + example)
+demo: setup be-example
 
 # Run tests
 test: be-test
@@ -251,6 +262,23 @@ be-docker-up-minimal:
 be-docker-down:
     docker-compose down
 
+# --- Backend: Setup & Automated Flow ---
+
+# Perform automated, non-interactive setup
+be-setup: be-docker-up-minimal
+    @./scripts/wait-for-db.sh
+    @echo "🚀 Applying migrations..."
+    @just be-migrate-up
+    @echo "🌱 Seeding initial data..."
+    @just be-seed
+    @echo "✅ Setup complete"
+
+# Run a representative example flow (E2E)
+be-example:
+    @echo "🚀 Running example E2E flow..."
+    @just be-test-e2e
+    @echo "✅ Example flow completed"
+
 # --- Backend: Testing ---
 
 # Run tests
@@ -353,33 +381,28 @@ be-pre-commit: be-format be-lint be-test-unit
 
 # --- Backend: Database & Migrations ---
 
-# Build the ops binary
-be-ops-build:
-    @echo "Building ops binary..."
-    go build -ldflags "{{LDFLAGS}}" -o bin/ops ./cmd/ops/main.go
-
-# Run all module migrations (uses lightweight ops binary)
-be-migrate-up: be-ops-build
+# Run all module migrations
+be-migrate-up:
     @echo "🚀 Running migrations for all modules..."
-    ./bin/ops migrate
+    go run ./cmd/server migrate
 
 # Alias for migrate-up
 be-migrate: be-migrate-up
 
-# Run seed data for all modules (uses lightweight ops binary)
-be-seed: be-ops-build
+# Run seed data for all modules
+be-seed:
     @echo "🌱 Running seed data for all modules..."
-    ./bin/ops seed
+    go run ./cmd/server seed
 
 # Run seed data for DEV environment
-be-seed-dev: be-ops-build
+be-seed-dev:
     @echo "🌱 Running seed data for DEV..."
-    ENV=dev ./bin/ops seed
+    ENV=dev go run ./cmd/server seed
 
 # Run seed data for PROD environment
-be-seed-prod: be-ops-build
+be-seed-prod:
     @echo "🌱 Running seed data for PROD..."
-    ENV=prod ./bin/ops seed
+    ENV=prod go run ./cmd/server seed
 
 # Run admin task (Server Admin)
 be-admin-task task:
@@ -387,14 +410,14 @@ be-admin-task task:
     go run ./cmd/server admin {{task}}
 
 # Rollback last migration for a specific module
-be-migrate-down module: be-ops-build
+be-migrate-down module:
     @MIGRATIONS_DIR=modules/{{module}}/resources/db/migration; \
     if [ ! -d "$$MIGRATIONS_DIR" ]; then \
         echo "Error: Module '{{module}}' not found or has no migrations directory"; \
         exit 1; \
     fi; \
     echo "⚠️  Rolling back last migration for module: {{module}}"; \
-    ./bin/ops migrate-down {{module}}
+    go run ./cmd/server migrate-down
 
 # Create a new migration file for a module
 be-migrate-create module name:
@@ -421,53 +444,58 @@ be-migrate-force module version:
     migrate -path $$MIGRATIONS_DIR -database "$$MODULE_DSN" force {{version}}
 
 # Rollback ALL migrations for all modules (drops all tables)
-be-db-down: be-ops-build
+be-db-down:
     #!/usr/bin/env bash
     echo "⚠️  WARNING: This will rollback ALL migrations for ALL modules (drops all tables)!"
     read -p "Are you sure? Type 'yes' to confirm: " confirm
     if [ "$confirm" == "yes" ]; then
         echo "🔄 Rolling back all migrations for all modules..."
-        ./bin/ops migrate-down
+        go run ./cmd/server migrate-down
     else
         echo "❌ Confirmation failed. Aborting."
         exit 1
     fi
 
 # FORCIBLY drop all module schemas (guaranteed clean state)
-be-db-nuke: be-ops-build
+be-db-nuke:
     #!/usr/bin/env bash
     echo "⚠️  WARNING: This will FORCIBLY DROP ALL SCHEMAS and ALL DATA for ALL modules!"
     read -p "Are you sure? Type 'yes' to confirm: " confirm
     if [ "$confirm" == "yes" ]; then
         echo "🔥 Nuking all module schemas..."
-        ./bin/ops migrate-nuke
+        # Note: migrate-nuke logic is currently not in server binary.
+        # This target should likely be updated once implemented.
+        echo "Error: migrate-nuke not yet implemented in server binary."
+        exit 1
     else
         echo "❌ Confirmation failed. Aborting."
         exit 1
     fi
 
 # FORCIBLY drop a specific module schema
-be-db-module-nuke module: be-ops-build
+be-db-module-nuke module:
     #!/usr/bin/env bash
     echo "⚠️  WARNING: This will FORCIBLY DROP SCHEMA and DATA for module '{{module}}'!"
     read -p "Are you sure? Type 'yes' to confirm: " confirm
     if [ "$confirm" == "yes" ]; then
         echo "🔥 Nuking module '{{module}}' schema..."
-        ./bin/ops migrate-nuke-module {{module}}
+        # Note: migrate-nuke-module logic is currently not in server binary.
+        echo "Error: migrate-nuke-module not yet implemented in server binary."
+        exit 1
     else
         echo "❌ Confirmation failed. Aborting."
         exit 1
     fi
 
 # Run migrations for a specific module
-be-db-module-migrate module: be-ops-build
+be-db-module-migrate module:
     @echo "🚀 Running migrations for module: {{module}}..."
-    ./bin/ops migrate-module {{module}}
+    go run ./cmd/server migrate
 
 # Run seed data for a specific module
-be-db-module-seed module: be-ops-build
+be-db-module-seed module:
     @echo "🌱 Running seed data for module: {{module}}..."
-    ./bin/ops seed-module {{module}}
+    go run ./cmd/server seed-module {{module}}
 
 # Drop all module schemas and re-run all migrations (destructive, asks for confirmation)
 be-db-reset:

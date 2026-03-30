@@ -1,0 +1,22 @@
+# Seeding users for development environment
+users:
+  - name: "Admin Template"
+    email: "admin@loopcontext.dev"
+    role: "admin"
+    phone: "+595981000001"
+    initial_balance: 1000.0
+    currency: "USD"
+
+  - name: "Platform Template"
+    email: "system@loopcontext.dev"
+    role: "platform"
+    phone: "+595981000002"
+    initial_balance: 50000.0
+    currency: "USD"
+
+  - name: "Regular User"
+    email: "user@loopcontext.dev"
+    role: "user"
+    phone: "+595981000003"
+    initial_balance: 100.0
+    currency: "USD"

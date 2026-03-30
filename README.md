@@ -39,27 +39,32 @@ This is a professional, production-ready template for building Go applications f
 
 ## 🚀 Quick Start
 
-### 1. Automated Setup (Recommended)
+### 1. Automated Setup & Run (Recommended)
 
-The fastest way to get started is using the automated quickstart:
+The fastest way to get started is using the integrated setup and run command:
 
 ```bash
 git clone https://github.com/LoopContext/go-modulith-template.git my-project
 cd my-project
-just quickstart
+just dev
 ```
 
-This will validate your environment, install missing tools, start the Docker stack, and run migrations.
+This single command will:
+1. Start the minimal Docker infrastructure (DB + Valkey).
+2. Wait for the database to be ready.
+3. Run all database migrations.
+4. Seed the database with test users (`admin`, `system`, `user`).
+5. Start the development server with **Hot Reload** in a tmux session.
 
-### 2. Manual Infrastructure
+### 2. See it in Action
 
-To start the complete observability and persistence stack:
+To run a complete representative flow (E2E) and see how the system handles Auth, Events, and Logic:
 
 ```bash
-just docker-up
+just example
 ```
 
-Starts: **PostgreSQL**, **Valkey**, **Jaeger**, **Prometheus**, and **Grafana**.
+> 💡 **Tip**: For a full "setup + example" demo in one go, use `just demo`.
 
 ### 3. Development Mode
 
@@ -99,6 +104,9 @@ just dev-module auth
 -   `just proto`: Generate gRPC and OpenAPI code.
 -   `just sqlc`: Generate type-safe SQL code.
 -   `just new-module <name>`: Scaffold a new domain module.
+-   `just setup`: Automated, non-interactive setup (infra + migrate + seed).
+-   `just example`: Run a representative example flow (E2E) to see the system in action.
+-   `just demo`: Complete end-to-end demo (setup + example).
 -   `just test`: Run all unit and integration tests.
 -   `just lint`: Run strict linter (MANDATORY for quality).
 -   `just visualize`: Generate a visual graph of module connections.
