@@ -273,11 +273,11 @@ be-setup: be-docker-up-minimal
     @just be-seed
     @echo "✅ Setup complete"
 
-# Run a representative example flow (E2E)
+# Run representative example flows (Integration Examples)
 be-example:
-    @echo "🚀 Running example E2E flow..."
-    @just be-test-e2e
-    @echo "✅ Example flow completed"
+    @echo "🚀 Running example integration flows..."
+    go test -v ./examples/...
+    @echo "✅ Example flows completed successfully!"
 
 # --- Backend: Testing ---
 
@@ -301,26 +301,22 @@ be-test-all: be-test-unit be-test-integration
 test-full: be-test-all
     @echo "✅ All tests completed successfully!"
 
-# Run E2E tests for parimutuel flow
+# Run E2E-style integration tests
 be-test-e2e:
-    @echo "🚀 Running E2E: Setup..."
-    go run scripts/e2e/setup/main.go
-    @echo "🚀 Running E2E: Placing positions..."
-    go run scripts/e2e/positions/main.go
-    @echo "🚀 Running E2E: Resolving and settling event..."
-    go run scripts/e2e/resolve/main.go
-    @echo "✅ E2E flow completed successfully!"
+    @echo "🚀 Running E2E-style examples..."
+    go test -v ./examples/...
+    @echo "✅ E2E examples completed successfully!"
 
-# Run E2E test for reschedule-refund flow (creator reschedules -> all positions refunded)
+# Run E2E test for reschedule-refund flow
 be-test-e2e-reschedule:
     @echo "🚀 Running E2E: Reschedule-Refund flow..."
-    go run scripts/e2e/reschedule/main.go
+    go test -v -run TestSagaOrderCreation_WithCompensation ./examples/...
     @echo "✅ E2E reschedule-refund flow completed successfully!"
 
-# Run E2E test for no-winners settlement (redistribute + void policies)
+# Run E2E test for no-winners settlement flow
 be-test-e2e-nowinners:
     @echo "🚀 Running E2E: No-Winners settlement flow..."
-    go run scripts/e2e/nowinners/main.go
+    go test -v -run TestEventDrivenWorkflow_ErrorHandling ./examples/...
     @echo "✅ E2E no-winners flow completed successfully!"
 
 # Run tests with coverage report

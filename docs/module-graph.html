@@ -142,7 +142,7 @@
     <div class="tooltip" id="tooltip"></div>
 
     <script>
-        const graphData = {"modules":[{"name":"auth","services":["AuthService"],"events":["notifier.magic_code_requested"]}],"connections":[{"from":"external","to":"auth","type":"grpc","service":"AuthService","direction":"inbound"}]};
+        const graphData = {"modules":[{"name":"auth","services":["AuthService"],"events":["name"]}],"connections":[{"from":"external","to":"auth","type":"grpc","service":"AuthService","direction":"inbound"}]};
 
         const container = document.getElementById('graph');
         const svg = d3.select("#graph");
