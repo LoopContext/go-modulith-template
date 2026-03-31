@@ -2,7 +2,8 @@ import { createSignal, onMount, onCleanup, createResource, Show, For } from 'sol
 import solidLogo from './assets/solid.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
-import { fetchCurrentUser, setupEventsWebSocket, User } from './api'
+import { fetchCurrentUser, setupEventsWebSocket } from './api'
+import type { User } from './api'
 import './App.css'
 
 function App() {

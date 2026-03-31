@@ -1,11 +1,11 @@
 export const API_BASE_URL = "http://localhost:8009";
 export const WS_BASE_URL = "ws://localhost:8009/ws";
 
-export interface User {
+export type User = {
   id: string;
   email: string;
   name: string;
-}
+};
 
 export const fetchCurrentUser = async (): Promise<User | null> => {
   try {
