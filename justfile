@@ -117,13 +117,15 @@ dev: be-setup
         echo "Session 'template' already exists. Attaching..."; \
         tmux attach-session -t template; \
     else \
-        echo "Starting tmux session 'template' (Backend, Terminal)..."; \
+        echo "Starting tmux session 'template' (Backend, Frontend, Console)..."; \
         tmux new-session -d -s template -n services; \
         tmux set-option -t template mouse on; \
         tmux set-option -t template history-limit 50000; \
-        tmux split-window -v -t template:services.0 -p 50 -d; \
+        tmux split-window -v -t template:services.0 -p 66 -d; \
+        tmux split-window -v -t template:services.1 -p 50 -d; \
         tmux send-keys -t template:services.0 "just be-dev" C-m; \
-        tmux select-pane -t template:services.1; \
+        tmux send-keys -t template:services.1 "just fe-dev" C-m; \
+        tmux select-pane -t template:services.2; \
         tmux attach-session -t template; \
     fi
 
@@ -271,6 +273,8 @@ be-setup: be-docker-up-minimal
     @just be-migrate-up
     @echo "🌱 Seeding initial data..."
     @just be-seed
+    @echo "📦 Installing frontend dependencies..."
+    @just fe-install
     @echo "✅ Setup complete"
 
 # Run representative example flows (Integration Examples)
@@ -296,6 +300,16 @@ be-test-integration:
 
 # Run all tests (unit + integration)
 be-test-all: be-test-unit be-test-integration
+
+# --- Frontend & Full Stack ---
+
+# Install frontend dependencies
+fe-install:
+    cd web/solid-example && pnpm install
+
+# Run frontend development server
+fe-dev:
+    cd web/solid-example && pnpm dev
 
 # Run all backend and frontend tests
 test-full: be-test-all

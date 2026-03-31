@@ -54,7 +54,8 @@ This single command will:
 2. Wait for the database to be ready.
 3. Run all database migrations.
 4. Seed the database with test users (`admin`, `system`, `user`).
-5. Start the development server with **Hot Reload** in a tmux session.
+5. Install frontend dependencies (`web/solid-example`).
+6. Start the **full stack (Backend + Frontend)** with **Hot Reload** in a 3-pane tmux session.
 
 ### 2. See it in Action
 
