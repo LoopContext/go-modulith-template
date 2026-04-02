@@ -25,7 +25,10 @@ doctor: be-doctor
 quickstart: be-quickstart
 
 # Install developer tools
-install-deps: be-install-deps
+install-deps: be-install-deps be-install-keploy
+
+# Install Keploy CLI (macOS/Linux)
+install-keploy: be-install-keploy
 
 # Run full docker-compose stack
 docker-up: be-docker-up
@@ -300,6 +303,34 @@ be-test-integration:
 
 # Run all tests (unit + integration)
 be-test-all: be-test-unit be-test-integration
+
+# --- Backend: Keploy (API Testing & Mocking) ---
+
+# Install Keploy CLI
+be-install-keploy:
+    @if command -v keploy > /dev/null; then \
+        echo "Keploy is already installed"; \
+    else \
+        echo "Installing Keploy CLI..."; \
+        curl --silent -O -L https://keploy.io/install.sh && bash install.sh; \
+        rm install.sh; \
+    fi
+
+# Record API test cases (requires Docker for eBPF on macOS)
+keploy-record:
+    @echo "🚀 Starting Keploy in record mode..."
+    @echo "💡 Tip: Make sure Docker is running on macOS."
+    keploy record -c "go run ./cmd/server"
+
+# Run recorded Keploy tests
+keploy-test:
+    @echo "🚀 Running Keploy tests..."
+    keploy test -c "go run ./cmd/server" --delay 10
+
+# Remove generated Keploy tests and mocks
+keploy-clean:
+    @echo "🧹 Cleaning Keploy artifacts..."
+    rm -rf keploy/
 
 # --- Frontend & Full Stack ---
 

@@ -16,3 +16,6 @@ coverage.out
 # build files
 bin/
 scripts/graphql-from-proto/graphql-from-proto
+
+# Keploy artifacts (user dapat decide whether to commit these)
+keploy/
