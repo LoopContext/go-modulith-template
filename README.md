@@ -110,7 +110,7 @@ just dev-module auth
 -   `just demo`: Complete end-to-end demo (setup + example).
 -   `just test`: Run all unit and integration tests.
 -   `just lint`: Run strict linter (MANDATORY for quality).
--   `just visualize`: Generate a visual graph of module connections.
+-   `just visualize`: Generate an interactive module graph (`docs/module-graph.html`) with **modules** (gRPC + event bus) and **database** (tables from migrations) views; also `FORMAT=json|dot` for machine-readable output.
 -   `just admin TASK=<name>`: Execute maintenance tasks (e.g., `cleanup-sessions`).
 
 ---

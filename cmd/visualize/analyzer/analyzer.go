@@ -1,4 +1,6 @@
 // Package analyzer analyzes the modulith codebase to extract module connections.
+//
+//nolint:revive,wrapcheck,gosec,gocognit,cyclop,gocritic,gocyclo,nestif,funlen,unparam // This is a dev tool, lenient linting
 package analyzer
 
 import (
@@ -17,9 +19,12 @@ type Graph struct {
 
 // Module represents a single module in the system.
 type Module struct {
-	Name     string   `json:"name"`
-	Services []string `json:"services"`
-	Events   []string `json:"events"`
+	Name           string              `json:"name"`
+	Services       []string            `json:"services"`
+	Events         []string            `json:"events"`
+	Tables         []string            `json:"tables"`
+	PublicMethods  []string            `json:"public_methods"`
+	ServiceMethods map[string][]string `json:"service_methods"` // Service Name -> []Method Name
 }
 
 // Connection represents a connection between modules.
@@ -91,11 +96,18 @@ func discoverModules(modulesDir string) ([]string, error) {
 	return modules, nil
 }
 
-func analyzeModule(projectRoot, moduleName, _ string) *Module {
+func analyzeModule(projectRoot, moduleName, modulePath string) *Module {
 	module := &Module{
-		Name:     moduleName,
-		Services: []string{},
-		Events:   []string{},
+		Name:           moduleName,
+		Services:       []string{},
+		Events:         []string{},
+		PublicMethods:  []string{},
+		ServiceMethods: make(map[string][]string),
+	}
+
+	// Analyze public endpoints from module.go
+	if publicMethods, err := analyzeModuleAuth(modulePath); err == nil {
+		module.PublicMethods = publicMethods
 	}
 
 	// Find proto files for this module (check subdirectories like v1/, v2/, etc.)
@@ -109,7 +121,10 @@ func analyzeModule(projectRoot, moduleName, _ string) *Module {
 		if strings.HasSuffix(path, ".proto") {
 			services, err := extractServicesFromProto(path)
 			if err == nil {
-				module.Services = append(module.Services, services...)
+				for sName, sMethods := range services {
+					module.Services = append(module.Services, sName)
+					module.ServiceMethods[sName] = sMethods
+				}
 			}
 		}
 
@@ -119,10 +134,92 @@ func analyzeModule(projectRoot, moduleName, _ string) *Module {
 		_ = err
 	}
 
+	// Analyze database tables
+	// Look in modules/{moduleName}/resources/db/migration
+	migrationDir := filepath.Join(projectRoot, "modules", moduleName, "resources", "db", "migration")
+
+	tables, err := analyzeDatabase(migrationDir)
+	if err == nil {
+		module.Tables = tables
+	}
+
 	return module
 }
 
-func extractServicesFromProto(protoFile string) ([]string, error) {
+func analyzeDatabase(migrationDir string) ([]string, error) {
+	var tables []string
+
+	seenTables := make(map[string]bool)
+
+	// Check if directory exists
+	if _, err := os.Stat(migrationDir); os.IsNotExist(err) {
+		return nil, nil // No migrations for this module
+	}
+
+	err := filepath.Walk(migrationDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		// Only look at .up.sql files
+		if !strings.HasSuffix(path, ".up.sql") {
+			return nil
+		}
+
+		extractedTables, err := extractTablesFromSQL(path)
+		if err != nil {
+			return nil // Skip file on error
+		}
+
+		for _, table := range extractedTables {
+			if !seenTables[table] {
+				tables = append(tables, table)
+				seenTables[table] = true
+			}
+		}
+
+		return nil
+	})
+
+	return tables, err
+}
+
+func extractTablesFromSQL(sqlFile string) ([]string, error) {
+	data, err := os.ReadFile(filepath.Clean(sqlFile))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read SQL file: %w", err)
+	}
+
+	var tables []string
+
+	content := string(data)
+
+	// Regex to match CREATE TABLE statements
+	// Matches: CREATE TABLE [IF NOT EXISTS] table_name
+	// Ignore case
+	tableRegex := regexp.MustCompile(`(?i)CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z0-9_]+)`)
+	matches := tableRegex.FindAllStringSubmatch(content, -1)
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			tables = append(tables, match[1])
+		}
+	}
+
+	// Also look for CREATE TYPE statements (enums)
+	typeRegex := regexp.MustCompile(`(?i)CREATE\s+TYPE\s+([a-zA-Z0-9_]+)`)
+	typeMatches := typeRegex.FindAllStringSubmatch(content, -1)
+
+	for _, match := range typeMatches {
+		if len(match) > 1 {
+			tables = append(tables, match[1]+" (TYPE)")
+		}
+	}
+
+	return tables, nil
+}
+
+func extractServicesFromProto(protoFile string) (map[string][]string, error) {
 	// Validate file path to prevent directory traversal
 	if !filepath.IsAbs(protoFile) {
 		absPath, err := filepath.Abs(protoFile)
@@ -138,22 +235,97 @@ func extractServicesFromProto(protoFile string) ([]string, error) {
 		return nil, fmt.Errorf("failed to read proto file: %w", err)
 	}
 
-	var services []string
+	services := make(map[string][]string)
 
 	lines := strings.Split(string(data), "\n")
+
+	var currentService string
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
+		// Detect service start
 		if strings.HasPrefix(line, "service ") {
 			// Extract service name: "service AuthService {"
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
 				serviceName := strings.TrimSuffix(parts[1], "{")
-				services = append(services, serviceName)
+				currentService = serviceName
+				services[currentService] = []string{}
+			}
+		} else if currentService != "" && strings.Contains(line, "rpc ") && strings.Contains(line, "(") {
+			// Very basic RPC detection: rpc Login(LoginRequest) returns (LoginResponse) {}
+			// or rpc Login (LoginRequest) returns (LoginResponse);
+			parts := strings.Fields(line)
+			if len(parts) >= 2 && parts[0] == "rpc" {
+				rpcName := parts[1]
+				// Handle "rpc Login(" case
+				if idx := strings.Index(rpcName, "("); idx != -1 {
+					rpcName = rpcName[:idx]
+				}
+
+				services[currentService] = append(services[currentService], rpcName)
+			}
+		} else if strings.Contains(line, "}") && currentService != "" {
+			// End of service block (naive but works for standard formatting)
+			if strings.HasPrefix(line, "}") {
+				currentService = ""
 			}
 		}
 	}
 
 	return services, nil
+}
+
+// analyzeModuleAuth scans the module directory for PublicEndpoints method.
+func analyzeModuleAuth(moduleDir string) ([]string, error) {
+	var publicMethods []string
+
+	// Look for module.go
+	moduleGo := filepath.Join(moduleDir, "module.go")
+	if _, err := os.Stat(moduleGo); err != nil {
+		return nil, err
+	}
+
+	data, err := os.ReadFile(moduleGo)
+	if err != nil {
+		return nil, err
+	}
+
+	content := string(data)
+
+	// Regex to find the return []string{ ... } block inside PublicEndpoints
+	// This is a bit brittle with regex but sufficient for this specific codebase convention.
+	// func (m *Module) PublicEndpoints() []string {
+	// 	return []string{
+	// 		"/auth.v1.AuthService/RequestLogin",
+	//      ...
+	// 	}
+	// }
+
+	// Find the start of the function
+	funcStart := strings.Index(content, "PublicEndpoints() []string")
+	if funcStart == -1 {
+		return nil, nil // Not implemented
+	}
+
+	// Extract the content after function definition
+	rest := content[funcStart:]
+
+	// Find strings starting with "/" inside quotes
+	// Matches: "/package.Service/Method"
+	re := regexp.MustCompile(`"(/[a-zA-Z0-9_./]+)"`)
+	matches := re.FindAllStringSubmatch(rest, -1)
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			// Ensure verify it looks like a gRPC path
+			if strings.Count(match[1], "/") >= 2 {
+				publicMethods = append(publicMethods, match[1])
+			}
+		}
+	}
+
+	return publicMethods, nil
 }
 
 //nolint:cyclop // Complex function needed to analyze proto connections
@@ -190,7 +362,6 @@ func analyzeProtoConnections(_ string, protoDir string, graph *Graph) error {
 		// Read proto file to find services
 		cleanPath := filepath.Clean(path)
 
-		//nolint:gosec
 		data, err := os.ReadFile(cleanPath)
 		if err != nil {
 			return nil
@@ -226,159 +397,179 @@ func analyzeProtoConnections(_ string, protoDir string, graph *Graph) error {
 	return nil
 }
 
-//nolint:gocognit,cyclop,funlen // Complex function needed to analyze event connections
+// analyzeEventConnections scans the codebase for event publications and subscriptions.
 func analyzeEventConnections(projectRoot, modulesDir string, graph *Graph) error {
 	// Map to track event publishers
 	eventPublishers := make(map[string]string) // event name -> module name
 
-	// First pass: find all event publications
-	err := filepath.Walk(modulesDir, func(path string, _ os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
+	internalDir := filepath.Join(projectRoot, "internal")
+	scanDirs := []string{modulesDir, internalDir}
 
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-
-		cleanPath := filepath.Clean(path)
-
-		//nolint:gosec
-		data, err := os.ReadFile(cleanPath)
-		if err != nil {
-			return nil
-		}
-
-		content := string(data)
-
-		// Find module name from path
-		relPath, err := filepath.Rel(modulesDir, path)
-		if err != nil {
-			return nil
-		}
-
-		parts := strings.Split(relPath, string(filepath.Separator))
-		if len(parts) < 1 {
-			return nil
-		}
-
-		moduleName := parts[0]
-
-		// Find Publish calls with event names
-		// Pattern: bus.Publish(ctx, events.Event{Name: "event.name", ...})
-		// Or: events.Event{Name: events.EventUserCreated, ...}
-		// Or: events.Event{Name: notifier.EventMagicCodeRequested, ...}
-		// Handle multi-line patterns - look for Name: field after Event{
-		publishRegex := regexp.MustCompile(`Event\s*\{[^}]*Name:\s*([^,}\n]+)`)
-
-		matches := publishRegex.FindAllStringSubmatch(content, -1)
-		for _, match := range matches {
-			if len(match) > 1 {
-				eventName := strings.TrimSpace(match[1])
-				eventName = strings.Trim(eventName, `"`)
-
-				// Handle constants from different packages
-				if strings.Contains(eventName, ".") {
-					// It's a constant like "events.EventUserCreated" or "notifier.EventMagicCodeRequested"
-					eventName = resolveEventConstant(projectRoot, eventName)
-				}
-
-				if eventName != "" {
-					eventPublishers[eventName] = moduleName
-					// Also add to module's events list
-					updateModuleEvents(graph, moduleName, eventName)
-				}
-			}
-		}
-
-		// Also look for direct string literals in Publish calls (multi-line aware)
-		publishStringRegex := regexp.MustCompile(`Name:\s*"([^"]+)"`)
-
-		matches2 := publishStringRegex.FindAllStringSubmatch(content, -1)
-		for _, match := range matches2 {
-			if len(match) > 1 {
-				eventName := match[1]
-				eventPublishers[eventName] = moduleName
-				updateModuleEvents(graph, moduleName, eventName)
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to walk modules directory: %w", err)
+	moduleMap := make(map[string]bool)
+	for _, m := range graph.Modules {
+		moduleMap[m.Name] = true
 	}
 
-	// Second pass: find subscriptions and create connections
-	if err := filepath.Walk(modulesDir, func(path string, _ os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
+	// First pass: find all event publications
+	for _, dir := range scanDirs {
+		_ = filepath.Walk(dir, func(path string, _ os.FileInfo, err error) error {
+			if err != nil || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
 
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
+			data, err := os.ReadFile(filepath.Clean(path))
+			if err != nil {
+				return nil
+			}
 
-		cleanPath := filepath.Clean(path)
+			content := string(data)
 
-		//nolint:gosec
-		data, err := os.ReadFile(cleanPath)
-		if err != nil {
-			return nil
-		}
+			// Find module name from path
+			relPath, _ := filepath.Rel(dir, path)
 
-		content := string(data)
+			parts := strings.Split(relPath, string(filepath.Separator))
+			if len(parts) < 1 {
+				return nil
+			}
 
-		// Find module name from path
-		relPath, err := filepath.Rel(modulesDir, path)
-		if err != nil {
-			return nil
-		}
+			moduleName := parts[0]
 
-		parts := strings.Split(relPath, string(filepath.Separator))
-		if len(parts) < 1 {
-			return nil
-		}
+			// Skip internal packages that don't map to modules
+			if dir == internalDir && !moduleMap[moduleName] {
+				return nil
+			}
 
-		moduleName := parts[0]
+			// Better multi-line regexes
+			patterns := []*regexp.Regexp{
+				// Event{Name: "..."}
+				regexp.MustCompile(`(?s)Event\s*\{[^}]*Name:\s*("([^"]+)"|([a-zA-Z0-9_.]+))`),
+				// .StoreOutbox(ctx, "...")
+				regexp.MustCompile(`(?s)StoreOutbox\s*\(\s*[^,]+\s*,\s*("([^"]+)"|([a-zA-Z0-9_.]+))`),
+				// .Publish(ctx, "...")
+				regexp.MustCompile(`(?s)Publish\s*\(\s*[^,]+\s*,\s*("([^"]+)"|([a-zA-Z0-9_.]+))`),
+				// audit.Log(...) always publishes EventAuditLogCreated
+				regexp.MustCompile(`(?s)audit\.Log\s*\(`),
+			}
 
-		// Find Subscribe calls
-		// Pattern: bus.Subscribe("event.name", handler)
-		// Or: eventBus.Subscribe(events.EventUserCreated, handler)
-		subscribeRegex := regexp.MustCompile(`\.Subscribe\(([^,)]+)`)
+			for _, re := range patterns {
+				matches := re.FindAllStringSubmatchIndex(content, -1)
+				for _, matchIdx := range matches {
+					eventName := ""
+					isConstant := false
 
-		matches := subscribeRegex.FindAllStringSubmatch(content, -1)
+					// Specific handling for audit.Log
+					if strings.Contains(re.String(), "audit\\.Log") {
+						eventName = "audit.log.created" // This is the value of EventAuditLogCreated
+					} else if matchIdx[4] != -1 {
+						eventName = content[matchIdx[4]:matchIdx[5]]
+					} else if matchIdx[6] != -1 {
+						eventName = content[matchIdx[6]:matchIdx[7]]
+						isConstant = true
+					}
 
-		for _, match := range matches {
-			if len(match) > 1 {
-				eventName := strings.Trim(match[1], `" `)
-				eventName = strings.Trim(eventName, `"`)
+					start := matchIdx[0]
 
-				// Handle string literals (already resolved)
-				if strings.HasPrefix(eventName, `"`) && strings.HasSuffix(eventName, `"`) {
-					eventName = strings.Trim(eventName, `"`)
-				} else if strings.Contains(eventName, ".") {
-					// It's a constant like "events.EventUserCreated" or "notifier.EventMagicCodeRequested"
-					eventName = resolveEventConstant(projectRoot, eventName)
-				}
+					lookBackLimit := 0
+					if start > 40 {
+						lookBackLimit = start - 40
+					}
 
-				if eventName != "" {
-					// Find publisher
-					if publisher, ok := eventPublishers[eventName]; ok && publisher != moduleName {
-						graph.Connections = append(graph.Connections, Connection{
-							From:  publisher,
-							To:    moduleName,
-							Type:  "event",
-							Event: eventName,
-						})
+					preceding := content[lookBackLimit:start]
+					if strings.Contains(preceding, "func ") || strings.Contains(preceding, "interface {") {
+						continue
+					}
+
+					if eventName == "" || eventName == "eventName" || eventName == "name" || eventName == "ctx" || eventName == "arg" || eventName == "event" {
+						continue
+					}
+
+					if isConstant && strings.Contains(eventName, ".") {
+						eventName = resolveEventConstant(projectRoot, eventName)
+					}
+
+					if eventName != "" {
+						eventPublishers[eventName] = moduleName
+						updateModuleEvents(graph, moduleName, eventName)
 					}
 				}
 			}
-		}
 
-		return nil
-	}); err != nil {
-		return fmt.Errorf("failed to walk modules directory for subscriptions: %w", err)
+			return nil
+		})
+	}
+
+	// Second pass: find subscriptions and create connections
+	for _, dir := range scanDirs {
+		_ = filepath.Walk(dir, func(path string, _ os.FileInfo, err error) error {
+			if err != nil || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+
+			data, _ := os.ReadFile(filepath.Clean(path))
+			content := string(data)
+
+			relPath, _ := filepath.Rel(dir, path)
+
+			parts := strings.Split(relPath, string(filepath.Separator))
+			if len(parts) < 1 {
+				return nil
+			}
+
+			moduleName := parts[0]
+
+			if dir == internalDir && !moduleMap[moduleName] {
+				return nil
+			}
+
+			re := regexp.MustCompile(`(?s)Subscribe\s*\(\s*("([^"]+)"|([a-zA-Z0-9_.]+))`)
+			matches := re.FindAllStringSubmatchIndex(content, -1)
+
+			for _, matchIdx := range matches {
+				eventName := ""
+				isConstant := false
+
+				if matchIdx[4] != -1 {
+					eventName = content[matchIdx[4]:matchIdx[5]]
+				} else if matchIdx[6] != -1 {
+					eventName = content[matchIdx[6]:matchIdx[7]]
+					isConstant = true
+				}
+
+				start := matchIdx[0]
+
+				lookBackLimit := 0
+				if start > 20 {
+					lookBackLimit = start - 20
+				}
+
+				if strings.Contains(content[lookBackLimit:start], "func ") {
+					continue
+				}
+
+				if eventName == "" || eventName == "eventName" || eventName == "name" || eventName == "event" {
+					continue
+				}
+
+				if isConstant && strings.Contains(eventName, ".") {
+					eventName = resolveEventConstant(projectRoot, eventName)
+				}
+
+				if eventName != "" {
+					if publisher, ok := eventPublishers[eventName]; ok {
+						if publisher != moduleName {
+							graph.Connections = append(graph.Connections, Connection{
+								From:  publisher,
+								To:    moduleName,
+								Type:  "event",
+								Event: eventName,
+							})
+						}
+					}
+				}
+			}
+
+			return nil
+		})
 	}
 
 	return nil
@@ -398,6 +589,11 @@ func determineConstantFile(projectRoot, constant string) (string, string) {
 	case strings.HasPrefix(constant, "events."):
 		typesFile := filepath.Join(projectRoot, "internal", "events", "types.go")
 		constantName := strings.TrimPrefix(constant, "events.")
+
+		return typesFile, constantName
+	case strings.HasPrefix(constant, "internalEvents."):
+		typesFile := filepath.Join(projectRoot, "internal", "events", "types.go")
+		constantName := strings.TrimPrefix(constant, "internalEvents.")
 
 		return typesFile, constantName
 	case strings.HasPrefix(constant, "notifier."):
@@ -437,7 +633,23 @@ func extractConstantValue(typesFile, constantName string) string {
 }
 
 func extractFromLine(line, constantName string) string {
-	if !strings.Contains(line, constantName+" = ") {
+	// Trim spaces to handle indentation
+	line = strings.TrimSpace(line)
+
+	// Check if line starts with constant name
+	if !strings.HasPrefix(line, constantName) {
+		return ""
+	}
+
+	rest := strings.TrimPrefix(line, constantName)
+
+	// Ensure exact match (next character must be whitespace or =)
+	if len(rest) > 0 && rest[0] != ' ' && rest[0] != '\t' && rest[0] != '=' {
+		return ""
+	}
+
+	// Check if followed by = (allowing for spaces/tabs)
+	if !strings.Contains(rest, "=") {
 		return ""
 	}
 

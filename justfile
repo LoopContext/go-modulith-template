@@ -708,7 +708,7 @@ be-graphql-validate:
 
 # Visualize module connections
 be-visualize format="html" serve="false":
-    @echo "🔍 Analyzing Modulith modulith architecture..."
+    @echo "🔍 Analyzing modulith architecture..."
     @if [ "{{serve}}" = "true" ]; then \
         go run ./cmd/visualize/main.go -format={{format}} -serve; \
     else \
