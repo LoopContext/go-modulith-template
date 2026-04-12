@@ -299,6 +299,8 @@ func generateHTML(graph *analyzer.Graph, projectName string) string {
         #graph:active { cursor: grabbing; }
         .node { cursor: pointer; }
         .node rect.bg { fill: white; stroke: #000; stroke-width: 1.5px; }
+        .node.gateway rect.bg { fill: #f0f4ff; stroke-dasharray: 4,2; }
+        .node.gateway .title { fill: #0044cc; }
         .node.event rect.bg { fill: #000; }
         .node text { font-family: 'JetBrains Mono', 'SF Mono', monospace; }
         .node .title { font-size: 13px; fill: #000; font-weight: 800; }
@@ -427,9 +429,9 @@ func generateHTML(graph *analyzer.Graph, projectName string) string {
 
                 graphData.connections.forEach(c => {
                     if (c.type === 'grpc') {
-                        if (c.from === 'external') {
-                            if (!nodeMap.has('external')) {
-                                nodeMap.set('external', {id: 'external', type: 'module', module: {name: 'gateway', services: []}, w: 150, h: 60});
+                        if (c.from === 'gateway') {
+                            if (!nodeMap.has('gateway')) {
+                                nodeMap.set('gateway', {id: 'gateway', type: 'gateway', module: {name: 'Gateway', services: []}, w: 150, h: 40});
                             }
                         }
                         const s = nodeMap.get(c.from);
@@ -524,9 +526,14 @@ func generateHTML(graph *analyzer.Graph, projectName string) string {
 
             node.each(function(d) {
                 const el = d3.select(this);
-                if (d.type === 'module') {
+                if (d.type === 'module' || d.type === 'gateway') {
                     el.append("rect").attr("class", "bg").attr("width", d.w).attr("height", d.h).attr("x", -d.w/2).attr("y", -d.h/2);
-                    el.append("text").attr("class", "title").attr("x", -d.w/2 + 10).attr("y", -d.h/2 + 16).text(d.id);
+                    const title = el.append("text").attr("class", "title").text(d.module.name || d.id);
+                    if (d.type === 'gateway') {
+                        title.attr("x", 0).attr("y", 0).attr("text-anchor", "middle").attr("dominant-baseline", "middle");
+                    } else {
+                        title.attr("x", -d.w/2 + 10).attr("y", -d.h/2 + 16);
+                    }
 
                     // In database view, show table list inside module node
                     if (currentView === 'database' && d.module.tables && d.module.tables.length > 0) {
@@ -545,6 +552,9 @@ func generateHTML(graph *analyzer.Graph, projectName string) string {
                         });
                     }
                     if (currentView === 'service') {
+                        if (d.type === 'gateway') {
+                             return; // No stats for API Clients
+                        }
                         const stats = el.append("g").attr("class", "stats").attr("transform", `+"`"+`translate(${-d.w/2 + 10}, ${-d.h/2 + 32})`+"`"+`);
                         const sCount = d.module.services?.length || 0;
                         const pubCount = sCount; // Total exposed services

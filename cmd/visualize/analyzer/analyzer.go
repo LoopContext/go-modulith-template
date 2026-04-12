@@ -377,7 +377,7 @@ func analyzeProtoConnections(_ string, protoDir string, graph *Graph) error {
 					serviceName = strings.TrimSuffix(parts[1], "{")
 					// Add connection: module exposes this service
 					graph.Connections = append(graph.Connections, Connection{
-						From:      "external",
+						From:      "gateway",
 						To:        moduleName,
 						Type:      "grpc",
 						Service:   serviceName,
