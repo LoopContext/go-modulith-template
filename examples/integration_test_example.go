@@ -11,7 +11,7 @@
 //
 //	go test -v -run Integration ./examples/...
 //
-// Or use the Makefile:
+// Or use just:
 //
 //	just test-integration
 package examples

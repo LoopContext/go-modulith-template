@@ -190,7 +190,7 @@ else
         echo "  Start Docker Desktop or docker service"
         ((ERRORS++))
     else
-        CONTAINERS=("modulith_db" "modulith_redis" "template_jaeger" "template_prometheus" "template_grafana")
+        CONTAINERS=("modulith_db" "modulith_valkey" "template_jaeger" "template_prometheus" "template_grafana")
         for container in "${CONTAINERS[@]}"; do
             if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container}$"; then
                 STATUS=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || echo "unknown")
@@ -225,7 +225,7 @@ echo ""
 check_port_detailed $(get_app_port_from_env "HTTP_PORT" "8000") "HTTP"
 check_port_detailed $(get_app_port_from_env "GRPC_PORT" "9000") "gRPC"
 check_container_port $(get_port_from_env "DB_PORT" "5432") "PostgreSQL" "modulith_db"
-check_container_port $(get_port_from_env "REDIS_PORT" "6379") "Valkey" "modulith_redis"
+check_container_port $(get_port_from_env "REDIS_PORT" "6379") "Valkey" "modulith_valkey"
 check_container_port $(get_port_from_env "JAEGER_UI_PORT" "16686") "Jaeger UI" "template_jaeger"
 check_container_port $(get_port_from_env "PROMETHEUS_PORT" "9090") "Prometheus" "template_prometheus"
 check_container_port $(get_port_from_env "GRAFANA_PORT" "3000") "Grafana" "template_grafana"
@@ -268,9 +268,9 @@ echo -e "${BLUE}Valkey Connectivity${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_redis"; then
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_valkey"; then
     echo -n "   - Valkey PING: "
-    if docker exec modulith_redis redis-cli ping > /dev/null 2>&1; then
+    if docker exec modulith_valkey valkey-cli ping > /dev/null 2>&1; then
         echo -e "${GREEN}✓${NC} connected"
     else
         echo -e "${RED}✗${NC} not ready"

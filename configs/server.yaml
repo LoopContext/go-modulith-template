@@ -29,7 +29,7 @@ write_timeout: 10s     # HTTP server write timeout
 request_timeout: 30s   # Request handler timeout (middleware)
 shutdown_timeout: 30s  # Graceful shutdown timeout
 
-# Valkey configuration (Replaces Redis)
+# Valkey configuration (Replaces Valkey)
 # valkey_addr: localhost:6379
 valkey_password: ""
 valkey_db: 0

@@ -465,7 +465,7 @@ The project also includes standalone E2E scripts in `scripts/e2e/` that run agai
 just dev                    # Terminal 1: start server
 just test-flow-e2e          # Terminal 2: setup → positions → resolve/settle
 just test-e2e-reschedule    # Reschedule triggers automated refund
-just test-e2e-nowinners     # No-winners settlement (redistribute + void policies)
+just test-e2e-nowinners     # No-winners settlement (valkeytribute + void policies)
 ```
 
 Each script: logs in as multiple actors (creator, admin, users), creates events, places positions, triggers settlement, and verifies wallet balances.

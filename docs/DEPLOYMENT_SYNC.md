@@ -258,7 +258,7 @@ helm install modulith-server ./deployment/helm/modulith
 **During run:**
 
 -   ✅ Loads configuration (YAML > .env > ENV vars)
--   ✅ Connects to external services (DB, Redis)
+-   ✅ Connects to external services (DB, Valkey)
 -   ✅ Executes migrations (if not executed in release)
 -   ✅ Starts HTTP/gRPC servers
 -   ✅ Ready to receive requests

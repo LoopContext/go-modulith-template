@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"{{.PROJECT_NAME}}/internal/authn"
+	"{{.PROJECT_NAME}}/internal/cache"
 	"{{.PROJECT_NAME}}/internal/config"
 	"{{.PROJECT_NAME}}/internal/events"
 	"{{.PROJECT_NAME}}/internal/migration"
@@ -114,6 +115,7 @@ func createRegistry(cfg *config.AppConfig, db *sql.DB) *registry.Registry {
 	ebus := events.NewBus()
 	wsHub := websocket.NewHub(context.Background())
 	ntf := notifier.NewLogNotifier()
+	memCache := cache.NewMemoryCache()
 
 	// Initialize subscribers
 	wsSubscriber := websocket.NewSubscriber(wsHub, ebus)
@@ -130,6 +132,7 @@ func createRegistry(cfg *config.AppConfig, db *sql.DB) *registry.Registry {
 		registry.WithEventBus(ebus),
 		registry.WithNotifier(ntf),
 		registry.WithWebSocketHub(wsHub),
+		registry.WithCache(memCache),
 	)
 }
 

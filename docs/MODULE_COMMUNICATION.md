@@ -41,7 +41,7 @@ In the modulith scenario, all modules run in a **single process** (`cmd/server/m
 │              └─────────────┘                    │
 │                                                 │
 │  ┌─────────────────────────────────────────┐    │
-│  │  Shared: DB, Redis, WebSocket Hub       │    │
+│  │  Shared: DB, Valkey, WebSocket Hub       │    │
 │  └─────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────┘
 ```
@@ -206,7 +206,7 @@ In the microservices scenario, each module runs as an **independent process** (`
         ┌───────────────────┼───────────────────┐
         │                   │                   │
   ┌─────▼─────┐      ┌─────▼─────┐      ┌─────▼─────┐
-  │ PostgreSQL │      │   Redis   │      │  Event Bus │
+  │ PostgreSQL │      │   Valkey   │      │  Event Bus │
   │  (Shared)  │      │  (Shared) │      │ (Kafka/...) │
   └────────────┘      └───────────┘      └────────────┘
 ```
@@ -321,7 +321,7 @@ In the microservices scenario, each module runs as an **independent process** (`
 
 **Features:**
 
--   ✅ **Distributed:** Events travel over network (Kafka, RabbitMQ, Redis Pub/Sub)
+-   ✅ **Distributed:** Events travel over network (Kafka, RabbitMQ, Valkey Pub/Sub)
 -   ✅ **Asynchronous:** Events are processed asynchronously
 -   ✅ **Durability:** Events persist in the broker
 -   ✅ **Scalable:** Multiple consumers can process events

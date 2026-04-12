@@ -6,61 +6,22 @@ This document tracks potential improvements and gaps that would enhance the temp
 
 ### Must Have (To Reach 10/10)
 
-1. Cross-module transaction patterns (Saga/Outbox)
-2. Testing patterns for cross-module interactions
-3. Operational observability templates (dashboards, alerts)
+1. Performance/caching patterns documentation
+2. Development workflow enhancements (deps-graph, etc.)
 
 ### Should Have
 
-4. Performance/caching patterns documentation
-5. Development workflow enhancements
-6. Production deployment patterns
+3. Production deployment patterns
+4. Testing patterns for cross-module interactions
 
 ### Nice to Have
 
-7. Security hardening examples
-8. Multi-tenancy patterns (if applicable)
+5. Security hardening examples
+6. Multi-tenancy patterns (if applicable)
 
 ---
 
-## 1. Cross-Module Transaction Patterns (High Priority)
-
-### Issue
-
-Single-module transactions are well-supported, but multi-module operations need clear patterns and guidance.
-
-### Real-World Scenario
-
-```go
-// Order module needs to:
-// 1. Create order (order module DB)
-// 2. Reserve inventory (inventory module DB)
-// 3. Charge payment (payment module DB)
-// 4. Send notification (event bus)
-// What if step 3 fails? Need compensation.
-```
-
-### What's Missing
-
--   Saga/Choreography pattern guidance and examples
--   Outbox pattern for reliable event publishing within transactions
--   Compensation transaction helpers/utilities
--   Distributed transaction documentation and patterns
-
-### Impact
-
-Teams will implement this ad-hoc, leading to inconsistency and potential bugs.
-
-### Implementation Notes
-
--   Document the Saga pattern approach (orchestration vs choreography)
--   Provide Outbox pattern implementation example
--   Add compensation transaction helpers to `internal/` if needed
--   Include examples in `examples/` directory
-
----
-
-## 2. Performance & Caching Patterns (Medium Priority)
+## 1. Performance & Caching Patterns (High Priority)
 
 ### Issue
 
@@ -71,7 +32,7 @@ Caching infrastructure exists but usage patterns and best practices are unclear.
 -   Cache-aside pattern examples
 -   Cache invalidation strategies (when user data changes in one module, invalidate cache in another)
 -   Cache warming strategies
--   Distributed cache coordination (Redis vs in-memory decisions)
+-   Distributed cache coordination (Valkey vs in-memory decisions)
 
 ### What's Missing
 
@@ -93,42 +54,9 @@ Teams will either over-cache (wasting memory) or under-cache (poor performance).
 
 ---
 
-## 3. Operational Observability (Medium Priority)
 
-### Issue
 
-Observability infrastructure is excellent, but actionable patterns and templates are missing.
-
-### Real-World Scenarios
-
--   What metrics to track per module?
--   Custom dashboards (Grafana templates)
--   Alerting rules (Prometheus alerts)
--   Distributed tracing best practices (sampling, baggage)
--   Log aggregation patterns
-
-### What's Missing
-
--   Pre-built Grafana dashboards (JSON templates)
--   Prometheus alert rule templates
--   Logging standards document (what to log, when)
--   Error tracking integration (Sentry, etc.)
--   Tracing sampling strategies
-
-### Impact
-
-Teams won't know what to monitor or how to set up effective alerts.
-
-### Implementation Notes
-
--   Create Grafana dashboard templates in `deployment/grafana/dashboards/`
--   Add Prometheus alert rules to `deployment/prometheus-alerts.yaml`
--   Create observability best practices guide
--   Document error tracking integration patterns
-
----
-
-## 4. Testing Patterns for Cross-Module (Medium Priority)
+## 3. Testing Patterns for Cross-Module (Medium Priority)
 
 ### Issue
 
@@ -278,24 +206,13 @@ Only relevant if multi-tenancy is a requirement.
 
 To reach a perfect 10/10, prioritize:
 
-1. **Saga/Outbox Pattern Documentation + Example**
+1. **Performance/Caching Patterns**
+    - `CACHING_PATTERNS.md` to explain how to use Valkey/In-memory cache.
 
-    - How to handle multi-module operations
-    - Compensation patterns
-    - Outbox pattern for reliable event publishing
+2. **Development Workflow Enhancements**
+    - `just deps-graph` rule to automatically generate module visualization graphs.
 
-2. **Cross-Module Testing Guide**
-
-    - How to test module A → module B via gRPC
-    - Event bus testing patterns
-    - Contract testing setup
-
-3. **Observability Templates**
-    - Pre-built Grafana dashboards
-    - Prometheus alert rules
-    - Logging standards document
-
-These three areas address the most common production challenges teams face.
+These areas address the remaining common production challenges.
 
 ---
 

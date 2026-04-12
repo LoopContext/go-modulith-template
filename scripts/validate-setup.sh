@@ -139,15 +139,15 @@ check_port() {
                 fi
                 ;;
             6379)
-                # Redis port - check if it's our container or any Redis service
-                if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_redis"; then
+                # Valkey port - check if it's our container or any Valkey service
+                if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_valkey"; then
                     echo -e "${GREEN}✓${NC} (our Docker container)"
                     return 0
                 fi
                 if command -v lsof > /dev/null 2>&1; then
                     local proc=$(lsof -Pi :$port -sTCP:LISTEN 2>/dev/null | tail -1 | awk '{print $1}' || echo "")
-                    if [ "$proc" = "redis-server" ] || [ "$proc" = "com.docker.backend" ] || [ "$proc" = "com.docker.proxy" ]; then
-                        echo -e "${GREEN}✓${NC} (Redis service)"
+                    if [ "$proc" = "valkey-server" ] || [ "$proc" = "com.docker.backend" ] || [ "$proc" = "com.docker.proxy" ]; then
+                        echo -e "${GREEN}✓${NC} (Valkey service)"
                         return 0
                     fi
                 fi
@@ -244,7 +244,7 @@ echo "Checking port availability..."
 check_port 8000 "HTTP"
 check_port 9000 "gRPC"
 check_port 5432 "PostgreSQL"
-check_port 6379 "Redis"
+check_port 6379 "Valkey"
 
 echo ""
 check_database

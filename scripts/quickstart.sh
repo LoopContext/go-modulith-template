@@ -103,11 +103,11 @@ if [ $WAIT_COUNT -eq $MAX_WAIT ]; then
     exit 1
 fi
 
-# Check Redis
-echo -n "Checking Redis connection... "
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_redis"; then
-    if docker exec modulith_redis redis-cli ping > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ Redis is ready${NC}"
+# Check Valkey
+echo -n "Checking Valkey connection... "
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "modulith_valkey"; then
+    if docker exec modulith_valkey valkey-cli ping > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ Valkey is ready${NC}"
     fi
 fi
 echo ""

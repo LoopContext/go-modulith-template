@@ -18,7 +18,7 @@ This is a professional, production-ready template for building Go applications f
 -   📦 **Registry Pattern**: Explicit dependency injection without magic for maximum control and testability.
 -   🔐 **gRPC & Protobuf**: High-performance, type-safe RPC communication with automated generation via `buf`.
 -   🗄️ **SQLC & Migrations**: Type-safe data access and multi-module schema management with `golang-migrate`.
--   ⚡ **High-Performance Caching**: Native support for **Valkey** (the open-source Redis alternative) for sessions and rate limiting.
+-   ⚡ **High-Performance Caching**: Native support for **Valkey** (the open-source Valkey alternative) for sessions and rate limiting.
 -   🔐 **Complete Auth System**: Passwordless login, sessions, JWT, refresh tokens, and RBAC.
 -   🔗 **OAuth/Social Login**: Integrated with **Goth** for Google, Facebook, GitHub, Apple, Microsoft, and Twitter/X.
 -   🤖 **Messaging Bot Engine**: Built-in support for **WhatsApp** and **Telegram** provider integrations.

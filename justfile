@@ -184,8 +184,9 @@ run: be-run
 # Clean build artifacts
 clean: be-clean
 
-# Visualize module connections
+# Visualize module connections (deps-graph)
 visualize: be-visualize
+deps-graph: be-visualize
 
 # --- Backend: Setup & Diagnostics ---
 

@@ -78,7 +78,7 @@ Distributed events are necessary when:
        │                        │
        │    ┌──────────────┐    │
        └───▶│ Message Broker│◀──┘
-            │  (Kafka/Redis) │
+            │  (Kafka/Valkey) │
             └──────────────┘
 ```
 
@@ -153,28 +153,28 @@ if err := kafkaBus.Start(ctx); err != nil {
 
 See `internal/events/kafka_example.go` for a complete implementation example.
 
-### Redis Pub/Sub Implementation
+### Valkey Pub/Sub Implementation
 
-Redis Pub/Sub is simpler and suitable for lower-volume, real-time events.
+Valkey Pub/Sub is simpler and suitable for lower-volume, real-time events.
 
 #### Setup
 
 1. Add dependency:
 
 ```bash
-go get github.com/redis/go-redis/v9
+go get github.com/valkey/go-redis/v9
 ```
 
-2. Configure Redis bus:
+2. Configure Valkey bus:
 
 ```go
 import "github.com/LoopContext/go-modulith-template/internal/events"
 
 cfg := events.DefaultDistributedBusConfig()
-cfg.Brokers = []string{"redis:6379"}
+cfg.Brokers = []string{"valkey:6379"}
 cfg.Topic = "modulith-events"
 
-redisBus, err := events.NewRedisBus(cfg)
+valkeyBus, err := events.NewValkeyBus(cfg)
 if err != nil {
     log.Fatal(err)
 }
@@ -182,7 +182,7 @@ if err != nil {
 
 #### Complete Example
 
-See `internal/events/redis_example.go` for a complete implementation example.
+See `internal/events/valkey_example.go` for a complete implementation example.
 
 ### AWS SNS/SQS Implementation (Optional)
 
@@ -207,7 +207,7 @@ For AWS deployments, you can use SNS for publishing and SQS for consuming.
 ```go
 // In cmd/server/setup/registry.go when creating the registry
 localBus := events.NewBus()
-distributedBus := events.NewKafkaBus(kafkaConfig) // or Redis
+distributedBus := events.NewKafkaBus(kafkaConfig) // or Valkey
 compositeBus := events.NewCompositeEventBus(localBus, distributedBus)
 
 reg := registry.New(
@@ -245,7 +245,7 @@ Use the test utilities to test distributed events:
 
 ```go
 func TestDistributedEvents(t *testing.T) {
-    // Set up test Kafka/Redis
+    // Set up test Kafka/Valkey
     // Create distributed bus
     // Publish events
     // Verify delivery across instances
@@ -316,7 +316,7 @@ dlqBus := events.NewKafkaBus(events.DistributedBusConfig{
 -   Events with the same key are ordered within a partition
 -   Use event key (e.g., user_id) for ordering
 
-**Redis Pub/Sub:**
+**Valkey Pub/Sub:**
 
 -   No ordering guarantees
 -   Use Kafka if ordering is critical
@@ -382,6 +382,6 @@ metrics.RecordEventProcessed(event.Name, duration)
 ## References
 
 -   [Kafka Documentation](https://kafka.apache.org/documentation/)
--   [Redis Pub/Sub Documentation](https://redis.io/docs/manual/pubsub/)
+-   [Valkey Pub/Sub Documentation](https://redis.io/docs/manual/pubsub/)
 -   [Event Sourcing Patterns](https://martinfowler.com/eaaDev/EventSourcing.html)
 -   See `internal/events/distributed.go` for implementation details

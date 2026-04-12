@@ -201,7 +201,7 @@ El template está diseñado para mantener **paridad entre desarrollo y producci�
 **1. Mismas Dependencias:**
 
 -   ✅ **Base de datos:** PostgreSQL 18 (misma versión en dev y prod)
--   ✅ **Redis:** Redis 7 (opcional, misma versión)
+-   ✅ **Valkey:** Valkey 7 (opcional, misma versión)
 -   ✅ **Go:** Go 1.24+ (misma versión de compilación)
 -   ✅ **Herramientas:** Versiones fijas en `go.mod` y `buf.lock`
 
@@ -226,8 +226,8 @@ El template está diseñado para mantener **paridad entre desarrollo y producci�
 db:
     image: postgres:18-alpine # ✅ Misma versión que producción
 
-redis:
-    image: redis:7-alpine # ✅ Misma versión que producción
+valkey:
+    image: valkey/valkey:8.0-alpine # ✅ Misma versión que producción
 ```
 
 **Recomendación:** Usar las mismas versiones de imágenes en producción (Kubernetes/Helm).
@@ -283,7 +283,7 @@ docker-compose up db  # postgres:18-alpine
 
 Antes de desplegar a producción:
 
--   [ ] Verificar que las versiones de DB/Redis coinciden con producción
+-   [ ] Verificar que las versiones de DB/Valkey coinciden con producción
 -   [ ] Validar que las migraciones funcionan en staging
 -   [ ] Ejecutar tests de integración con Docker Compose
 -   [ ] Verificar que la configuración de producción está documentada
@@ -304,4 +304,4 @@ Before deploying to production:
 -   [ ] Use secrets manager for sensitive values
 -   [ ] Review and adjust timeout values
 -   [ ] Test configuration loading and validation
--   [ ] Verify dev/prod parity (same DB/Redis versions)
+-   [ ] Verify dev/prod parity (same DB/Valkey versions)

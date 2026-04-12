@@ -137,8 +137,8 @@ Run the full E2E parimutuel flow (setup → positions → resolve/settle).
 Run E2E test for reschedule-refund flow (creator reschedules → all positions refunded).
 
 ### `just test-e2e-nowinners`
-Run E2E test for no-winners settlement policies (redistribute + void).
-Tests both scenarios sequentially: redistribute (partial refund minus 5% fee) and void (full refund).
+Run E2E test for no-winners settlement policies (valkeytribute + void).
+Tests both scenarios sequentially: valkeytribute (partial refund minus 5% fee) and void (full refund).
 
 ### `just test-coverage`
 Run tests and generate HTML coverage report (opens in browser).

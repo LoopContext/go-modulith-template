@@ -452,7 +452,7 @@ The WebSocket handler will automatically reject connections from origins not in 
 
 **Límite:** ~10,000 conexiones por instancia
 
-### Fase 2: Múltiples Instancias + Redis
+### Fase 2: Múltiples Instancias + Valkey
 
 ```
 ┌─────────────┐    ┌─────────────┐
@@ -463,13 +463,13 @@ The WebSocket handler will automatically reject connections from origins not in 
        └────────┬─────────┘
                 ↓
          ┌─────────────┐
-         │ Redis Pub/Sub│
+         │ Valkey Pub/Sub│
          └─────────────┘
 ```
 
 **Cambios necesarios:**
 
-1. Reemplazar `internal/events/bus.go` con Redis Pub/Sub
+1. Reemplazar `internal/events/bus.go` con Valkey Pub/Sub
 2. Mantener el resto del código sin cambios
 3. Escalar horizontalmente
 

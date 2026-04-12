@@ -112,7 +112,7 @@ PORT=8080  # 12-factor standard (toma precedencia sobre HTTP_PORT)
 **Implementación:**
 
 -   ✅ PostgreSQL como servicio adjunto
--   ✅ Redis como servicio adjunto (opcional)
+-   ✅ Valkey como servicio adjunto (opcional)
 -   ✅ Configuración via `DB_DSN` (puede cambiar sin cambiar código)
 -   ✅ Sin diferencia entre servicios locales y remotos
 
@@ -175,7 +175,7 @@ db, err := sql.Open("pgx", cfg.DBDSN)  // DB_DSN desde env
 
 -   ✅ Procesos completamente stateless
 -   ✅ Sin estado en sistema de archivos
--   ✅ Estado persistente en servicios externos (DB, Redis)
+-   ✅ Estado persistente en servicios externos (DB, Valkey)
 -   ✅ Cualquier instancia puede manejar cualquier request
 
 **Verificación:**
@@ -269,7 +269,7 @@ shutdown_timeout: 30s # Tiempo máximo para shutdown graceful
 
 **Implementación:**
 
--   ✅ Mismas versiones de dependencias (PostgreSQL 18, Redis 7)
+-   ✅ Mismas versiones de dependencias (PostgreSQL 18, Valkey 7)
 -   ✅ Mismas herramientas (golang-migrate, sqlc, buf)
 -   ✅ Mismo código base
 -   ✅ Diferencias solo en configuración
@@ -605,7 +605,7 @@ Antes de desplegar a producción, verificar:
 
 ### Dev/Prod Parity
 
--   [ ] Mismas versiones de DB/Redis
+-   [ ] Mismas versiones de DB/Valkey
 -   [ ] Mismas herramientas
 -   [ ] Tests ejecutados en ambiente similar
 

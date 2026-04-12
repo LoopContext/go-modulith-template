@@ -119,7 +119,7 @@ Advanced patterns for distributed systems and event-driven architecture.
 
 - **[DISTRIBUTED_EVENTS.md](./DISTRIBUTED_EVENTS.md)**
   - Event-driven architecture in distributed systems
-  - Event bus patterns (Redis, Kafka)
+  - Event bus patterns (Valkey, Kafka)
   - Event schema versioning
   - Migration strategies
 

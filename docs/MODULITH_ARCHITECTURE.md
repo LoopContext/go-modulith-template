@@ -730,7 +730,7 @@ To avoid tight coupling between modules, we have an internal **Event Bus** (`int
 -   **Pub/Sub Pattern:** Modules subscribe to events (e.g. `user.created`) without knowing who emits them.
 -   **Non-Blocking:** Event publication occurs in separate goroutines to avoid penalizing gRPC/HTTP response time.
 -   **Extensibility:** Facilitates adding side effects (auditing, notifications) without modifying the original service.
--   **Distributed Events:** For multi-instance deployments, see [Distributed Events Guide](DISTRIBUTED_EVENTS.md) for Kafka, Redis Pub/Sub, and other distributed implementations.
+-   **Distributed Events:** For multi-instance deployments, see [Distributed Events Guide](DISTRIBUTED_EVENTS.md) for Kafka, Valkey Pub/Sub, and other distributed implementations.
 
 ### Typed Events (`internal/events/types.go`)
 
@@ -2125,7 +2125,7 @@ type Cache interface {
 ### Implementations
 
 -   **MemoryCache:** In-memory cache with automatic cleanup of expired entries. Ideal for development and single-instance deployments.
--   **RedisCache:** Stub prepared for Redis. Add dependency `github.com/redis/go-redis/v9` to use.
+-   **ValkeyCache:** Stub prepared for Valkey. Add dependency `github.com/valkey/go-redis/v9` to use.
 
 ### Usage Example
 
@@ -2636,7 +2636,7 @@ The template is designed following the **stateless processes** principle of the 
 
     - ✅ **Sessions:** Stored in PostgreSQL (`sessions` table)
     - ✅ **Application data:** PostgreSQL
-    - ✅ **Cache (optional):** Redis (if configured)
+    - ✅ **Cache (optional):** Valkey (if configured)
     - ✅ **Logs:** Sent to stdout/stderr (captured by orchestrator)
 
 3. **Ephemeral state in memory:**
@@ -2677,7 +2677,7 @@ The **WebSocket Hub** maintains active connections in memory. This means:
     - Implementation: Configure `sessionAffinity` in Kubernetes Service
 
 2. **Alternative: Shared State (Advanced):**
-    - For scaling without sticky sessions, consider Redis Pub/Sub for WebSocket
+    - For scaling without sticky sessions, consider Valkey Pub/Sub for WebSocket
     - Implement distributed hub using `internal/events/distributed.go` as reference
     - Requires additional implementation (not included in base template)
 
@@ -2691,7 +2691,7 @@ The **WebSocket Hub** maintains active connections in memory. This means:
 **Startup:**
 
 1. Loads configuration from environment/YAML
-2. Connects to external services (DB, optional Redis)
+2. Connects to external services (DB, optional Valkey)
 3. Runs migrations (if necessary)
 4. Initializes modules
 5. Starts HTTP/gRPC servers
@@ -2736,7 +2736,7 @@ worker: go run cmd/worker/main.go
 Before adding new functionality, verify:
 
 -   [ ] Is any temporary file written? → **NO**
--   [ ] Is state stored in memory that must persist between restarts? → **NO** (use DB/Redis)
+-   [ ] Is state stored in memory that must persist between restarts? → **NO** (use DB/Valkey)
 -   [ ] Does it depend on local process state? → **NO** (any instance must work)
 -   [ ] Are sessions in shared DB? → **YES**
 -   [ ] Do logs go to stdout? → **YES**
@@ -2753,7 +2753,7 @@ The template is designed to scale horizontally through the **process model** of 
 
 ### Process Model
 
-The application runs as one or more **stateless processes** that share nothing or share only external services (DB, Redis).
+The application runs as one or more **stateless processes** that share nothing or share only external services (DB, Valkey).
 
 **Process Types:**
 
@@ -2819,7 +2819,7 @@ spec:
 
 **Alternative: Distributed Hub (Advanced)**
 
--   Implement distributed hub using Redis Pub/Sub
+-   Implement distributed hub using Valkey Pub/Sub
 -   Requires additional implementation (not included in base template)
 -   See `internal/events/distributed.go` as reference
 
@@ -2851,7 +2851,7 @@ db_conn_max_lifetime: 5m
 **Distributed Bus (Future):**
 
 -   Use `internal/events/distributed.go` as base
--   Implement with Kafka, RabbitMQ, or Redis Pub/Sub
+-   Implement with Kafka, RabbitMQ, or Valkey Pub/Sub
 -   Enables events between instances
 
 ### Scaling Process
