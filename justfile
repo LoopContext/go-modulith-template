@@ -699,7 +699,7 @@ be-graphql-generate-all:
 be-graphql-from-proto:
     ./scripts/graphql-from-proto-all.sh
 
-# Validate GraphQL schema (dummy, following Makefile)
+# Validate GraphQL schema (dummy)
 be-graphql-validate:
     @echo "GraphQL validation not implemented"
 

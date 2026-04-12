@@ -622,7 +622,7 @@ The system automatically validates configuration before starting:
 We use Docker Compose to start dependencies (Database).
 
 -   PostgreSQL port is configurable via `DB_PORT` in the host's `.env`.
--   Useful commands in `Makefile`: `just docker-up`, `just docker-down`.
+-   Useful commands in `justfile`: `just docker-up`, `just docker-down`.
 
 ## 12. Observability
 
@@ -1040,7 +1040,7 @@ The system:
 4. Each module maintains its own migration history
 5. **Automatic path resolution**: Migration paths are automatically resolved relative to the project root, making tests work seamlessly
 
-#### Makefile Commands
+#### Just Commands
 
 ```bash
 # Run all migrations for all modules

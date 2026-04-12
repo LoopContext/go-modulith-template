@@ -345,7 +345,7 @@ go run cmd/server/main.go seed
 ./bin/server admin cleanup-sessions
 ./bin/server admin cleanup-magic-codes
 
-# O con make
+# O con just
 just admin TASK=cleanup-sessions
 ```
 

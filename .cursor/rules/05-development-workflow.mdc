@@ -3,9 +3,9 @@ globs: "*"
 alwaysApply: true
 ---
 
-# Development Workflow & Make Commands
+# Development Workflow & Just Commands
 
-This project uses `make` commands for all development tasks. Always prefer `make` commands over direct tool invocations.
+This project uses `just` commands for all development tasks. Always prefer `just` commands over direct tool invocations.
 
 ## Quick Reference
 
@@ -86,4 +86,4 @@ just migrate-up
 ### Help
 
 -   **List all commands**: `just help`
--   **Full reference**: See `docs/MAKE_COMMANDS_REFERENCE.md`
+-   **Full reference**: See `docs/JUST_COMMANDS_REFERENCE.md`

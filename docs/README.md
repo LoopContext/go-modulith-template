@@ -7,7 +7,7 @@ Welcome to the Go Modulith Template documentation! This index organizes all docu
 **New to the project?** Start here:
 
 1. **[MODULITH_ARCHITECTURE.md](./MODULITH_ARCHITECTURE.md)** - Core architecture guide and implementation standards
-2. **[MAKE_COMMANDS_REFERENCE.md](./MAKE_COMMANDS_REFERENCE.md)** - Complete reference of all `make` commands
+2. **[JUST_COMMANDS_REFERENCE.md](./JUST_COMMANDS_REFERENCE.md)** - Complete reference of all `just` commands
 3. **[MODULE_COMMUNICATION.md](./MODULE_COMMUNICATION.md)** - How modules communicate (gRPC, events)
 
 ---
@@ -41,8 +41,8 @@ Essential reading for understanding the template's architecture and design princ
 
 Practical guides for day-to-day development.
 
-- **[MAKE_COMMANDS_REFERENCE.md](./MAKE_COMMANDS_REFERENCE.md)** ⭐
-  - Complete reference of all `make` commands
+- **[JUST_COMMANDS_REFERENCE.md](./JUST_COMMANDS_REFERENCE.md)** ⭐
+  - Complete reference of all `just` commands
   - Setup, code generation, development, testing
   - Database migrations, Docker, modules
   - API versioning, GraphQL, maintenance
@@ -184,7 +184,7 @@ Future improvements, research, and proposals.
 **I want to...**
 
 - **Understand the architecture** → [MODULITH_ARCHITECTURE.md](./MODULITH_ARCHITECTURE.md)
-- **Set up my development environment** → [MAKE_COMMANDS_REFERENCE.md](./MAKE_COMMANDS_REFERENCE.md) → Setup section
+- **Set up my development environment** → [JUST_COMMANDS_REFERENCE.md](./JUST_COMMANDS_REFERENCE.md) → Setup section
 - **Create a new module** → [MODULITH_ARCHITECTURE.md](./MODULITH_ARCHITECTURE.md) → Module scaffolding
 - **Understand module communication** → [MODULE_COMMUNICATION.md](./MODULE_COMMUNICATION.md)
 - **Write tests** → [TESTING_GUIDE.md](./TESTING_GUIDE.md)
@@ -200,7 +200,7 @@ Future improvements, research, and proposals.
 
 **Beginner:**
 1. [MODULITH_ARCHITECTURE.md](./MODULITH_ARCHITECTURE.md) - Start here
-2. [MAKE_COMMANDS_REFERENCE.md](./MAKE_COMMANDS_REFERENCE.md) - Learn the tools
+2. [JUST_COMMANDS_REFERENCE.md](./JUST_COMMANDS_REFERENCE.md) - Learn the tools
 3. [MODULE_COMMUNICATION.md](./MODULE_COMMUNICATION.md) - Understand communication
 4. [TESTING_GUIDE.md](./TESTING_GUIDE.md) - Learn testing
 
@@ -256,7 +256,7 @@ Please open an issue or submit a pull request to improve the documentation.
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
 | [MODULITH_ARCHITECTURE.md](./MODULITH_ARCHITECTURE.md) | Core architecture | First read |
-| [MAKE_COMMANDS_REFERENCE.md](./MAKE_COMMANDS_REFERENCE.md) | Command reference | Daily use |
+| [JUST_COMMANDS_REFERENCE.md](./JUST_COMMANDS_REFERENCE.md) | Command reference | Daily use |
 | [MODULE_COMMUNICATION.md](./MODULE_COMMUNICATION.md) | Module patterns | Building modules |
 | [TESTING_GUIDE.md](./TESTING_GUIDE.md) | Testing practices | Writing tests |
 | [DEPLOYMENT_SYNC.md](./DEPLOYMENT_SYNC.md) | Deployment guide | Going to production |

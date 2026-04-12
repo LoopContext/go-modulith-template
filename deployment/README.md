@@ -242,7 +242,7 @@ grpcurl -plaintext localhost:9050 list
 
 - [Helm Chart README](./helm/modulith/README.md) - Detailed chart documentation
 - [MODULITH_ARCHITECTURE.md](../docs/MODULITH_ARCHITECTURE.md) - Complete architecture
-- [Makefile Commands](../README.md) - Build and deploy commands
+- [Just Commands](../README.md#%EF%B8%8F-main-commands-just) - Build and deploy commands
 
 ## 🆘 Troubleshooting
 

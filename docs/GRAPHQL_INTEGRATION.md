@@ -521,7 +521,7 @@ func TestRequestLogin(t *testing.T) {
 }
 ```
 
-## 📚 Comandos Makefile
+## 📚 Comandos Just
 
 ```bash
 # Inicializar GraphQL en el proyecto

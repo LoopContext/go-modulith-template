@@ -601,7 +601,7 @@ go-modulith-template/
 │   ├── MODULITH_ARCHITECTURE.md  # ✅ Updated K8s/IaC section
 │   └── DEPLOYMENT_SYNC.md        # ✅ This document
 │
-├── Makefile                      # ✅ Generic commands
+├── justfile                      # ✅ Generic commands
 └── README.md                     # ✅ Updated references
 ```
 

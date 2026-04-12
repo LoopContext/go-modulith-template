@@ -64,7 +64,7 @@ El chart construye el nombre completo de la imagen automáticamente:
 - **Servidor**: `{repository}-server:{tag}` → `modulith-server:latest`
 - **Módulo**: `{repository}-{moduleName}:{tag}` → `modulith-auth:latest`
 
-Esto se alinea con los comandos del Makefile:
+Esto se alinea con los comandos del justfile:
 ```bash
 just docker-build          # Crea modulith-server:latest
 just docker-build-module auth  # Crea modulith-auth:latest
@@ -183,7 +183,7 @@ curl http://localhost:8080/readyz
 ## 📚 Recursos Adicionales
 
 - [Documentación de Arquitectura](../../../docs/MODULITH_ARCHITECTURE.md)
-- [Makefile Commands](../../../README.md#-comandos-útiles-makefile)
+- [Just Commands](../../../README.md#%EF%B8%8F-main-commands-just)
 - [Dockerfile Multi-stage Build](../../../Dockerfile)
 
 ## 🛡️ Mejores Prácticas
