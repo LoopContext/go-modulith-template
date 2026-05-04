@@ -29,7 +29,7 @@ func (e *EnvProvider) GetSecret(_ context.Context, key string) (string, error) {
 }
 
 // GetSecretJSON retrieves a secret value from environment variables and unmarshals it as JSON.
-func (e *EnvProvider) GetSecretJSON(ctx context.Context, key string, v interface{}) error {
+func (e *EnvProvider) GetSecretJSON(ctx context.Context, key string, v any) error {
 	value, err := e.GetSecret(ctx, key)
 	if err != nil {
 		return err

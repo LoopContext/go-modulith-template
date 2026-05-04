@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/joho/godotenv"
 	"github.com/LoopContext/go-modulith-template/cmd/visualize/analyzer"
+	"github.com/joho/godotenv"
 )
 
 const defaultProjectName = "Modulith"
@@ -178,8 +178,8 @@ func getProjectName(root string) (string, error) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "module ") {
-			modPath := strings.TrimSpace(strings.TrimPrefix(line, "module "))
+		if after, ok := strings.CutPrefix(line, "module "); ok {
+			modPath := strings.TrimSpace(after)
 
 			parts := strings.Split(modPath, "/")
 			if len(parts) > 0 {

@@ -41,7 +41,7 @@ func TestUserInfo_Fields(t *testing.T) {
 		AccessToken:    "access-token-value",
 		RefreshToken:   "refresh-token-value",
 		ExpiresAt:      time.Now().Add(time.Hour),
-		RawData: map[string]interface{}{
+		RawData: map[string]any{
 			"verified_email": true,
 			"locale":         "en",
 		},
@@ -140,7 +140,7 @@ func TestFromGothUser(t *testing.T) {
 		AccessToken:  "gh_access_token",
 		RefreshToken: "gh_refresh_token",
 		ExpiresAt:    time.Now().Add(time.Hour),
-		RawData: map[string]interface{}{
+		RawData: map[string]any{
 			"login": "githubuser",
 			"bio":   "Developer",
 		},

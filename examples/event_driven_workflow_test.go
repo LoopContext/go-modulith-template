@@ -38,7 +38,7 @@ func TestEventDrivenWorkflow_PublishSubscribe(t *testing.T) {
 	// Publish event
 	eventBus.Publish(ctx, events.Event{
 		Name: "user.created",
-		Payload: map[string]interface{}{
+		Payload: map[string]any{
 			"user_id": "user-123",
 			"email":   "test@example.com",
 		},
@@ -57,7 +57,7 @@ func TestEventDrivenWorkflow_PublishSubscribe(t *testing.T) {
 		if event.Name == eventUserCreated {
 			found = true
 
-			assert.Equal(t, "user-123", event.Payload.(map[string]interface{})["user_id"])
+			assert.Equal(t, "user-123", event.Payload.(map[string]any)["user_id"])
 
 			break
 		}
@@ -95,7 +95,7 @@ func TestEventDrivenWorkflow_EventHandlerExecution(t *testing.T) {
 	// Publish event
 	eventBus.Publish(ctx, events.Event{
 		Name:    "test.event",
-		Payload: map[string]interface{}{"key": "value"},
+		Payload: map[string]any{"key": "value"},
 	})
 
 	// Wait for handler to process
@@ -127,17 +127,17 @@ func TestEventDrivenWorkflow_EventOrdering(t *testing.T) {
 	// Publish events in sequence
 	eventBus.Publish(ctx, events.Event{
 		Name:    "ordered.event",
-		Payload: map[string]interface{}{"sequence": 1},
+		Payload: map[string]any{"sequence": 1},
 	})
 
 	eventBus.Publish(ctx, events.Event{
 		Name:    "ordered.event",
-		Payload: map[string]interface{}{"sequence": 2},
+		Payload: map[string]any{"sequence": 2},
 	})
 
 	eventBus.Publish(ctx, events.Event{
 		Name:    "ordered.event",
-		Payload: map[string]interface{}{"sequence": 3},
+		Payload: map[string]any{"sequence": 3},
 	})
 
 	// Wait for events to be processed
@@ -152,7 +152,7 @@ func TestEventDrivenWorkflow_EventOrdering(t *testing.T) {
 
 	for _, event := range collectedEvents {
 		if event.Name == "ordered.event" {
-			seq := event.Payload.(map[string]interface{})["sequence"].(int)
+			seq := event.Payload.(map[string]any)["sequence"].(int)
 			sequences[seq] = true
 		}
 	}
@@ -189,7 +189,7 @@ func TestEventDrivenWorkflow_ErrorHandling(t *testing.T) {
 	// Publish event
 	eventBus.Publish(ctx, events.Event{
 		Name:    "error.event",
-		Payload: map[string]interface{}{"test": "data"},
+		Payload: map[string]any{"test": "data"},
 	})
 
 	// Wait for error handler to be called
@@ -237,7 +237,7 @@ func TestEventDrivenWorkflow_MultipleSubscribers(t *testing.T) {
 	// Publish event
 	eventBus.Publish(ctx, events.Event{
 		Name:    "multi.event",
-		Payload: map[string]interface{}{"test": "data"},
+		Payload: map[string]any{"test": "data"},
 	})
 
 	// Wait for both handlers to be called

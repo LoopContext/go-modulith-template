@@ -45,7 +45,7 @@ func TestT_WithTemplateData(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	msg := T(ctx, "en", "notifications.magic_code_body", map[string]interface{}{
+	msg := T(ctx, "en", "notifications.magic_code_body", map[string]any{
 		"Code": "123456",
 	})
 

@@ -67,7 +67,7 @@ func TestExampleEventBus(t *testing.T) {
 func testPublishAndReceive(ctx context.Context, t *testing.T, bus *events.Bus, collector *testutil.EventCollector) {
 	testEvent := events.Event{
 		Name: eventUserCreated,
-		Payload: map[string]interface{}{
+		Payload: map[string]any{
 			"user_id": "test-123",
 			"email":   "test@example.com",
 		},
@@ -84,7 +84,7 @@ func testPublishAndReceive(ctx context.Context, t *testing.T, bus *events.Bus, c
 		t.Errorf("Expected event user.created, got %s", receivedEvent.Name)
 	}
 
-	payload, ok := receivedEvent.Payload.(map[string]interface{})
+	payload, ok := receivedEvent.Payload.(map[string]any)
 	if !ok {
 		t.Fatal("Expected map payload")
 	}
@@ -98,15 +98,15 @@ func testMultipleEvents(ctx context.Context, t *testing.T, bus *events.Bus, coll
 	eventsToPublish := []events.Event{
 		{
 			Name:    "user.created",
-			Payload: map[string]interface{}{"user_id": "user-1"},
+			Payload: map[string]any{"user_id": "user-1"},
 		},
 		{
 			Name:    "session.created",
-			Payload: map[string]interface{}{"session_id": "session-1"},
+			Payload: map[string]any{"session_id": "session-1"},
 		},
 		{
 			Name:    "user.created",
-			Payload: map[string]interface{}{"user_id": "user-2"},
+			Payload: map[string]any{"user_id": "user-2"},
 		},
 	}
 
@@ -143,7 +143,7 @@ func testErrorHandling(ctx context.Context, t *testing.T, bus *events.Bus) {
 
 	bus.Publish(ctx, events.Event{
 		Name:    "test.error",
-		Payload: map[string]interface{}{},
+		Payload: map[string]any{},
 	})
 
 	// Wait for error handler to be called
@@ -166,7 +166,7 @@ func testEventCollector(ctx context.Context, t *testing.T, bus *events.Bus, coll
 
 	bus.Publish(ctx, events.Event{
 		Name:    "user.created",
-		Payload: map[string]interface{}{"user_id": "collector-test"},
+		Payload: map[string]any{"user_id": "collector-test"},
 	})
 
 	_, err := collector.WaitForEvent(1 * time.Second)

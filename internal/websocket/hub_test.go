@@ -225,7 +225,7 @@ func TestHub_MultipleConnectionsSameUser(t *testing.T) {
 	defer hub.Stop()
 
 	// Register multiple connections for same user
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		client := &Client{
 			id:     "client-" + string(rune(i)),
 			userID: "user-1",

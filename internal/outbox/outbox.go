@@ -31,7 +31,7 @@ type Entry struct {
 // StoreRepository provides methods for storing outbox entries.
 type StoreRepository interface {
 	// Store stores an event in the outbox table within the current transaction.
-	Store(ctx context.Context, tx pgx.Tx, eventName string, payload interface{}) error
+	Store(ctx context.Context, tx pgx.Tx, eventName string, payload any) error
 }
 
 // PublisherRepository provides methods for retrieving and marking outbox entries.
@@ -62,7 +62,7 @@ func NewRepository(db *pgxpool.Pool) *SQLRepository {
 }
 
 // Store stores an event in the outbox table within the provided transaction.
-func (r *SQLRepository) Store(ctx context.Context, tx pgx.Tx, eventName string, payload interface{}) error {
+func (r *SQLRepository) Store(ctx context.Context, tx pgx.Tx, eventName string, payload any) error {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal payload: %w", err)
@@ -160,7 +160,7 @@ type Publisher struct {
 
 // PublisherFunc is a function type for publishing events.
 // This allows the publisher to work with any event bus implementation.
-type PublisherFunc func(ctx context.Context, eventName string, payload interface{})
+type PublisherFunc func(ctx context.Context, eventName string, payload any)
 
 // NewPublisher creates a new outbox publisher.
 // The publisher function should publish events to the event bus.
@@ -227,7 +227,7 @@ func (p *Publisher) Process(ctx context.Context) error {
 	publishedIDs := make([]string, 0, len(entries))
 
 	for _, entry := range entries {
-		var payload map[string]interface{}
+		var payload map[string]any
 
 		if err := json.Unmarshal(entry.Payload, &payload); err != nil {
 			// Log error but continue processing other events

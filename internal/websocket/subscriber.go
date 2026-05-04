@@ -95,13 +95,13 @@ func (s *Subscriber) handleEvent(_ context.Context, event events.Event) error {
 }
 
 // extractUserID attempts to extract user ID from various payload formats.
-func extractUserID(payload interface{}) string {
+func extractUserID(payload any) string {
 	if payload == nil {
 		return ""
 	}
 
 	// Try to extract from map
-	if m, ok := payload.(map[string]interface{}); ok {
+	if m, ok := payload.(map[string]any); ok {
 		// Try common field names
 		if userID, ok := m["user_id"].(string); ok {
 			return userID

@@ -39,7 +39,7 @@ func TestCircuitBreaker_OpensAfterFailures(t *testing.T) {
 	cb := resilience.NewCircuitBreaker("test", config)
 
 	// Generate failures
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_ = cb.Execute(context.Background(), func(_ context.Context) error {
 			return errService
 		})
@@ -70,7 +70,7 @@ func TestCircuitBreaker_TransitionsToHalfOpen(t *testing.T) {
 	cb := resilience.NewCircuitBreaker("test", config)
 
 	// Open the circuit
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_ = cb.Execute(context.Background(), func(_ context.Context) error {
 			return errService
 		})
@@ -104,7 +104,7 @@ func TestCircuitBreaker_HalfOpenFailure(t *testing.T) {
 	cb := resilience.NewCircuitBreaker("test", config)
 
 	// Open the circuit
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_ = cb.Execute(context.Background(), func(_ context.Context) error {
 			return errService
 		})
@@ -134,7 +134,7 @@ func TestCircuitBreaker_Reset(t *testing.T) {
 	cb := resilience.NewCircuitBreaker("test", config)
 
 	// Open the circuit
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_ = cb.Execute(context.Background(), func(_ context.Context) error {
 			return errService
 		})
@@ -189,7 +189,7 @@ func TestCircuitBreaker_StateCallback(t *testing.T) {
 	})
 
 	// Wait for async callback with retries
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		mu.Lock()
 
 		wasCalled := called

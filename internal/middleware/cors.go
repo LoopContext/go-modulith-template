@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 )
 
@@ -87,14 +88,7 @@ func setCORSHeaders(w http.ResponseWriter, r *http.Request, config CORSConfig) {
 
 func setOriginHeaders(w http.ResponseWriter, r *http.Request, config CORSConfig) {
 	origin := r.Header.Get("Origin")
-	hasGlobalWildcard := false
-
-	for _, allowed := range config.AllowedOrigins {
-		if allowed == "*" {
-			hasGlobalWildcard = true
-			break
-		}
-	}
+	hasGlobalWildcard := slices.Contains(config.AllowedOrigins, "*")
 
 	if origin != "" && isOriginAllowed(origin, config.AllowedOrigins) {
 		setAllowedOriginHeader(w, origin, hasGlobalWildcard, config.AllowCredentials)

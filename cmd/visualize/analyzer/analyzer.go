@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -368,8 +369,8 @@ func analyzeProtoConnections(_ string, protoDir string, graph *Graph) error {
 		}
 
 		// Simple parsing: find service definitions
-		lines := strings.Split(string(data), "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(string(data), "\n")
+		for line := range lines {
 			line = strings.TrimSpace(line)
 			if strings.HasPrefix(line, "service ") {
 				parts := strings.Fields(line)
@@ -679,15 +680,7 @@ func updateModuleServices(graph *Graph, moduleName, serviceName string) {
 	for i := range graph.Modules {
 		if graph.Modules[i].Name == moduleName {
 			// Check if service already exists
-			found := false
-
-			for _, s := range graph.Modules[i].Services {
-				if s == serviceName {
-					found = true
-
-					break
-				}
-			}
+			found := slices.Contains(graph.Modules[i].Services, serviceName)
 
 			if !found {
 				graph.Modules[i].Services = append(graph.Modules[i].Services, serviceName)
@@ -703,15 +696,7 @@ func updateModuleEvents(graph *Graph, moduleName, eventName string) {
 	for i := range graph.Modules {
 		if graph.Modules[i].Name == moduleName {
 			// Check if event already exists
-			found := false
-
-			for _, e := range graph.Modules[i].Events {
-				if e == eventName {
-					found = true
-
-					break
-				}
-			}
+			found := slices.Contains(graph.Modules[i].Events, eventName)
 
 			if !found {
 				graph.Modules[i].Events = append(graph.Modules[i].Events, eventName)

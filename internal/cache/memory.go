@@ -174,7 +174,7 @@ func (mc *MemoryCache) Increment(_ context.Context, key string) (int64, error) {
 	if !ok || i.isExpired() {
 		val := int64(1)
 		mc.items[key] = &item{
-			value: []byte(fmt.Sprintf("%d", val)),
+			value: fmt.Appendf(nil, "%d", val),
 		}
 
 		return val, nil
@@ -188,7 +188,7 @@ func (mc *MemoryCache) Increment(_ context.Context, key string) (int64, error) {
 	}
 
 	val++
-	i.value = []byte(fmt.Sprintf("%d", val))
+	i.value = fmt.Appendf(nil, "%d", val)
 
 	return val, nil
 }
@@ -202,7 +202,7 @@ func (mc *MemoryCache) Decrement(_ context.Context, key string) (int64, error) {
 	if !ok || i.isExpired() {
 		val := int64(-1)
 		mc.items[key] = &item{
-			value: []byte(fmt.Sprintf("%d", val)),
+			value: fmt.Appendf(nil, "%d", val),
 		}
 
 		return val, nil
@@ -216,7 +216,7 @@ func (mc *MemoryCache) Decrement(_ context.Context, key string) (int64, error) {
 	}
 
 	val--
-	i.value = []byte(fmt.Sprintf("%d", val))
+	i.value = fmt.Appendf(nil, "%d", val)
 
 	return val, nil
 }

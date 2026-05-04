@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -705,10 +706,8 @@ func (c *AppConfig) validateJWT() error {
 func (c *AppConfig) validateCORS() error {
 	// Enforce strict CORS in production
 	if c.Env == envProd {
-		for _, origin := range c.CORSAllowedOrigins {
-			if origin == "*" {
-				return fmt.Errorf("wildcard CORS origin '*' is not allowed in production")
-			}
+		if slices.Contains(c.CORSAllowedOrigins, "*") {
+			return fmt.Errorf("wildcard CORS origin '*' is not allowed in production")
 		}
 	}
 

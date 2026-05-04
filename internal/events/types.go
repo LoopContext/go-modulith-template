@@ -96,7 +96,7 @@ const (
 )
 
 // EventPayload provides type-safe payload construction helpers.
-type EventPayload map[string]interface{}
+type EventPayload map[string]any
 
 // NewUserCreatedPayload creates a payload for user.created events.
 func NewUserCreatedPayload(userID, email string) EventPayload {

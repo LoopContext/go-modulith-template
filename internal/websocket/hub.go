@@ -37,9 +37,9 @@ type Hub struct {
 
 // Message represents a WebSocket message to be sent to clients.
 type Message struct {
-	Type    string      `json:"type"`
-	Payload interface{} `json:"payload"`
-	UserID  string      `json:"-"` // Used for targeting, not sent to client
+	Type    string `json:"type"`
+	Payload any    `json:"payload"`
+	UserID  string `json:"-"` // Used for targeting, not sent to client
 }
 
 // NewHub creates a new WebSocket hub.

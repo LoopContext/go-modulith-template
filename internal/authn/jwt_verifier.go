@@ -58,7 +58,7 @@ func (v *JWTVerifier) VerifyToken(_ context.Context, tokenString string) (*Claim
 	}
 
 	stdClaims := jwt.Claims{}
-	privateClaims := make(map[string]interface{})
+	privateClaims := make(map[string]any)
 
 	if err := tok.Claims(v.publicKey, &stdClaims, &privateClaims); err != nil {
 		return nil, fmt.Errorf("failed to deserialize claims: %w", err)

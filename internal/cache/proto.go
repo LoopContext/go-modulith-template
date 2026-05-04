@@ -67,7 +67,7 @@ func GetOrLoadProto[T proto.Message](
 		return zero, err
 	}
 
-	result, err, _ := protoLoadGroup.Do(key, func() (interface{}, error) {
+	result, err, _ := protoLoadGroup.Do(key, func() (any, error) {
 		loaded, loadErr := loader(ctx)
 		if loadErr != nil {
 			return nil, loadErr

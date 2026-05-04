@@ -26,7 +26,7 @@ type ModuleSeeder interface {
 // ModuleProgrammaticSeeder defines the interface for modules that provide seed data programmatically.
 type ModuleProgrammaticSeeder interface {
 	// Seed runs programmatic seed data using the application's registry/dependencies.
-	Seed(ctx context.Context, r interface{}) error
+	Seed(ctx context.Context, r any) error
 }
 
 // ModuleRegistry defines the basic interface for accessing registered modules.

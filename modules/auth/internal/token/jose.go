@@ -54,7 +54,7 @@ func (s *Service) CreateToken(userID, role string, duration time.Duration) (stri
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 		NotBefore: jwt.NewNumericDate(time.Now()),
 	}
-	privateClaims := map[string]interface{}{
+	privateClaims := map[string]any{
 		"role": role,
 	}
 
@@ -74,7 +74,7 @@ func (s *Service) VerifyToken(tokenString string) (*Claims, error) {
 	}
 
 	claims := jwt.Claims{}
-	privateClaims := make(map[string]interface{})
+	privateClaims := make(map[string]any)
 
 	if err := tok.Claims(s.key, &claims, &privateClaims); err != nil {
 		return nil, fmt.Errorf("failed to deserialize claims: %w", err)

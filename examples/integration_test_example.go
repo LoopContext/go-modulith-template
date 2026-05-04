@@ -175,7 +175,7 @@ func testEventBusIntegration(ctx context.Context, t *testing.T, eventBus *events
 	// Publish a test event directly to verify event bus works
 	testEvent := events.Event{
 		Name: "test.event",
-		Payload: map[string]interface{}{
+		Payload: map[string]any{
 			"test": "data",
 		},
 	}

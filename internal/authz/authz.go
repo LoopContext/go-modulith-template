@@ -4,6 +4,7 @@ package authz
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/LoopContext/go-modulith-template/internal/authn"
 	"github.com/LoopContext/go-modulith-template/internal/errors"
@@ -96,10 +97,8 @@ func RequireRole(ctx context.Context, allowedRoles ...string) error {
 		return errors.Unauthorized("authentication required")
 	}
 
-	for _, allowedRole := range allowedRoles {
-		if role == allowedRole {
-			return nil
-		}
+	if slices.Contains(allowedRoles, role) {
+		return nil
 	}
 
 	return errors.Forbidden("insufficient permissions")
@@ -148,10 +147,8 @@ func RequireOwnershipOrRole(ctx context.Context, resourceOwnerID string, allowed
 		return errors.Forbidden("access denied")
 	}
 
-	for _, allowedRole := range allowedRoles {
-		if role == allowedRole {
-			return nil
-		}
+	if slices.Contains(allowedRoles, role) {
+		return nil
 	}
 
 	return errors.Forbidden("access denied: not the resource owner and insufficient role")

@@ -66,7 +66,7 @@ func Init(defaultLocale string) error {
 
 // T translates a message key using the locale from context.
 // If no locale is found in context, it uses the default locale.
-func T(ctx context.Context, defaultLocale string, messageID string, templateData map[string]interface{}) string {
+func T(ctx context.Context, defaultLocale string, messageID string, templateData map[string]any) string {
 	locale := DetectLocale(ctx, defaultLocale)
 
 	localizer := i18n.NewLocalizer(bundle, locale)
@@ -86,7 +86,7 @@ func T(ctx context.Context, defaultLocale string, messageID string, templateData
 
 // MustT is like T but panics if the translation is not found.
 // Use this only for critical translations that must exist.
-func MustT(ctx context.Context, defaultLocale string, messageID string, templateData map[string]interface{}) string {
+func MustT(ctx context.Context, defaultLocale string, messageID string, templateData map[string]any) string {
 	locale := DetectLocale(ctx, defaultLocale)
 
 	localizer := i18n.NewLocalizer(bundle, locale)

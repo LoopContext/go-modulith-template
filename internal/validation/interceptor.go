@@ -33,7 +33,7 @@ func init() {
 // The interceptor validates protobuf messages using the protovalidate library
 // at runtime. Validation errors are converted to gRPC InvalidArgument status errors.
 func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		// Check if the request is a protobuf message
 		if msg, ok := req.(proto.Message); ok && validator != nil {
 			if err := validator.Validate(msg); err != nil {

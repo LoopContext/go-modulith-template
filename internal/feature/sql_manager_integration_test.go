@@ -174,7 +174,7 @@ func testModuleContext(ctx context.Context, t *testing.T, manager *feature.SQLMa
 	// Mock a value in another module's config table if possible
 	// For now we just test the 'system' default
 	featureCtx := feature.Context{
-		Attributes: map[string]interface{}{"context": "system"},
+		Attributes: map[string]any{"context": "system"},
 	}
 	assert.True(t, manager.IsEnabledFor(ctx, "kyc_enabled", featureCtx))
 }

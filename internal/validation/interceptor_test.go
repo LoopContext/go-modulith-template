@@ -23,7 +23,7 @@ func TestUnaryServerInterceptor_ValidRequest(t *testing.T) {
 	// Use a real proto message that should pass validation
 	// Note: This test requires proto files to be generated first
 	req := &authv1.GetProfileRequest{} // Empty request, should pass validation
-	handler := func(_ context.Context, _ interface{}) (interface{}, error) {
+	handler := func(_ context.Context, _ any) (any, error) {
 		return testSuccessResponse, nil
 	}
 
@@ -49,7 +49,7 @@ func TestUnaryServerInterceptor_InvalidRequest(t *testing.T) {
 	req := &authv1.ChangeEmailRequest{
 		NewEmail: "invalid-email", // Invalid email format
 	}
-	handler := func(_ context.Context, _ interface{}) (interface{}, error) {
+	handler := func(_ context.Context, _ any) (any, error) {
 		return "should not reach here", nil
 	}
 
@@ -85,7 +85,7 @@ func TestUnaryServerInterceptor_RequestWithoutProto(t *testing.T) {
 	interceptor := UnaryServerInterceptor()
 
 	req := &mockRequestWithoutProto{value: "test"}
-	handler := func(_ context.Context, _ interface{}) (interface{}, error) {
+	handler := func(_ context.Context, _ any) (any, error) {
 		return testSuccessResponse, nil
 	}
 

@@ -37,7 +37,7 @@ type TemplateData struct {
 	ExpiresIn   string // Human-readable expiration
 
 	// Custom data for extensibility
-	Extra map[string]interface{}
+	Extra map[string]any
 }
 
 // NewTemplateManager creates a new TemplateManager with default templates.

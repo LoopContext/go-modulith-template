@@ -7,7 +7,7 @@ type Message struct {
 	To      string
 	Subject string
 	Body    string
-	Data    map[string]interface{}
+	Data    map[string]any
 }
 
 // EmailProvider defines the interface for sending emails

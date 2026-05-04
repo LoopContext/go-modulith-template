@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/LoopContext/go-modulith-template/internal/authn"
@@ -80,13 +81,7 @@ func createOriginChecker(allowedOrigins []string, env string) func(*http.Request
 func checkEmptyOrigin(allowedOrigins []string) bool {
 	// Some clients don't send Origin header (e.g., native apps)
 	// Allow if explicitly configured with "*"
-	for _, allowed := range allowedOrigins {
-		if allowed == "*" {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(allowedOrigins, "*")
 }
 
 func checkOriginMatch(origin string, allowedOrigins []string) bool {

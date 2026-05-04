@@ -42,7 +42,7 @@ func WithEventBus(bus *events.Bus) Option {
 // This is a placeholder for future outbox integration.
 // Outbox pattern implementation is in internal/outbox package.
 // Usage is explicit in modules when outbox is needed.
-func WithOutbox(outboxRepo interface{}) Option {
+func WithOutbox(outboxRepo any) Option {
 	return func(_ *Registry) {
 		// Outbox integration is optional and explicit in modules
 		_ = outboxRepo

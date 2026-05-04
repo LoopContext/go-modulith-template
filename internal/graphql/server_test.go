@@ -142,7 +142,7 @@ func TestSetup_ConcurrentRequests_WhenGraphQLInitialized(t *testing.T) {
 	// Test concurrent requests
 	done := make(chan bool, 10)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			req := httptest.NewRequest(http.MethodPost, "/graphql", nil)
 			w := httptest.NewRecorder()
@@ -156,7 +156,7 @@ func TestSetup_ConcurrentRequests_WhenGraphQLInitialized(t *testing.T) {
 	// Wait for all requests to complete
 	timeout := time.After(5 * time.Second)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		select {
 		case <-done:
 			// Request completed
@@ -181,7 +181,7 @@ func TestSetup_HandlerIsReusable_WhenGraphQLInitialized(t *testing.T) {
 	}
 
 	// Use the same handler multiple times
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		req := httptest.NewRequest(http.MethodPost, "/graphql", nil)
 		w := httptest.NewRecorder()
 

@@ -34,7 +34,7 @@ func (s *Subscriber) SubscribeToEvents(bus *events.Bus) {
 }
 
 func (s *Subscriber) handleMagicCodeRequested(ctx context.Context, e events.Event) error {
-	payload, ok := e.Payload.(map[string]interface{})
+	payload, ok := e.Payload.(map[string]any)
 	if !ok {
 		return fmt.Errorf("invalid payload type for magic code event: %T", e.Payload)
 	}
@@ -58,7 +58,7 @@ func (s *Subscriber) handleMagicCodeRequested(ctx context.Context, e events.Even
 
 	// Translate notification messages
 	subject := i18n.T(ctx, s.defaultLocale, "notifications.magic_code_subject", nil)
-	body := i18n.T(ctx, s.defaultLocale, "notifications.magic_code_body", map[string]interface{}{
+	body := i18n.T(ctx, s.defaultLocale, "notifications.magic_code_body", map[string]any{
 		"Code": code,
 	})
 

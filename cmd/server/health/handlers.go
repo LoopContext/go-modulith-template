@@ -43,7 +43,7 @@ func SetupReadinessProbe(mux *http.ServeMux, db *pgxpool.Pool, wsHub *websocket.
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		status := map[string]interface{}{
+		status := map[string]any{
 			"status": "ready",
 			"checks": make(map[string]string),
 		}

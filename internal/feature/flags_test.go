@@ -100,7 +100,7 @@ func TestInMemoryManager_PercentageRollout(t *testing.T) {
 	enabledCount := 0
 	totalUsers := 100
 
-	for i := 0; i < totalUsers; i++ {
+	for i := range totalUsers {
 		featureCtx := feature.Context{
 			UserID: string(rune('A'+i%26)) + string(rune('0'+i)),
 		}
@@ -178,7 +178,7 @@ func TestInMemoryManager_ConsistentHashing(t *testing.T) {
 	// Same user should always get the same result
 	firstResult := manager.IsEnabledFor(ctx, "consistent_flag", featureCtx)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		result := manager.IsEnabledFor(ctx, "consistent_flag", featureCtx)
 		if result != firstResult {
 			t.Error("expected consistent result for same user")

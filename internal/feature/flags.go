@@ -6,6 +6,7 @@ package feature
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -39,7 +40,7 @@ type Rule struct {
 	// Operator is the comparison operator (e.g., "equals", "contains", "in").
 	Operator string
 	// Value is the value to compare against.
-	Value interface{}
+	Value any
 }
 
 // Context holds information used to evaluate feature flags.
@@ -49,7 +50,7 @@ type Context struct {
 	// Email is the user's email address.
 	Email string
 	// Attributes holds additional custom attributes.
-	Attributes map[string]interface{}
+	Attributes map[string]any
 }
 
 // Manager provides feature flag operations.
@@ -209,7 +210,7 @@ func NewSQLManager(db *pgxpool.Pool) *SQLManager {
 // IsEnabled checks if a feature flag is enabled globally.
 // It assumes the flag is in the "system" context.
 func (m *SQLManager) IsEnabled(ctx context.Context, flagName string) bool {
-	return m.IsEnabledFor(ctx, flagName, Context{Attributes: map[string]interface{}{"context": "system"}})
+	return m.IsEnabledFor(ctx, flagName, Context{Attributes: map[string]any{"context": "system"}})
 }
 
 // IsEnabledFor checks if a feature flag is enabled for a specific context.
@@ -316,7 +317,7 @@ func evaluateRule(rule Rule, ctx Context) bool {
 }
 
 // getAttributeValue extracts the attribute value from the context.
-func getAttributeValue(attr string, ctx Context) interface{} {
+func getAttributeValue(attr string, ctx Context) any {
 	switch attr {
 	case "user_id":
 		return ctx.UserID
@@ -332,7 +333,7 @@ func getAttributeValue(attr string, ctx Context) interface{} {
 }
 
 // evaluateOperator evaluates the operator against the value.
-func evaluateOperator(operator string, value, ruleValue interface{}) bool {
+func evaluateOperator(operator string, value, ruleValue any) bool {
 	switch operator {
 	case "equals":
 		return value == ruleValue
@@ -348,7 +349,7 @@ func evaluateOperator(operator string, value, ruleValue interface{}) bool {
 }
 
 // evaluateContains checks if value contains ruleValue.
-func evaluateContains(value, ruleValue interface{}) bool {
+func evaluateContains(value, ruleValue any) bool {
 	s, ok := value.(string)
 	if !ok {
 		return false
@@ -363,7 +364,7 @@ func evaluateContains(value, ruleValue interface{}) bool {
 }
 
 // evaluateIn checks if value is in ruleValue list.
-func evaluateIn(value, ruleValue interface{}) bool {
+func evaluateIn(value, ruleValue any) bool {
 	list, ok := ruleValue.([]string)
 	if !ok {
 		return false
@@ -374,13 +375,7 @@ func evaluateIn(value, ruleValue interface{}) bool {
 		return false
 	}
 
-	for _, item := range list {
-		if item == s {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(list, s)
 }
 
 // contains checks if a string contains a substring.

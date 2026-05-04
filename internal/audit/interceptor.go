@@ -15,7 +15,7 @@ import (
 
 // UnaryServerInterceptor returns a new unary server interceptor that audits requests.
 func UnaryServerInterceptor(logger Logger) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		// filter read-only methods
 		if isReadOnly(info.FullMethod) {
 			return handler(ctx, req)

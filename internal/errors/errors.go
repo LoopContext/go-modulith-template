@@ -168,7 +168,7 @@ func NotFound(message string) error {
 }
 
 // NotFoundf creates a new not found error with formatting.
-func NotFoundf(format string, args ...interface{}) error {
+func NotFoundf(format string, args ...any) error {
 	return &DomainError{
 		Type:    ErrorTypeNotFound,
 		Message: fmt.Sprintf(format, args...),
@@ -184,7 +184,7 @@ func AlreadyExists(message string) error {
 }
 
 // AlreadyExistsf creates a new already exists error with formatting.
-func AlreadyExistsf(format string, args ...interface{}) error {
+func AlreadyExistsf(format string, args ...any) error {
 	return &DomainError{
 		Type:    ErrorTypeAlreadyExists,
 		Message: fmt.Sprintf(format, args...),
@@ -200,7 +200,7 @@ func Validation(message string) error {
 }
 
 // Validationf creates a new validation error with formatting.
-func Validationf(format string, args ...interface{}) error {
+func Validationf(format string, args ...any) error {
 	return &DomainError{
 		Type:    ErrorTypeValidation,
 		Message: fmt.Sprintf(format, args...),
@@ -241,7 +241,7 @@ func Internal(message string, err error) error {
 }
 
 // Internalf creates a new internal error with formatting.
-func Internalf(err error, format string, args ...interface{}) error {
+func Internalf(err error, format string, args ...any) error {
 	return &DomainError{
 		Type:    ErrorTypeInternal,
 		Message: fmt.Sprintf(format, args...),

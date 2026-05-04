@@ -72,7 +72,7 @@ func TestSubscriber_SubscribeToEvents(t *testing.T) {
 	// Verify that the event handler is registered by publishing an event
 	ctx := context.Background()
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"email": "test@example.com",
 		"code":  "123456",
 	}
@@ -94,7 +94,7 @@ func TestSubscriber_HandleMagicCodeRequested_Email(t *testing.T) {
 	notifier := &mockNotifier{}
 	subscriber := NewSubscriber(notifier, "en")
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"email": "user@example.com",
 		"code":  "654321",
 	}
@@ -139,7 +139,7 @@ func TestSubscriber_HandleMagicCodeRequested_Phone(t *testing.T) {
 	notifier := &mockNotifier{}
 	subscriber := NewSubscriber(notifier, "en")
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"phone": "+1234567890",
 		"code":  "999888",
 	}
@@ -181,7 +181,7 @@ func TestSubscriber_HandleMagicCodeRequested_EmailPriority(t *testing.T) {
 	subscriber := NewSubscriber(notifier, "en")
 
 	// When both email and phone are present, email takes priority
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"email": "user@example.com",
 		"phone": "+1234567890",
 		"code":  "111222",
@@ -240,7 +240,7 @@ func TestSubscriber_HandleMagicCodeRequested_NoEmailOrPhone(t *testing.T) {
 	notifier := &mockNotifier{}
 	subscriber := NewSubscriber(notifier, "en")
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"code": "123456",
 	}
 
@@ -273,7 +273,7 @@ func TestSubscriber_HandleMagicCodeRequested_EmailError(t *testing.T) {
 	}
 	subscriber := NewSubscriber(notifier, "en")
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"email": "user@example.com",
 		"code":  "123456",
 	}
@@ -295,7 +295,7 @@ func TestSubscriber_HandleMagicCodeRequested_SMSError(t *testing.T) {
 	}
 	subscriber := NewSubscriber(notifier, "en")
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"phone": "+1234567890",
 		"code":  "123456",
 	}

@@ -26,7 +26,7 @@ type UserInfo struct {
 	AccessToken    string    `json:"-"`
 	RefreshToken   string    `json:"-"`
 	ExpiresAt      time.Time `json:"expires_at"`
-	RawData        map[string]interface{}
+	RawData        map[string]any
 }
 
 // FromGothUser converts a goth.User to our UserInfo struct.

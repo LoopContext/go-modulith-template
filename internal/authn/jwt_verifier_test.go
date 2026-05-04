@@ -263,7 +263,7 @@ func createTestTokenRS256WithRole(t *testing.T, subject, role string, expiresAt 
 		ID:       "test-jti",
 	}
 
-	privateClaims := make(map[string]interface{})
+	privateClaims := make(map[string]any)
 	if role != "" {
 		privateClaims["role"] = role
 	}

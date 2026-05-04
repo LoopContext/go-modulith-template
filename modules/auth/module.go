@@ -68,7 +68,7 @@ func (m *Module) Initialize(r *registry.Registry) error {
 	repo := repository.NewSQLRepository(r.DB())
 	m.svc = service.NewAuthService(repo, tokenService, r.EventBus(), r.AuditLogger(), r.FlagManager(), cfg.Env)
 
-	m.outbox = outbox.NewPublisher(repo, func(ctx context.Context, name string, payload interface{}) {
+	m.outbox = outbox.NewPublisher(repo, func(ctx context.Context, name string, payload any) {
 		r.EventBus().Publish(ctx, internalEvents.Event{Name: name, Payload: payload})
 	})
 
@@ -145,7 +145,7 @@ func (m *Module) SeedPath() string {
 }
 
 // Seed runs programmatic seed data for the auth module.
-func (m *Module) Seed(ctx context.Context, r interface{}) error {
+func (m *Module) Seed(ctx context.Context, r any) error {
 	reg, ok := r.(*registry.Registry)
 	if !ok {
 		return fmt.Errorf("registry is not *registry.Registry")

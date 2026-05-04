@@ -66,7 +66,7 @@ type Repository interface {
 	GetExternalAccountsByUserID(ctx context.Context, userID string) ([]*ExternalAccount, error)
 	GetExternalAccountByProviderAndEmail(ctx context.Context, provider, email string) (*ExternalAccount, error)
 	UpdateExternalAccountTokens(ctx context.Context, provider, providerUserID, accessToken, refreshToken string, expiresAt *time.Time) error
-	UpdateExternalAccountProfile(ctx context.Context, provider, providerUserID, name, avatarURL, email string, rawData map[string]interface{}) error
+	UpdateExternalAccountProfile(ctx context.Context, provider, providerUserID, name, avatarURL, email string, rawData map[string]any) error
 	DeleteExternalAccount(ctx context.Context, id, userID string) error
 	DeleteExternalAccountByProvider(ctx context.Context, userID, provider string) error
 	CountExternalAccountsByUserID(ctx context.Context, userID string) (int64, error)
@@ -123,7 +123,7 @@ type ExternalAccount struct {
 	//nolint:gosec
 	RefreshToken   string // Encrypted
 	TokenExpiresAt *time.Time
-	RawData        map[string]interface{}
+	RawData        map[string]any
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
@@ -642,7 +642,7 @@ func (r *SQLRepository) UpdateExternalAccountTokens(ctx context.Context, provide
 }
 
 // UpdateExternalAccountProfile updates the profile info for an external account.
-func (r *SQLRepository) UpdateExternalAccountProfile(ctx context.Context, provider, providerUserID, name, avatarURL, email string, rawData map[string]interface{}) error {
+func (r *SQLRepository) UpdateExternalAccountProfile(ctx context.Context, provider, providerUserID, name, avatarURL, email string, rawData map[string]any) error {
 	var rawDataNullable []byte
 
 	if rawData != nil {

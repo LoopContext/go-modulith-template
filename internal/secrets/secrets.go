@@ -16,7 +16,7 @@ type Provider interface {
 
 	// GetSecretJSON retrieves a secret value and unmarshals it as JSON.
 	// This is useful for structured secrets like database connection strings with multiple fields.
-	GetSecretJSON(ctx context.Context, key string, v interface{}) error
+	GetSecretJSON(ctx context.Context, key string, v any) error
 }
 
 // ErrSecretNotFound is returned when a secret is not found.

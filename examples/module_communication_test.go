@@ -100,7 +100,7 @@ func testEventPublishing(ctx context.Context, t *testing.T, eventBus *events.Bus
 	// Example: Creating a user should publish user.created event
 	testEvent := events.Event{
 		Name: "user.created",
-		Payload: map[string]interface{}{
+		Payload: map[string]any{
 			"user_id": "test-user-123",
 			"email":   "test@example.com",
 		},

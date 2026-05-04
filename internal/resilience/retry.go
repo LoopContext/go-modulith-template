@@ -81,10 +81,7 @@ func Retry(ctx context.Context, config RetryConfig, fn func(context.Context) err
 		}
 
 		// Increase delay for next attempt
-		delay = time.Duration(float64(delay) * config.Multiplier)
-		if delay > config.MaxDelay {
-			delay = config.MaxDelay
-		}
+		delay = min(time.Duration(float64(delay)*config.Multiplier), config.MaxDelay)
 	}
 
 	return lastErr

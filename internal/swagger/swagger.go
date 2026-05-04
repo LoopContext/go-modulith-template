@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -129,7 +130,7 @@ func handleSwaggerJSON(w http.ResponseWriter, _ *http.Request, apiTitle string) 
 	}
 }
 
-func loadAndMergeSwaggerSpecs(apiTitle string) (map[string]interface{}, error) {
+func loadAndMergeSwaggerSpecs(apiTitle string) (map[string]any, error) {
 	swaggerFiles, err := filepath.Glob(filepath.Join(swaggerBasePath, "*", "v1", "*.swagger.json"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover swagger files: %w", err)
@@ -139,12 +140,12 @@ func loadAndMergeSwaggerSpecs(apiTitle string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("no swagger files found in %s", swaggerBasePath)
 	}
 
-	merged := make(map[string]interface{})
-	allPaths := make(map[string]interface{})
-	allDefinitions := make(map[string]interface{})
+	merged := make(map[string]any)
+	allPaths := make(map[string]any)
+	allDefinitions := make(map[string]any)
 	seenTags := make(map[string]bool)
 
-	var allTags []interface{}
+	var allTags []any
 
 	for _, file := range swaggerFiles {
 		spec, err := loadSwaggerFile(file)
@@ -166,14 +167,14 @@ func loadAndMergeSwaggerSpecs(apiTitle string) (map[string]interface{}, error) {
 	return merged, nil
 }
 
-func loadSwaggerFile(file string) (map[string]interface{}, error) {
+func loadSwaggerFile(file string) (map[string]any, error) {
 	// #nosec G304 -- file path is controlled by filepath.Glob pattern
 	data, err := os.ReadFile(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	var spec map[string]interface{}
+	var spec map[string]any
 	if err := json.Unmarshal(data, &spec); err != nil {
 		return nil, fmt.Errorf("failed to parse file: %w", err)
 	}
@@ -181,50 +182,46 @@ func loadSwaggerFile(file string) (map[string]interface{}, error) {
 	return spec, nil
 }
 
-func initializeMergedSpec(merged map[string]interface{}, spec map[string]interface{}, allPaths, allDefinitions *map[string]interface{}, apiTitle string) {
+func initializeMergedSpec(merged map[string]any, spec map[string]any, allPaths, allDefinitions *map[string]any, apiTitle string) {
 	if merged["swagger"] == nil {
 		merged["swagger"] = spec["swagger"]
 		merged["consumes"] = spec["consumes"]
 		merged["produces"] = spec["produces"]
-		merged["info"] = map[string]interface{}{
+		merged["info"] = map[string]any{
 			"title":   apiTitle,
 			"version": "version not set",
 		}
-		*allPaths = make(map[string]interface{})
-		*allDefinitions = make(map[string]interface{})
+		*allPaths = make(map[string]any)
+		*allDefinitions = make(map[string]any)
 	}
 }
 
-func mergePaths(spec map[string]interface{}, allPaths map[string]interface{}) {
-	paths, ok := spec["paths"].(map[string]interface{})
+func mergePaths(spec map[string]any, allPaths map[string]any) {
+	paths, ok := spec["paths"].(map[string]any)
 	if !ok {
 		return
 	}
 
-	for path, pathItem := range paths {
-		allPaths[path] = pathItem
-	}
+	maps.Copy(allPaths, paths)
 }
 
-func mergeDefinitions(spec map[string]interface{}, allDefinitions map[string]interface{}) {
-	definitions, ok := spec["definitions"].(map[string]interface{})
+func mergeDefinitions(spec map[string]any, allDefinitions map[string]any) {
+	definitions, ok := spec["definitions"].(map[string]any)
 	if !ok {
 		return
 	}
 
-	for defName, defValue := range definitions {
-		allDefinitions[defName] = defValue
-	}
+	maps.Copy(allDefinitions, definitions)
 }
 
-func mergeTags(spec map[string]interface{}, seenTags map[string]bool, allTags *[]interface{}) {
-	tags, ok := spec["tags"].([]interface{})
+func mergeTags(spec map[string]any, seenTags map[string]bool, allTags *[]any) {
+	tags, ok := spec["tags"].([]any)
 	if !ok {
 		return
 	}
 
 	for _, tag := range tags {
-		tagMap, ok := tag.(map[string]interface{})
+		tagMap, ok := tag.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -242,7 +239,7 @@ func mergeTags(spec map[string]interface{}, seenTags map[string]bool, allTags *[
 	}
 }
 
-func loadModuleSwaggerSpec(moduleName string) (map[string]interface{}, error) {
+func loadModuleSwaggerSpec(moduleName string) (map[string]any, error) {
 	swaggerPath := filepath.Join(swaggerBasePath, moduleName, "v1", fmt.Sprintf("%s.swagger.json", moduleName))
 
 	// #nosec G304 -- file path is constructed from module name, which is controlled
@@ -251,7 +248,7 @@ func loadModuleSwaggerSpec(moduleName string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("failed to read swagger file: %w", err)
 	}
 
-	var spec map[string]interface{}
+	var spec map[string]any
 	if err := json.Unmarshal(data, &spec); err != nil {
 		return nil, fmt.Errorf("failed to parse swagger file: %w", err)
 	}
@@ -259,17 +256,17 @@ func loadModuleSwaggerSpec(moduleName string) (map[string]interface{}, error) {
 	return spec, nil
 }
 
-func enhanceSwaggerSpec(swagger map[string]interface{}, apiTitle string) {
+func enhanceSwaggerSpec(swagger map[string]any, apiTitle string) {
 	// Update version and title
-	if info, ok := swagger["info"].(map[string]interface{}); ok {
+	if info, ok := swagger["info"].(map[string]any); ok {
 		info["version"] = version.Short()
 		info["title"] = apiTitle
 	}
 
 	// Add Bearer token security definition
 	if swagger["securityDefinitions"] == nil {
-		swagger["securityDefinitions"] = map[string]interface{}{
-			"Bearer": map[string]interface{}{
+		swagger["securityDefinitions"] = map[string]any{
+			"Bearer": map[string]any{
 				"type":        "apiKey",
 				"name":        "Authorization",
 				"in":          "header",
@@ -280,9 +277,9 @@ func enhanceSwaggerSpec(swagger map[string]interface{}, apiTitle string) {
 
 	// Add global security requirement (makes "Authorize" button appear)
 	if swagger["security"] == nil {
-		swagger["security"] = []interface{}{
-			map[string]interface{}{
-				"Bearer": []interface{}{},
+		swagger["security"] = []any{
+			map[string]any{
+				"Bearer": []any{},
 			},
 		}
 	}

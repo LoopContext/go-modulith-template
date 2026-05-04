@@ -20,7 +20,7 @@ func TestLogNotifier_SendEmail(t *testing.T) {
 		To:      "test@example.com",
 		Subject: "Test Subject",
 		Body:    "Test Body",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"key": "value",
 		},
 	}
@@ -38,7 +38,7 @@ func TestLogNotifier_SendSMS(t *testing.T) {
 	msg := Message{
 		To:   "+1234567890",
 		Body: "Test SMS Body",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"key": "value",
 		},
 	}

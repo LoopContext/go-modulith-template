@@ -36,7 +36,7 @@ func TestUnaryServerInterceptor_PublicMethod(t *testing.T) {
 	interceptor := UnaryServerInterceptor(cfg)
 
 	called := false
-	handler := func(_ context.Context, _ interface{}) (interface{}, error) {
+	handler := func(_ context.Context, _ any) (any, error) {
 		called = true
 		return testResponse, nil
 	}
@@ -67,7 +67,7 @@ func TestUnaryServerInterceptor_NoVerifier(t *testing.T) {
 
 	interceptor := UnaryServerInterceptor(cfg)
 
-	handler := func(_ context.Context, _ interface{}) (interface{}, error) {
+	handler := func(_ context.Context, _ any) (any, error) {
 		return testResponse, nil
 	}
 
@@ -98,7 +98,7 @@ func TestUnaryServerInterceptor_MissingToken(t *testing.T) {
 
 	interceptor := UnaryServerInterceptor(cfg)
 
-	handler := func(_ context.Context, _ interface{}) (interface{}, error) {
+	handler := func(_ context.Context, _ any) (any, error) {
 		return testResponse, nil
 	}
 
@@ -133,7 +133,7 @@ func TestUnaryServerInterceptor_InvalidToken(t *testing.T) {
 
 	interceptor := UnaryServerInterceptor(cfg)
 
-	handler := func(_ context.Context, _ interface{}) (interface{}, error) {
+	handler := func(_ context.Context, _ any) (any, error) {
 		return testResponse, nil
 	}
 
@@ -208,7 +208,7 @@ func createValidTokenInterceptorConfig(expectedClaims *Claims) InterceptorConfig
 func createValidTokenHandler(t *testing.T, handlerCalled *bool, expectedClaims *Claims) grpc.UnaryHandler {
 	t.Helper()
 
-	return func(ctx context.Context, _ interface{}) (interface{}, error) {
+	return func(ctx context.Context, _ any) (any, error) {
 		*handlerCalled = true
 
 		// Verify claims are in context

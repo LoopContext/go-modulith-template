@@ -27,7 +27,7 @@ type InterceptorConfig struct {
 //
 // If a method is in PublicMethods, it will bypass authentication.
 func UnaryServerInterceptor(cfg InterceptorConfig) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if _, ok := cfg.PublicMethods[info.FullMethod]; ok {
 			return handler(ctx, req)
 		}
@@ -77,14 +77,14 @@ func bearerTokenFromMetadata(ctx context.Context) (string, error) {
 	if len(cookies) > 0 {
 		// Cookie header can contain multiple cookies: "name1=val1; name2=val2"
 		for _, cookieStr := range cookies {
-			parts := strings.Split(cookieStr, ";")
+			parts := strings.SplitSeq(cookieStr, ";")
 
-			for _, part := range parts {
+			for part := range parts {
 				part = strings.TrimSpace(part)
 
 				prefix := AccessTokenCookieName + "="
-				if strings.HasPrefix(part, prefix) {
-					return strings.TrimPrefix(part, prefix), nil
+				if after, ok0 := strings.CutPrefix(part, prefix); ok0 {
+					return after, nil
 				}
 			}
 		}

@@ -116,7 +116,7 @@ func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLogin
 			locale = i18n.DetectLocale(ctx, "en")
 		}
 
-		if txErr := txRepo.StoreOutbox(ctx, notifier.EventMagicCodeRequested, map[string]interface{}{
+		if txErr := txRepo.StoreOutbox(ctx, notifier.EventMagicCodeRequested, map[string]any{
 			"email":  email,
 			"phone":  phone,
 			"code":   code,
@@ -189,7 +189,7 @@ func (s *AuthService) CompleteLogin(ctx context.Context, req *authv1.CompleteLog
 			slog.ErrorContext(ctx, "failed to invalidate magic codes", "error", txErr)
 		}
 
-		return txRepo.StoreOutbox(ctx, events.EventAuthUserLoggedIn, map[string]interface{}{
+		return txRepo.StoreOutbox(ctx, events.EventAuthUserLoggedIn, map[string]any{
 			"user_id":      user.ID,
 			"email":        email,
 			"phone":        phone,
@@ -458,7 +458,7 @@ func generateRandomCode(length int) (string, error) {
 	const digits = "0123456789"
 
 	ret := make([]byte, length)
-	for i := 0; i < length; i++ {
+	for i := range length {
 		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(digits))))
 		if err != nil {
 			return "", fmt.Errorf("random number generation failed: %w", err)
@@ -601,10 +601,10 @@ func getRefreshTokenFromCookie(ctx context.Context) string {
 	prefix := authn.RefreshTokenCookieName + "="
 
 	for _, line := range cookieHeaders {
-		for _, part := range strings.Split(line, ";") {
+		for part := range strings.SplitSeq(line, ";") {
 			part = strings.TrimSpace(part)
-			if strings.HasPrefix(part, prefix) {
-				val := strings.TrimPrefix(part, prefix)
+			if after, ok0 := strings.CutPrefix(part, prefix); ok0 {
+				val := after
 
 				return strings.TrimSpace(val)
 			}

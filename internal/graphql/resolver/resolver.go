@@ -31,19 +31,19 @@ func NewRootResolver(eventBus *events.Bus, wsHub *websocket.Hub) *RootResolver {
 
 // Query returns the query resolver.
 // This will implement generated.QueryResolver after running: just add-graphql
-func (r *RootResolver) Query() interface{} {
+func (r *RootResolver) Query() any {
 	return r.queryResolver
 }
 
 // Mutation returns the mutation resolver.
 // This will implement generated.MutationResolver after running: just add-graphql
-func (r *RootResolver) Mutation() interface{} {
+func (r *RootResolver) Mutation() any {
 	return r.mutationResolver
 }
 
 // Subscription returns the subscription resolver.
 // This will implement generated.SubscriptionResolver after running: just add-graphql
-func (r *RootResolver) Subscription() interface{} {
+func (r *RootResolver) Subscription() any {
 	return r.subscriptionResolver
 }
 

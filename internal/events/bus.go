@@ -13,7 +13,7 @@ import (
 // Event represents a simple data carrier
 type Event struct {
 	Name    string
-	Payload interface{}
+	Payload any
 }
 
 // Handler defines a function that processes an event

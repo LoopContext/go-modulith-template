@@ -54,7 +54,7 @@ func TestSubscriber_HandleEventBroadcast(t *testing.T) {
 	// Publish an event that should be broadcasted
 	testEvent := events.Event{
 		Name: "order.created",
-		Payload: map[string]interface{}{
+		Payload: map[string]any{
 			"order_id": "123",
 			"amount":   100.50,
 		},
@@ -70,7 +70,7 @@ func TestSubscriber_HandleEventBroadcast(t *testing.T) {
 			t.Errorf("Expected message type 'order.created', got '%s'", msg.Type)
 		}
 
-		payload, ok := msg.Payload.(map[string]interface{})
+		payload, ok := msg.Payload.(map[string]any)
 		if !ok {
 			t.Fatal("Expected payload to be map")
 		}
@@ -118,7 +118,7 @@ func TestSubscriber_HandleEventWithUserID(t *testing.T) {
 	// Publish event targeted to user-1
 	testEvent := events.Event{
 		Name: "notification.sent",
-		Payload: map[string]interface{}{
+		Payload: map[string]any{
 			"user_id": "user-1",
 			"message": "You have a new notification",
 		},
@@ -192,7 +192,7 @@ func TestSubscriber_SubscribeToEvent(t *testing.T) {
 func TestExtractUserID(t *testing.T) {
 	tests := []struct {
 		name     string
-		payload  interface{}
+		payload  any
 		expected string
 	}{
 		{
@@ -202,7 +202,7 @@ func TestExtractUserID(t *testing.T) {
 		},
 		{
 			name: "user_id field",
-			payload: map[string]interface{}{
+			payload: map[string]any{
 				"user_id": "user-123",
 				"data":    "test",
 			},
@@ -210,7 +210,7 @@ func TestExtractUserID(t *testing.T) {
 		},
 		{
 			name: "userId field",
-			payload: map[string]interface{}{
+			payload: map[string]any{
 				"userId": "user-456",
 				"data":   "test",
 			},
@@ -218,7 +218,7 @@ func TestExtractUserID(t *testing.T) {
 		},
 		{
 			name: "UserID field",
-			payload: map[string]interface{}{
+			payload: map[string]any{
 				"UserID": "user-789",
 				"data":   "test",
 			},
@@ -226,7 +226,7 @@ func TestExtractUserID(t *testing.T) {
 		},
 		{
 			name: "no user field",
-			payload: map[string]interface{}{
+			payload: map[string]any{
 				"data": "test",
 			},
 			expected: "",

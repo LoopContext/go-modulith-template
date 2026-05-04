@@ -18,7 +18,7 @@ import (
 )
 
 // setupGRPCTestServer sets up a gRPC test server with database and registry.
-func setupGRPCTestServer(ctx context.Context, t *testing.T) (*testutil.PostgresContainer, *testutil.GRPCTestServer, interface{}) {
+func setupGRPCTestServer(ctx context.Context, t *testing.T) (*testutil.PostgresContainer, *testutil.GRPCTestServer, any) {
 	t.Helper()
 
 	pgContainer, err := testutil.NewPostgresContainer(ctx, t)

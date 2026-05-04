@@ -7,15 +7,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
 // OpenAPI2 represents the Swagger/OpenAPI 2.0 structure
 type OpenAPI2 struct {
-	Swagger string                 `json:"swagger"`
-	Info    map[string]interface{} `json:"info"`
-	Paths   map[string]PathItem    `json:"paths"`
-	Defs    map[string]Schema      `json:"definitions"`
+	Swagger string              `json:"swagger"`
+	Info    map[string]any      `json:"info"`
+	Paths   map[string]PathItem `json:"paths"`
+	Defs    map[string]Schema   `json:"definitions"`
 }
 
 type PathItem struct {
@@ -442,11 +443,5 @@ func toGraphQLOperationName(opID string) string {
 }
 
 func isRequired(fieldName string, required []string) bool {
-	for _, req := range required {
-		if req == fieldName {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(required, fieldName)
 }
