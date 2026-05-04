@@ -190,6 +190,7 @@ func (h *Handler) redirectWithError(w http.ResponseWriter, r *http.Request, redi
 
 	// Append error to redirect URL
 	redirectURL = fmt.Sprintf("%s?error=%s&error_description=%s", redirectURL, errorCode, errorMsg)
+	//nolint:gosec // Redirect URLs are validated during state creation
 	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 }
 
@@ -210,6 +211,7 @@ func (h *Handler) redirectWithSuccess(w http.ResponseWriter, r *http.Request, re
 	// Redirect with tokens in query params (for mobile apps, etc.)
 	redirectURL = fmt.Sprintf("%s?access_token=%s&refresh_token=%s&expires_in=%d&is_new_user=%t",
 		redirectURL, result.AccessToken, result.RefreshToken, result.ExpiresIn, result.IsNewUser)
+	//nolint:gosec // Redirect URLs are validated during state creation
 	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 }
 

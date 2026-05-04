@@ -526,6 +526,8 @@ func (c *AppConfig) overrideOAuthEnv(sources map[string]string, sourceName strin
 // OverrideWithEnvFromDotenv applies .env file values, but only marks as ".env" if:
 // 1. The variable was not in system ENV vars (new variable from .env), OR
 // 2. The value changed from system ENV vars (overridden by .env)
+//
+//nolint:funlen // OverrideWithEnvFromDotenv applies many env vars
 func (c *AppConfig) OverrideWithEnvFromDotenv(sources, systemEnvVars map[string]string, sourceName string) {
 	c.overrideEnvVar("APP_NAME", func(val string) { c.AppName = val }, sources, systemEnvVars, sourceName)
 	c.overrideEnvVar("ENV", func(val string) { c.Env = val }, sources, systemEnvVars, sourceName)
