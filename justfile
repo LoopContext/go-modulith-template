@@ -75,6 +75,9 @@ proto: be-proto
 # Format code
 format: be-format
 
+# Run go fix to update old APIs
+go-fix: be-go-fix
+
 # Tidy dependencies
 tidy: be-tidy
 
@@ -410,6 +413,12 @@ be-format:
         echo "💡 Tip: Install goimports for import formatting: go install golang.org/x/tools/cmd/goimports@latest"; \
     fi
     @echo "✅ Code formatted"
+
+# Run go fix
+be-go-fix:
+    @echo "Running go fix..."
+    @go fix ./...
+    @echo "✅ Go fix completed"
 
 # Tidy Go module dependencies
 be-tidy:
