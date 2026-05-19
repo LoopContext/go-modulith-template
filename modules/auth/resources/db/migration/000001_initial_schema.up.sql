@@ -162,21 +162,6 @@ CREATE TABLE auth.oauth_states (
 
 CREATE INDEX idx_oauth_states_expires_at ON auth.oauth_states(expires_at);
 
--- Outbox table for transactional messaging
-CREATE TABLE auth.outbox (
-    id VARCHAR(36) PRIMARY KEY,
-    event_name VARCHAR(255) NOT NULL,
-    payload JSONB NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    published_at TIMESTAMPTZ
-);
-
-CREATE INDEX idx_outbox_unpublished ON auth.outbox (created_at) WHERE published_at IS NULL;
-
-
-
-
 -- Auth Config
 CREATE TABLE IF NOT EXISTS auth.auth_config (
     key TEXT PRIMARY KEY,
@@ -196,7 +181,7 @@ CREATE TRIGGER set_updated_at BEFORE UPDATE ON auth.token_blacklist FOR EACH ROW
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON auth.pending_contact_changes FOR EACH ROW EXECUTE FUNCTION auth.set_updated_at();
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON auth.user_external_accounts FOR EACH ROW EXECUTE FUNCTION auth.set_updated_at();
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON auth.oauth_states FOR EACH ROW EXECUTE FUNCTION auth.set_updated_at();
-CREATE TRIGGER set_updated_at BEFORE UPDATE ON auth.outbox FOR EACH ROW EXECUTE FUNCTION auth.set_updated_at();
+
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON auth.auth_config FOR EACH ROW EXECUTE FUNCTION auth.set_updated_at();
 
 -- Reset search_path to default

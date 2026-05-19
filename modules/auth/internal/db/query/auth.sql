@@ -182,21 +182,4 @@ DELETE FROM auth.oauth_states WHERE state = $1;
 -- name: CleanupExpiredOAuthStates :exec
 DELETE FROM auth.oauth_states WHERE expires_at < CURRENT_TIMESTAMP;
 
--- ========================
--- Outbox
--- ========================
 
--- name: StoreOutbox :exec
-INSERT INTO auth.outbox (id, event_name, payload, created_at)
-VALUES ($1, $2, $3, NOW());
-
--- name: GetUnpublishedOutbox :many
-SELECT * FROM auth.outbox
-WHERE published_at IS NULL
-ORDER BY created_at ASC
-LIMIT $1;
-
--- name: MarkOutboxAsPublished :exec
-UPDATE auth.outbox
-SET published_at = NOW()
-WHERE id = ANY($1::varchar[]);

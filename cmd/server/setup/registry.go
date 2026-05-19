@@ -12,6 +12,7 @@ import (
 	"github.com/LoopContext/go-modulith-template/internal/events"
 	"github.com/LoopContext/go-modulith-template/internal/feature"
 	"github.com/LoopContext/go-modulith-template/internal/notifier"
+	"github.com/LoopContext/go-modulith-template/internal/queue"
 	"github.com/LoopContext/go-modulith-template/internal/registry"
 	"github.com/LoopContext/go-modulith-template/internal/websocket"
 	"github.com/LoopContext/go-modulith-template/modules/auth"
@@ -69,6 +70,10 @@ func CreateRegistry(cfg *config.AppConfig, db *pgxpool.Pool) *registry.Registry 
 	// Initialize Feature Flag Manager
 	featureMgr := feature.NewSQLManager(db)
 
+	// Initialize Background Queue Client and Server
+	qClient := queue.NewClient(cfg.ValkeyAddr, cfg.ValkeyPassword, cfg.ValkeyDB)
+	qServer := queue.NewServer(cfg.ValkeyAddr, cfg.ValkeyPassword, cfg.ValkeyDB, 10)
+
 	// Create registry with all dependencies
 	return registry.New(
 		registry.WithConfig(cfg),
@@ -79,6 +84,7 @@ func CreateRegistry(cfg *config.AppConfig, db *pgxpool.Pool) *registry.Registry 
 		registry.WithAuditLogger(auditLogger),
 		registry.WithFeature(featureMgr),
 		registry.WithCache(cacheImpl),
+		registry.WithQueue(qClient, qServer),
 	)
 }
 

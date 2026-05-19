@@ -11,6 +11,7 @@ import (
 	"github.com/LoopContext/go-modulith-template/internal/events"
 	"github.com/LoopContext/go-modulith-template/internal/feature"
 	"github.com/LoopContext/go-modulith-template/internal/notifier"
+	"github.com/LoopContext/go-modulith-template/internal/queue"
 	"github.com/LoopContext/go-modulith-template/internal/websocket"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,14 +22,16 @@ import (
 // It holds all shared services and manages module lifecycle.
 type Registry struct {
 	// Core dependencies - config is any to avoid import cycles
-	config   any
-	db       *pgxpool.Pool
-	bus      *events.Bus
-	notifier notifier.Notifier
-	wsHub    *websocket.Hub
-	audit    audit.Logger
-	feature  feature.Manager
-	cache    cache.Cache
+	config      any
+	db          *pgxpool.Pool
+	bus         *events.Bus
+	notifier    notifier.Notifier
+	wsHub       *websocket.Hub
+	audit       audit.Logger
+	feature     feature.Manager
+	cache       cache.Cache
+	queueClient *queue.Client
+	queueServer *queue.Server
 
 	// Infrastructure
 	metricsHandler http.Handler
@@ -183,6 +186,16 @@ func (r *Registry) FlagManager() feature.Manager {
 // Cache returns the cache service.
 func (r *Registry) Cache() cache.Cache {
 	return r.cache
+}
+
+// QueueClient returns the queue client.
+func (r *Registry) QueueClient() *queue.Client {
+	return r.queueClient
+}
+
+// QueueServer returns the queue server.
+func (r *Registry) QueueServer() *queue.Server {
+	return r.queueServer
 }
 
 // MetricsHandler returns the metrics HTTP handler.

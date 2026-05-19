@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/LoopContext/go-modulith-template/internal/outbox"
 	"github.com/LoopContext/go-modulith-template/internal/telemetry"
 	"github.com/LoopContext/go-modulith-template/modules/auth/internal/db/store"
 	"github.com/jackc/pgx/v5"
@@ -21,7 +20,7 @@ import (
 // Repository defines the data access methods for the authentication module.
 type Repository interface {
 	// Transaction support
-	WithTx(ctx context.Context, fn func(Repository) error) error
+	WithTx(ctx context.Context, fn func(pgx.Tx, Repository) error) error
 
 	// User management
 	CreateUser(ctx context.Context, id, email, phone string) error
@@ -76,9 +75,6 @@ type Repository interface {
 	GetOAuthState(ctx context.Context, state string) (*OAuthState, error)
 	DeleteOAuthState(ctx context.Context, state string) error
 	CleanupExpiredOAuthStates(ctx context.Context) error
-
-	// StoreOutbox stores an event in the outbox table within the current transaction.
-	StoreOutbox(ctx context.Context, eventName string, payload any) error
 
 	// Verification
 	MarkEmailVerified(ctx context.Context, userID string) error
@@ -154,14 +150,14 @@ func NewSQLRepository(db *pgxpool.Pool) *SQLRepository {
 }
 
 // WithTx executes the given function within a database transaction.
-func (r *SQLRepository) WithTx(ctx context.Context, fn func(Repository) error) error {
+func (r *SQLRepository) WithTx(ctx context.Context, fn func(pgx.Tx, Repository) error) error {
 	if err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
 		txRepo := &SQLRepository{
 			q:  r.q.WithTx(tx),
 			db: r.db,
 		}
 
-		return fn(txRepo)
+		return fn(tx, txRepo)
 	}); err != nil {
 		return fmt.Errorf("transaction failed: %w", err)
 	}
@@ -850,57 +846,3 @@ func (r *SQLRepository) CleanupExpiredMagicCodes(ctx context.Context) (int, erro
 	return int(tag.RowsAffected()), nil
 }
 
-// StoreOutbox stores an event in the outbox table.
-func (r *SQLRepository) StoreOutbox(ctx context.Context, eventName string, payload any) error {
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal payload: %w", err)
-	}
-
-	id := fmt.Sprintf("outbox_%d", time.Now().UnixNano())
-
-	if err := r.q.StoreOutbox(ctx, store.StoreOutboxParams{
-		ID:        id,
-		EventName: eventName,
-		Payload:   payloadBytes,
-	}); err != nil {
-		return fmt.Errorf("failed to store outbox entry: %w", err)
-	}
-
-	return nil
-}
-
-// GetUnpublished retrieves unpublished events from the outbox.
-func (r *SQLRepository) GetUnpublished(ctx context.Context, limit int) ([]outbox.Entry, error) {
-	rows, err := r.q.GetUnpublishedOutbox(ctx, int32(limit)) // #nosec G115
-	if err != nil {
-		return nil, fmt.Errorf("failed to get unpublished outbox entries: %w", err)
-	}
-
-	entries := make([]outbox.Entry, len(rows))
-	for i, row := range rows {
-		entries[i] = outbox.Entry{
-			ID:        row.ID,
-			EventName: row.EventName,
-			Payload:   row.Payload,
-			CreatedAt: row.CreatedAt.Time,
-		}
-		if row.PublishedAt.Valid {
-			entries[i].PublishedAt = &row.PublishedAt.Time
-		}
-	}
-
-	return entries, nil
-}
-
-// MarkPublished marks events as published in the outbox.
-func (r *SQLRepository) MarkPublished(ctx context.Context, ids []string) error {
-	if err := r.q.MarkOutboxAsPublished(ctx, ids); err != nil {
-		return fmt.Errorf("failed to mark outbox entries as published: %w", err)
-	}
-
-	return nil
-}
-
-// Ensure SQLRepository implements outbox.PublisherRepository
-var _ outbox.PublisherRepository = (*SQLRepository)(nil)

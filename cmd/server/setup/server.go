@@ -8,12 +8,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/LoopContext/go-modulith-template/internal/audit"
+	"encoding/json"
 
+	"github.com/LoopContext/go-modulith-template/internal/audit"
 	"github.com/LoopContext/go-modulith-template/internal/authn"
 	"github.com/LoopContext/go-modulith-template/internal/config"
 	"github.com/LoopContext/go-modulith-template/internal/i18n"
 	"github.com/LoopContext/go-modulith-template/internal/middleware"
+	"github.com/LoopContext/go-modulith-template/internal/outbox"
+	"github.com/LoopContext/go-modulith-template/internal/queue"
 	"github.com/LoopContext/go-modulith-template/internal/registry"
 	"github.com/LoopContext/go-modulith-template/internal/telemetry"
 	"github.com/LoopContext/go-modulith-template/internal/validation"
@@ -81,6 +84,41 @@ func AndStartServers(ctx context.Context, cfg *config.AppConfig, reg *registry.R
 
 	httpServer := StartHTTPServer(cfg, mux, reg)
 	StartGRPCServer(cfg, grpcServer, lis, stop)
+
+	// Start Queue Server if configured
+	if reg.QueueServer() != nil {
+		go func() {
+			slog.Info("Starting background task queue worker...")
+
+			if err := reg.QueueServer().Start(); err != nil {
+				slog.Error("Background task queue worker failed to start", "error", err)
+			}
+		}()
+	}
+
+	// Start Outbox Publisher worker
+	if reg.DB() != nil && reg.QueueClient() != nil {
+		outboxRepo := outbox.NewRepository(reg.DB())
+
+		outboxPublisher := outbox.NewPublisher(outboxRepo, func(ctx context.Context, name string, payload any) {
+			payloadBytes, err := json.Marshal(payload)
+			if err == nil {
+				task := queue.NewTask(name, payloadBytes)
+				if err := reg.QueueClient().Enqueue(task); err != nil {
+					slog.ErrorContext(ctx, "failed to enqueue task from outbox", "error", err)
+				}
+			} else {
+				slog.ErrorContext(ctx, "failed to marshal outbox payload", "error", err)
+			}
+		})
+		go outboxPublisher.Start(ctx)
+		
+		// Stop outbox publisher on shutdown
+		go func() {
+			<-ctx.Done()
+			outboxPublisher.Stop()
+		}()
+	}
 
 	return grpcServer, httpServer, gatewayConn
 }

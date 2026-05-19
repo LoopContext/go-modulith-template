@@ -8,6 +8,7 @@ import (
 	"github.com/LoopContext/go-modulith-template/internal/events"
 	"github.com/LoopContext/go-modulith-template/internal/feature"
 	"github.com/LoopContext/go-modulith-template/internal/notifier"
+	"github.com/LoopContext/go-modulith-template/internal/queue"
 	"github.com/LoopContext/go-modulith-template/internal/websocket"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -38,14 +39,11 @@ func WithEventBus(bus *events.Bus) Option {
 	}
 }
 
-// WithOutbox enables the outbox pattern for reliable event publishing.
-// This is a placeholder for future outbox integration.
-// Outbox pattern implementation is in internal/outbox package.
-// Usage is explicit in modules when outbox is needed.
-func WithOutbox(outboxRepo any) Option {
-	return func(_ *Registry) {
-		// Outbox integration is optional and explicit in modules
-		_ = outboxRepo
+// WithQueue sets the queue client and server for reliable background tasks.
+func WithQueue(client *queue.Client, server *queue.Server) Option {
+	return func(r *Registry) {
+		r.queueClient = client
+		r.queueServer = server
 	}
 }
 

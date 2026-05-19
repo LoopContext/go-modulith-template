@@ -19,3 +19,12 @@ scripts/graphql-from-proto/graphql-from-proto
 
 # Keploy artifacts (user dapat decide whether to commit these)
 keploy/
+
+# repowise API keys (local)
+.repowise/.env
+# repowise local index (regenerate with `repowise index`)
+.repowise/lancedb/
+.repowise/jobs/
+.repowise/wiki.db
+.repowise/wiki.db-*
+.repowise/state.json

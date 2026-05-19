@@ -186,6 +186,13 @@ func runServer(ctx context.Context, cfg *config.AppConfig, reg *registry.Registr
 	}()
 
 	<-ctx.Done()
+
+	// Shut down Queue server first
+	if reg.QueueServer() != nil {
+		slog.Info("Shutting down background task queue worker...")
+		reg.QueueServer().Shutdown()
+	}
+
 	setup.ShutdownServers(cfg, httpServer, grpcServer, reg.WebSocketHub())
 	// runServer returns after graceful shutdown, main() will exit with code 0
 }

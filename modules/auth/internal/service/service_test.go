@@ -15,14 +15,13 @@ import (
 	"github.com/LoopContext/go-modulith-template/internal/feature"
 	"github.com/LoopContext/go-modulith-template/internal/testutil"
 	"github.com/LoopContext/go-modulith-template/modules/auth/internal/db/store"
+	"github.com/LoopContext/go-modulith-template/modules/auth/internal/repository"
 	"github.com/LoopContext/go-modulith-template/modules/auth/internal/repository/mocks"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/grpc/metadata"
-
-	"github.com/LoopContext/go-modulith-template/modules/auth/internal/repository"
 )
 
 const testUserID = "user_1"
@@ -95,10 +94,10 @@ func TestAuthService_RequestLogin(t *testing.T) {
 			defer ctrl.Finish()
 
 			mRepo := mocks.NewMockRepository(ctrl)
-			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(repository.Repository) error) error {
-				return fn(mRepo)
+			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(pgx.Tx, repository.Repository) error) error {
+				return fn(nil, mRepo)
 			}).AnyTimes()
-			mRepo.EXPECT().StoreOutbox(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
 
 			tokenSvc, _ := authtoken.NewService(testutil.TestJWTPrivateKeyPEM)
 			bus := events.NewBus()
@@ -109,7 +108,7 @@ func TestAuthService_RequestLogin(t *testing.T) {
 				tt.setup(mRepo)
 			}
 
-			svc := NewAuthService(mRepo, tokenSvc, bus, auditLog, flags, "dev")
+			svc := NewAuthService(mRepo, tokenSvc, bus, auditLog, flags, "dev", nil, nil)
 
 			resp, err := svc.RequestLogin(context.Background(), tt.req)
 
@@ -194,10 +193,10 @@ func TestAuthService_CompleteLogin(t *testing.T) {
 			defer ctrl.Finish()
 
 			mRepo := mocks.NewMockRepository(ctrl)
-			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(repository.Repository) error) error {
-				return fn(mRepo)
+			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(pgx.Tx, repository.Repository) error) error {
+				return fn(nil, mRepo)
 			}).AnyTimes()
-			mRepo.EXPECT().StoreOutbox(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
 
 			tokenSvc, _ := authtoken.NewService(testutil.TestJWTPrivateKeyPEM)
 			bus := events.NewBus()
@@ -208,7 +207,7 @@ func TestAuthService_CompleteLogin(t *testing.T) {
 				tt.setup(mRepo)
 			}
 
-			svc := NewAuthService(mRepo, tokenSvc, bus, auditLog, flags, "dev")
+			svc := NewAuthService(mRepo, tokenSvc, bus, auditLog, flags, "dev", nil, nil)
 
 			resp, err := svc.CompleteLogin(context.Background(), tt.req)
 
@@ -245,10 +244,10 @@ func TestAuthService_Logout(t *testing.T) {
 			defer ctrl.Finish()
 
 			mRepo := mocks.NewMockRepository(ctrl)
-			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(repository.Repository) error) error {
-				return fn(mRepo)
+			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(pgx.Tx, repository.Repository) error) error {
+				return fn(nil, mRepo)
 			}).AnyTimes()
-			mRepo.EXPECT().StoreOutbox(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
 
 			tokenSvc, _ := authtoken.NewService(testutil.TestJWTPrivateKeyPEM)
 			bus := events.NewBus()
@@ -259,7 +258,7 @@ func TestAuthService_Logout(t *testing.T) {
 				tt.setup(mRepo)
 			}
 
-			svc := NewAuthService(mRepo, tokenSvc, bus, auditLog, flags, "dev")
+			svc := NewAuthService(mRepo, tokenSvc, bus, auditLog, flags, "dev", nil, nil)
 
 			// Mock context with token
 			// We inject user claims via middleware usually, but Logout parses the token.
@@ -331,13 +330,13 @@ func TestAuthService_GetProfile(t *testing.T) {
 			defer ctrl.Finish()
 
 			mRepo := mocks.NewMockRepository(ctrl)
-			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(repository.Repository) error) error {
-				return fn(mRepo)
+			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(pgx.Tx, repository.Repository) error) error {
+				return fn(nil, mRepo)
 			}).AnyTimes()
-			mRepo.EXPECT().StoreOutbox(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
 
 			tokenSvc, _ := authtoken.NewService(testutil.TestJWTPrivateKeyPEM)
-			svc := NewAuthService(mRepo, tokenSvc, events.NewBus(), &audit.NoopLogger{}, feature.NewInMemoryManager(), "dev")
+			svc := NewAuthService(mRepo, tokenSvc, events.NewBus(), &audit.NoopLogger{}, feature.NewInMemoryManager(), "dev", nil, nil)
 
 			if tt.setup != nil {
 				tt.setup(mRepo)
@@ -405,11 +404,11 @@ func TestAuthService_UpdateProfile(t *testing.T) {
 			defer ctrl.Finish()
 
 			mRepo := mocks.NewMockRepository(ctrl)
-			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(repository.Repository) error) error {
-				return fn(mRepo)
+			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(pgx.Tx, repository.Repository) error) error {
+				return fn(nil, mRepo)
 			}).AnyTimes()
-			mRepo.EXPECT().StoreOutbox(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-			svc := NewAuthService(mRepo, nil, events.NewBus(), &audit.NoopLogger{}, nil, "dev")
+
+			svc := NewAuthService(mRepo, nil, events.NewBus(), &audit.NoopLogger{}, nil, "dev", nil, nil)
 
 			if tt.setup != nil {
 				tt.setup(mRepo)
@@ -452,11 +451,11 @@ func TestAuthService_ChangeEmail(t *testing.T) {
 			defer ctrl.Finish()
 
 			mRepo := mocks.NewMockRepository(ctrl)
-			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(repository.Repository) error) error {
-				return fn(mRepo)
+			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(pgx.Tx, repository.Repository) error) error {
+				return fn(nil, mRepo)
 			}).AnyTimes()
-			mRepo.EXPECT().StoreOutbox(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-			svc := NewAuthService(mRepo, nil, events.NewBus(), &audit.NoopLogger{}, nil, "dev")
+
+			svc := NewAuthService(mRepo, nil, events.NewBus(), &audit.NoopLogger{}, nil, "dev", nil, nil)
 
 			if tt.setup != nil {
 				tt.setup(mRepo)
@@ -499,11 +498,11 @@ func TestAuthService_ChangePhone(t *testing.T) {
 			defer ctrl.Finish()
 
 			mRepo := mocks.NewMockRepository(ctrl)
-			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(repository.Repository) error) error {
-				return fn(mRepo)
+			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(pgx.Tx, repository.Repository) error) error {
+				return fn(nil, mRepo)
 			}).AnyTimes()
-			mRepo.EXPECT().StoreOutbox(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-			svc := NewAuthService(mRepo, nil, events.NewBus(), &audit.NoopLogger{}, nil, "dev")
+
+			svc := NewAuthService(mRepo, nil, events.NewBus(), &audit.NoopLogger{}, nil, "dev", nil, nil)
 
 			if tt.setup != nil {
 				tt.setup(mRepo)

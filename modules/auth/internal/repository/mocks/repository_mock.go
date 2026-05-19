@@ -16,6 +16,7 @@ import (
 
 	store "github.com/LoopContext/go-modulith-template/modules/auth/internal/db/store"
 	repository "github.com/LoopContext/go-modulith-template/modules/auth/internal/repository"
+	pgx "github.com/jackc/pgx/v5"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -594,20 +595,6 @@ func (mr *MockRepositoryMockRecorder) RevokeSession(ctx, id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeSession", reflect.TypeOf((*MockRepository)(nil).RevokeSession), ctx, id)
 }
 
-// StoreOutbox mocks base method.
-func (m *MockRepository) StoreOutbox(ctx context.Context, eventName string, payload any) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreOutbox", ctx, eventName, payload)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// StoreOutbox indicates an expected call of StoreOutbox.
-func (mr *MockRepositoryMockRecorder) StoreOutbox(ctx, eventName, payload any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreOutbox", reflect.TypeOf((*MockRepository)(nil).StoreOutbox), ctx, eventName, payload)
-}
-
 // UpdateExternalAccountProfile mocks base method.
 func (m *MockRepository) UpdateExternalAccountProfile(ctx context.Context, provider, providerUserID, name, avatarURL, email string, rawData map[string]any) error {
 	m.ctrl.T.Helper()
@@ -665,7 +652,7 @@ func (mr *MockRepositoryMockRecorder) UpdateUserProfile(ctx, id, displayName, av
 }
 
 // WithTx mocks base method.
-func (m *MockRepository) WithTx(ctx context.Context, fn func(repository.Repository) error) error {
+func (m *MockRepository) WithTx(ctx context.Context, fn func(pgx.Tx, repository.Repository) error) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WithTx", ctx, fn)
 	ret0, _ := ret[0].(error)

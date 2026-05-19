@@ -16,6 +16,7 @@ import (
 	"github.com/LoopContext/go-modulith-template/modules/auth/internal/repository"
 	"github.com/LoopContext/go-modulith-template/modules/auth/internal/repository/mocks"
 	"github.com/LoopContext/go-modulith-template/modules/auth/internal/service"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"go.uber.org/mock/gomock"
 )
@@ -68,8 +69,8 @@ func TestRequestLogin_WithMock(t *testing.T) {
 			tt.setupMock(mockRepo)
 
 			// Helper to handle WithTx
-			mockRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, f func(repository.Repository) error) error {
-				return f(mockRepo)
+			mockRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, f func(pgx.Tx, repository.Repository) error) error {
+				return f(nil, mockRepo)
 			}).AnyTimes()
 
 			// Create service with mock repository
@@ -77,7 +78,7 @@ func TestRequestLogin_WithMock(t *testing.T) {
 			bus := events.NewBus()
 			auditLog := &audit.NoopLogger{}
 			featureMgr := feature.NewInMemoryManager()
-			authSvc := service.NewAuthService(mockRepo, tokenSvc, bus, auditLog, featureMgr, "dev")
+			authSvc := service.NewAuthService(mockRepo, tokenSvc, bus, auditLog, featureMgr, "dev", nil, nil)
 
 			// Execute
 			ctx := context.Background()
@@ -123,17 +124,12 @@ func TestCompleteLogin_WithMock(t *testing.T) {
 		Times(1)
 
 	// Handle WithTx for CompleteLogin
-	mockRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, f func(repository.Repository) error) error {
-		return f(mockRepo)
+	mockRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, f func(pgx.Tx, repository.Repository) error) error {
+		return f(nil, mockRepo)
 	}).Times(1)
 
 	mockRepo.EXPECT().
 		InvalidateMagicCodes(gomock.Any(), email, "").
-		Return(nil).
-		Times(1)
-
-	mockRepo.EXPECT().
-		StoreOutbox(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil).
 		Times(1)
 
@@ -152,7 +148,7 @@ func TestCompleteLogin_WithMock(t *testing.T) {
 	bus := events.NewBus()
 	auditLog := &audit.NoopLogger{}
 	featureMgr := feature.NewInMemoryManager()
-	authSvc := service.NewAuthService(mockRepo, tokenSvc, bus, auditLog, featureMgr, "dev")
+	authSvc := service.NewAuthService(mockRepo, tokenSvc, bus, auditLog, featureMgr, "dev", nil, nil)
 
 	// Execute
 	ctx := context.Background()
@@ -201,7 +197,6 @@ func getRequestLoginTestCases() []struct {
 			setupMock: func(m *mocks.MockRepository) {
 				m.EXPECT().GetUserByEmail(gomock.Any(), "test@example.com").Return(&store.AuthUser{ID: "user-123"}, nil).Times(1)
 				m.EXPECT().CreateMagicCode(gomock.Any(), gomock.Any(), "test@example.com", "", gomock.Any()).Return(nil).AnyTimes()
-				m.EXPECT().StoreOutbox(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			wantErr: false,
 		},

@@ -4,7 +4,8 @@ package auth
 import (
 	"context"
 	"fmt"
-	"time"
+
+	"encoding/json"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -15,7 +16,9 @@ import (
 	"github.com/LoopContext/go-modulith-template/internal/config"
 	internalEvents "github.com/LoopContext/go-modulith-template/internal/events"
 	"github.com/LoopContext/go-modulith-template/internal/feature"
+	"github.com/LoopContext/go-modulith-template/internal/notifier"
 	"github.com/LoopContext/go-modulith-template/internal/outbox"
+	"github.com/LoopContext/go-modulith-template/internal/queue"
 	"github.com/LoopContext/go-modulith-template/internal/registry"
 	"github.com/LoopContext/go-modulith-template/modules/auth/internal/repository"
 	"github.com/LoopContext/go-modulith-template/modules/auth/internal/service"
@@ -30,8 +33,7 @@ type Config = config.AuthConfig
 
 // Module implements the registry.Module interface for auth.
 type Module struct {
-	svc    *service.AuthService
-	outbox *outbox.Publisher
+	svc *service.AuthService
 }
 
 // NewModule creates a new auth module instance.
@@ -66,16 +68,29 @@ func (m *Module) Initialize(r *registry.Registry) error {
 	}
 
 	repo := repository.NewSQLRepository(r.DB())
-	m.svc = service.NewAuthService(repo, tokenService, r.EventBus(), r.AuditLogger(), r.FlagManager(), cfg.Env)
+	m.svc = service.NewAuthService(repo, tokenService, r.EventBus(), r.AuditLogger(), r.FlagManager(), cfg.Env, outbox.NewRepository(r.DB()), r.QueueClient())
 
-	m.outbox = outbox.NewPublisher(repo, func(ctx context.Context, name string, payload any) {
-		r.EventBus().Publish(ctx, internalEvents.Event{Name: name, Payload: payload})
-	})
+	// Register background task queue handlers if QueueServer is configured
+	if r.QueueServer() != nil {
+		bus := r.EventBus()
+		relayHandler := func(ctx context.Context, t *queue.Task) error {
+			var payload any
 
-	if cfg.OutboxPollInterval != "" {
-		if d, err := time.ParseDuration(cfg.OutboxPollInterval); err == nil {
-			m.outbox.SetPollInterval(d)
+			if err := json.Unmarshal(t.Payload(), &payload); err != nil {
+				return fmt.Errorf("failed to unmarshal queue task payload: %w", err)
+			}
+
+			bus.Publish(ctx, internalEvents.Event{
+				Name:    t.Type(),
+				Payload: payload,
+			})
+
+			return nil
 		}
+		r.QueueServer().HandleFunc(internalEvents.EventAuthUserLoggedIn, relayHandler)
+		r.QueueServer().HandleFunc(internalEvents.EventAuthUserRegistered, relayHandler)
+		r.QueueServer().HandleFunc(internalEvents.EventAuthEmailVerificationRequested, relayHandler)
+		r.QueueServer().HandleFunc(notifier.EventMagicCodeRequested, relayHandler)
 	}
 
 	// Handle dummy email verification
@@ -102,21 +117,13 @@ func (m *Module) handleEmailVerificationRequested(ctx context.Context, event int
 	return nil
 }
 
-// OnStart starts the outbox publisher.
-func (m *Module) OnStart(ctx context.Context) error {
-	if m.outbox != nil {
-		go m.outbox.Start(ctx)
-	}
-
+// OnStart is a lifecycle hook called when the application starts.
+func (m *Module) OnStart(_ context.Context) error {
 	return nil
 }
 
-// OnStop stops the outbox publisher.
+// OnStop is a lifecycle hook called when the application stops.
 func (m *Module) OnStop(_ context.Context) error {
-	if m.outbox != nil {
-		m.outbox.Stop()
-	}
-
 	return nil
 }
 
@@ -193,7 +200,7 @@ func Initialize(db *pgxpool.Pool, grpcServer *grpc.Server, bus *internalEvents.B
 	}
 
 	repo := repository.NewSQLRepository(db)
-	svc := service.NewAuthService(repo, tokenService, bus, auditLog, flagManager, "legacy")
+	svc := service.NewAuthService(repo, tokenService, bus, auditLog, flagManager, "legacy", nil, nil)
 
 	authv1.RegisterAuthServiceServer(grpcServer, svc)
 

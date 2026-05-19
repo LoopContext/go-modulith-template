@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -25,6 +26,8 @@ import (
 	"github.com/LoopContext/go-modulith-template/internal/feature"
 	"github.com/LoopContext/go-modulith-template/internal/i18n"
 	"github.com/LoopContext/go-modulith-template/internal/notifier"
+	"github.com/LoopContext/go-modulith-template/internal/outbox"
+	"github.com/LoopContext/go-modulith-template/internal/queue"
 	"github.com/LoopContext/go-modulith-template/internal/telemetry"
 	"github.com/LoopContext/go-modulith-template/modules/auth/internal/db/store"
 	"github.com/LoopContext/go-modulith-template/modules/auth/internal/repository"
@@ -56,10 +59,12 @@ type AuthService struct {
 	audit        audit.Logger
 	feature      feature.Manager
 	env          string // "dev", "staging", "prod", etc.
+	outboxRepo   outbox.Repository
+	queueClient  *queue.Client
 }
 
 // NewAuthService creates a new instance of the AuthService
-func NewAuthService(repo repository.Repository, svc *authtoken.Service, bus *events.Bus, audit audit.Logger, feature feature.Manager, env string) *AuthService {
+func NewAuthService(repo repository.Repository, svc *authtoken.Service, bus *events.Bus, audit audit.Logger, feature feature.Manager, env string, outboxRepo outbox.Repository, queueClient *queue.Client) *AuthService {
 	return &AuthService{
 		repo:         repo,
 		tokenService: svc,
@@ -67,12 +72,15 @@ func NewAuthService(repo repository.Repository, svc *authtoken.Service, bus *eve
 		audit:        audit,
 		feature:      feature,
 		env:          env,
+		outboxRepo:   outboxRepo,
+		queueClient:  queueClient,
 	}
 }
 
 // RequestLogin generates a magic code and emits an event to send it to the user.
 // Note: This endpoint always returns success to prevent email enumeration attacks.
 // If the user doesn't exist, no code is sent but the response looks identical.
+//nolint:funlen
 func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLoginRequest) (*authv1.RequestLoginResponse, error) {
 	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "RequestLogin")
 	defer span.End()
@@ -106,23 +114,27 @@ func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLogin
 
 	expiresAt := time.Now().Add(15 * time.Minute)
 
-	err = s.repo.WithTx(ctx, func(txRepo repository.Repository) error {
-		if txErr := txRepo.CreateMagicCode(ctx, code, email, phone, expiresAt); txErr != nil {
-			return txErr
+	locale := i18n.LocaleFromContext(ctx)
+	if locale == "" {
+		locale = i18n.DetectLocale(ctx, "en")
+	}
+
+	err = s.repo.WithTx(ctx, func(tx pgx.Tx, txRepo repository.Repository) error {
+		if err := txRepo.CreateMagicCode(ctx, code, email, phone, expiresAt); err != nil {
+			return err
 		}
 
-		locale := i18n.LocaleFromContext(ctx)
-		if locale == "" {
-			locale = i18n.DetectLocale(ctx, "en")
-		}
-
-		if txErr := txRepo.StoreOutbox(ctx, notifier.EventMagicCodeRequested, map[string]any{
-			"email":  email,
-			"phone":  phone,
-			"code":   code,
-			"locale": locale,
-		}); txErr != nil {
-			return txErr
+		// Insert notification event into outbox within the same transaction
+		if s.outboxRepo != nil {
+			payload := map[string]any{
+				"email":  email,
+				"phone":  phone,
+				"code":   code,
+				"locale": locale,
+			}
+			if err := s.outboxRepo.Store(ctx, tx, notifier.EventMagicCodeRequested, payload); err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -166,6 +178,7 @@ func hashContactInfo(info string) string {
 }
 
 // CompleteLogin verifies the magic code and generates tokens for the user
+//nolint:funlen
 func (s *AuthService) CompleteLogin(ctx context.Context, req *authv1.CompleteLoginRequest) (*authv1.CompleteLoginResponse, error) {
 	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "CompleteLogin")
 	defer span.End()
@@ -183,22 +196,29 @@ func (s *AuthService) CompleteLogin(ctx context.Context, req *authv1.CompleteLog
 		return nil, err
 	}
 
-	// Clean up codes and publish login event within transaction
-	err = s.repo.WithTx(ctx, func(txRepo repository.Repository) error {
-		if txErr := txRepo.InvalidateMagicCodes(ctx, email, phone); txErr != nil {
-			slog.ErrorContext(ctx, "failed to invalidate magic codes", "error", txErr)
+	// Clean up codes within transaction and enqueue background task
+	err = s.repo.WithTx(ctx, func(tx pgx.Tx, txRepo repository.Repository) error {
+		if err := txRepo.InvalidateMagicCodes(ctx, email, phone); err != nil {
+			return err
 		}
 
-		return txRepo.StoreOutbox(ctx, events.EventAuthUserLoggedIn, map[string]any{
-			"user_id":      user.ID,
-			"email":        email,
-			"phone":        phone,
-			"login_method": "magic_code",
-			"timestamp":    time.Now().UTC(),
-		})
+		if s.outboxRepo != nil {
+			payload := map[string]any{
+				"user_id":      user.ID,
+				"email":        email,
+				"phone":        phone,
+				"login_method": "magic_code",
+				"timestamp":    time.Now().UTC(),
+			}
+			if err := s.outboxRepo.Store(ctx, tx, events.EventAuthUserLoggedIn, payload); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create outbox event for login", "error", err)
+		slog.ErrorContext(ctx, "failed to invalidate magic codes or store outbox event", "error", err)
 	}
 
 	// Audit Log
@@ -257,24 +277,30 @@ func (s *AuthService) Register(ctx context.Context, req *authv1.RegisterRequest)
 
 	userID := uid.String()
 
-	// Use transaction to ensure user and role are created together
-	if err := s.repo.WithTx(ctx, func(tx repository.Repository) error {
-		if err := tx.CreateUser(ctx, userID, email, phone); err != nil {
+	// Use transaction to ensure user, role, and outbox event are created together
+	if err := s.repo.WithTx(ctx, func(tx pgx.Tx, txRepo repository.Repository) error {
+		if err := txRepo.CreateUser(ctx, userID, email, phone); err != nil {
 			return err
 		}
 
-		if err := tx.UpdateUserProfile(ctx, userID, displayName, "", ""); err != nil {
+		if err := txRepo.UpdateUserProfile(ctx, userID, displayName, "", ""); err != nil {
 			return err
 		}
 
-		if err := tx.AssignRole(ctx, userID, RoleUser); err != nil {
+		if err := txRepo.AssignRole(ctx, userID, RoleUser); err != nil {
 			return err
 		}
 
-		// Publish registration event via outbox
-		return tx.StoreOutbox(ctx, events.EventAuthUserRegistered, events.NewUserRegisteredPayload(
-			userID, email, phone, displayName, nationality, docType, docNumber,
-		))
+		if s.outboxRepo != nil {
+			payload := events.NewUserRegisteredPayload(
+				userID, email, phone, displayName, nationality, docType, docNumber,
+			)
+			if err := s.outboxRepo.Store(ctx, tx, events.EventAuthUserRegistered, payload); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to register user", "error", err)
 		return nil, status.Error(codes.Internal, "internal server error")
@@ -791,12 +817,20 @@ func (s *AuthService) RequestEmailVerification(ctx context.Context, _ *authv1.Re
 		}, nil
 	}
 
-	// Publish event via outbox
-	if err := s.repo.StoreOutbox(ctx, events.EventAuthEmailVerificationRequested, map[string]any{
-		"user_id": userID,
-		"email":   user.Email.String,
-	}); err != nil {
-		slog.ErrorContext(ctx, "failed to store outbox event", "error", err)
+	// Enqueue background task
+	if s.queueClient != nil {
+		payload := map[string]any{
+			"user_id": userID,
+			"email":   user.Email.String,
+		}
+
+		payloadBytes, err := json.Marshal(payload)
+		if err == nil {
+			task := queue.NewTask(events.EventAuthEmailVerificationRequested, payloadBytes)
+			if err := s.queueClient.Enqueue(task); err != nil {
+				slog.ErrorContext(ctx, "failed to enqueue email verification task", "error", err)
+			}
+		}
 	}
 
 	return &authv1.RequestEmailVerificationResponse{
@@ -872,6 +906,7 @@ func (s *AuthService) UpdateProfile(ctx context.Context, req *authv1.UpdateProfi
 }
 
 // ChangeEmail initiates email change by sending verification to new email.
+//nolint:funlen
 func (s *AuthService) ChangeEmail(ctx context.Context, req *authv1.ChangeEmailRequest) (*authv1.ChangeEmailResponse, error) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
@@ -897,18 +932,25 @@ func (s *AuthService) ChangeEmail(ctx context.Context, req *authv1.ChangeEmailRe
 
 	expiresAt := time.Now().Add(15 * time.Minute)
 
-	err = s.repo.WithTx(ctx, func(txRepo repository.Repository) error {
-		if txErr := txRepo.CreatePendingContactChange(ctx, changeID.String(), userID, "email", req.NewEmail, code, expiresAt); txErr != nil {
-			return txErr
+	err = s.repo.WithTx(ctx, func(tx pgx.Tx, txRepo repository.Repository) error {
+		if err := txRepo.CreatePendingContactChange(ctx, changeID.String(), userID, "email", req.NewEmail, code, expiresAt); err != nil {
+			return err
 		}
 
-		return txRepo.StoreOutbox(ctx, notifier.EventMagicCodeRequested, map[string]string{
-			"email": req.NewEmail,
-			"code":  code,
-		})
+		if s.outboxRepo != nil {
+			payload := map[string]string{
+				"email": req.NewEmail,
+				"code":  code,
+			}
+			if err := s.outboxRepo.Store(ctx, tx, notifier.EventMagicCodeRequested, payload); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create pending email change or outbox event", "error", err)
+		slog.ErrorContext(ctx, "failed to create pending email change", "error", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
@@ -931,6 +973,7 @@ func (s *AuthService) ChangeEmail(ctx context.Context, req *authv1.ChangeEmailRe
 }
 
 // ChangePhone initiates phone change by sending verification to new phone.
+//nolint:funlen
 func (s *AuthService) ChangePhone(ctx context.Context, req *authv1.ChangePhoneRequest) (*authv1.ChangePhoneResponse, error) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
@@ -956,18 +999,25 @@ func (s *AuthService) ChangePhone(ctx context.Context, req *authv1.ChangePhoneRe
 
 	expiresAt := time.Now().Add(15 * time.Minute)
 
-	err = s.repo.WithTx(ctx, func(txRepo repository.Repository) error {
-		if txErr := txRepo.CreatePendingContactChange(ctx, changeID.String(), userID, "phone", req.NewPhone, code, expiresAt); txErr != nil {
-			return txErr
+	err = s.repo.WithTx(ctx, func(tx pgx.Tx, txRepo repository.Repository) error {
+		if err := txRepo.CreatePendingContactChange(ctx, changeID.String(), userID, "phone", req.NewPhone, code, expiresAt); err != nil {
+			return err
 		}
 
-		return txRepo.StoreOutbox(ctx, notifier.EventMagicCodeRequested, map[string]string{
-			"phone": req.NewPhone,
-			"code":  code,
-		})
+		if s.outboxRepo != nil {
+			payload := map[string]string{
+				"phone": req.NewPhone,
+				"code":  code,
+			}
+			if err := s.outboxRepo.Store(ctx, tx, notifier.EventMagicCodeRequested, payload); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create pending phone change or outbox event", "error", err)
+		slog.ErrorContext(ctx, "failed to create pending phone change", "error", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
