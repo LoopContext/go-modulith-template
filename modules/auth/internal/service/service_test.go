@@ -98,7 +98,6 @@ func TestAuthService_RequestLogin(t *testing.T) {
 				return fn(nil, mRepo)
 			}).AnyTimes()
 
-
 			tokenSvc, _ := authtoken.NewService(testutil.TestJWTPrivateKeyPEM)
 			bus := events.NewBus()
 			auditLog := &audit.NoopLogger{}
@@ -197,7 +196,6 @@ func TestAuthService_CompleteLogin(t *testing.T) {
 				return fn(nil, mRepo)
 			}).AnyTimes()
 
-
 			tokenSvc, _ := authtoken.NewService(testutil.TestJWTPrivateKeyPEM)
 			bus := events.NewBus()
 			auditLog := &audit.NoopLogger{}
@@ -247,7 +245,6 @@ func TestAuthService_Logout(t *testing.T) {
 			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(pgx.Tx, repository.Repository) error) error {
 				return fn(nil, mRepo)
 			}).AnyTimes()
-
 
 			tokenSvc, _ := authtoken.NewService(testutil.TestJWTPrivateKeyPEM)
 			bus := events.NewBus()
@@ -333,7 +330,6 @@ func TestAuthService_GetProfile(t *testing.T) {
 			mRepo.EXPECT().WithTx(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn func(pgx.Tx, repository.Repository) error) error {
 				return fn(nil, mRepo)
 			}).AnyTimes()
-
 
 			tokenSvc, _ := authtoken.NewService(testutil.TestJWTPrivateKeyPEM)
 			svc := NewAuthService(mRepo, tokenSvc, events.NewBus(), &audit.NoopLogger{}, feature.NewInMemoryManager(), "dev", nil, nil)

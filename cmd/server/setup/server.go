@@ -112,7 +112,7 @@ func AndStartServers(ctx context.Context, cfg *config.AppConfig, reg *registry.R
 			}
 		})
 		go outboxPublisher.Start(ctx)
-		
+
 		// Stop outbox publisher on shutdown
 		go func() {
 			<-ctx.Done()

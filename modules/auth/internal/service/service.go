@@ -80,6 +80,7 @@ func NewAuthService(repo repository.Repository, svc *authtoken.Service, bus *eve
 // RequestLogin generates a magic code and emits an event to send it to the user.
 // Note: This endpoint always returns success to prevent email enumeration attacks.
 // If the user doesn't exist, no code is sent but the response looks identical.
+//
 //nolint:funlen
 func (s *AuthService) RequestLogin(ctx context.Context, req *authv1.RequestLoginRequest) (*authv1.RequestLoginResponse, error) {
 	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "RequestLogin")
@@ -178,6 +179,7 @@ func hashContactInfo(info string) string {
 }
 
 // CompleteLogin verifies the magic code and generates tokens for the user
+//
 //nolint:funlen
 func (s *AuthService) CompleteLogin(ctx context.Context, req *authv1.CompleteLoginRequest) (*authv1.CompleteLoginResponse, error) {
 	ctx, span := telemetry.ServiceSpan(ctx, ModuleName, "CompleteLogin")
@@ -906,6 +908,7 @@ func (s *AuthService) UpdateProfile(ctx context.Context, req *authv1.UpdateProfi
 }
 
 // ChangeEmail initiates email change by sending verification to new email.
+//
 //nolint:funlen
 func (s *AuthService) ChangeEmail(ctx context.Context, req *authv1.ChangeEmailRequest) (*authv1.ChangeEmailResponse, error) {
 	userID, err := getUserIDFromContext(ctx)
@@ -973,6 +976,7 @@ func (s *AuthService) ChangeEmail(ctx context.Context, req *authv1.ChangeEmailRe
 }
 
 // ChangePhone initiates phone change by sending verification to new phone.
+//
 //nolint:funlen
 func (s *AuthService) ChangePhone(ctx context.Context, req *authv1.ChangePhoneRequest) (*authv1.ChangePhoneResponse, error) {
 	userID, err := getUserIDFromContext(ctx)

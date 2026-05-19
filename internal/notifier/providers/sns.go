@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/LoopContext/go-modulith-template/internal/notifier"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sns/types"
-	"github.com/LoopContext/go-modulith-template/internal/notifier"
 )
 
 // SNSConfig holds configuration for the AWS SNS provider.

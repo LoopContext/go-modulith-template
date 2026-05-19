@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/LoopContext/go-modulith-template/internal/notifier"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
-	"github.com/LoopContext/go-modulith-template/internal/notifier"
 )
 
 // SESConfig holds configuration for the AWS SES provider.

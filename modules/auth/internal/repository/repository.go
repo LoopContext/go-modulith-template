@@ -845,4 +845,3 @@ func (r *SQLRepository) CleanupExpiredMagicCodes(ctx context.Context) (int, erro
 
 	return int(tag.RowsAffected()), nil
 }
-
