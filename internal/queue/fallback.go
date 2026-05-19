@@ -70,11 +70,8 @@ func (s *Server) HandleFunc(pattern string, handler func(context.Context, *Task)
 // Start runs the server worker loop in a background goroutine.
 func (s *Server) Start() error {
 	slog.Info("Starting in-memory fallback queue server...")
-	s.wg.Add(1)
 
-	go func() {
-		defer s.wg.Done()
-
+	s.wg.Go(func() {
 		for {
 			select {
 			case <-s.stop:
@@ -101,7 +98,7 @@ func (s *Server) Start() error {
 				}(task, handler)
 			}
 		}
-	}()
+	})
 
 	return nil
 }
