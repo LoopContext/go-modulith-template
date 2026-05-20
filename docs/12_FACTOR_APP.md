@@ -269,7 +269,7 @@ shutdown_timeout: 30s # Tiempo máximo para shutdown graceful
 
 **Implementación:**
 
--   ✅ Mismas versiones de dependencias (PostgreSQL 18, Valkey 7)
+-   ✅ Mismas versiones de dependencias (PostgreSQL 18.4, Valkey 7)
 -   ✅ Mismas herramientas (golang-migrate, sqlc, buf)
 -   ✅ Mismo código base
 -   ✅ Diferencias solo en configuración
@@ -279,7 +279,7 @@ shutdown_timeout: 30s # Tiempo máximo para shutdown graceful
 ```yaml
 # docker-compose.yaml (desarrollo)
 db:
-    image: postgres:18-alpine # ✅ Misma versión que producción
+    image: postgres:18.4-alpine # ✅ Misma versión que producción
 
 # deployment/helm/modulith/values-server.yaml (producción)
 # Usar misma versión de PostgreSQL

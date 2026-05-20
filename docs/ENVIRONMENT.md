@@ -200,7 +200,7 @@ El template está diseñado para mantener **paridad entre desarrollo y producci�
 
 **1. Mismas Dependencias:**
 
--   ✅ **Base de datos:** PostgreSQL 18 (misma versión en dev y prod)
+-   ✅ **Base de datos:** PostgreSQL 18.4 (misma versión en dev y prod)
 -   ✅ **Valkey:** Valkey 7 (opcional, misma versión)
 -   ✅ **Go:** Go 1.24+ (misma versión de compilación)
 -   ✅ **Herramientas:** Versiones fijas en `go.mod` y `buf.lock`
@@ -224,7 +224,7 @@ El template está diseñado para mantener **paridad entre desarrollo y producci�
 
 ```yaml
 db:
-    image: postgres:18-alpine # ✅ Misma versión que producción
+    image: postgres:18.4-alpine # ✅ Misma versión que producción
 
 valkey:
     image: valkey/valkey:8.0-alpine # ✅ Misma versión que producción
@@ -261,7 +261,7 @@ Algunas diferencias son aceptables y necesarias:
 
 ```bash
 # En desarrollo
-docker-compose up db  # postgres:18-alpine
+docker-compose up db  # postgres:18.4-alpine
 
 # En producción (Kubernetes)
 # Usar la misma versión en Helm values
