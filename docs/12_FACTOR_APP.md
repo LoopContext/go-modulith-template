@@ -269,7 +269,7 @@ shutdown_timeout: 30s # Tiempo máximo para shutdown graceful
 
 **Implementación:**
 
--   ✅ Mismas versiones de dependencias (PostgreSQL 18.4, Valkey 7)
+-   ✅ Mismas versiones de dependencias (PostgreSQL 18.4, Valkey 9.1)
 -   ✅ Mismas herramientas (golang-migrate, sqlc, buf)
 -   ✅ Mismo código base
 -   ✅ Diferencias solo en configuración

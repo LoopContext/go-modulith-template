@@ -201,7 +201,7 @@ El template está diseñado para mantener **paridad entre desarrollo y producci�
 **1. Mismas Dependencias:**
 
 -   ✅ **Base de datos:** PostgreSQL 18.4 (misma versión en dev y prod)
--   ✅ **Valkey:** Valkey 7 (opcional, misma versión)
+-   ✅ **Valkey:** Valkey 9.1 (opcional, misma versión)
 -   ✅ **Go:** Go 1.24+ (misma versión de compilación)
 -   ✅ **Herramientas:** Versiones fijas en `go.mod` y `buf.lock`
 
@@ -227,7 +227,7 @@ db:
     image: postgres:18.4-alpine # ✅ Misma versión que producción
 
 valkey:
-    image: valkey/valkey:8.0-alpine # ✅ Misma versión que producción
+    image: valkey/valkey:9.1-alpine # ✅ Misma versión que producción
 ```
 
 **Recomendación:** Usar las mismas versiones de imágenes en producción (Kubernetes/Helm).
