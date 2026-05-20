@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:18.4-alpine
+    image: ${POSTGRES_IMAGE:-postgis/postgis:18-3.6-alpine}
     container_name: modulith_db
     ports:
       - "${DB_PORT:-5432}:5432"
